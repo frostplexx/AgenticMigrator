@@ -1,7 +1,10 @@
 import os
 import time
 import platform
+from openhands.sdk.agent import Agent
 from pydantic import SecretStr
+
+from .agents.migrator import MigratorAgent
 from .utils.banner import show_banner
 from openhands.sdk import (
     LLM,
@@ -16,6 +19,7 @@ class MigrationManager:
     instance = None  # pyright: ignore[reportUnannotatedClassAttribute]
 
     llm: LLM | None = None
+    _initialized: bool = False
 
 
 
@@ -52,6 +56,9 @@ class MigrationManager:
 
 
     def __init__(self):
+        # Skip initialization if already initialized
+        if self._initialized:
+            return
 
         # Guard environment variables
         model = os.environ.get('LLM_MODEL', None)
@@ -79,6 +86,7 @@ class MigrationManager:
         )
 
         show_banner(model=model)
+        self._initialized = True
 
 
 
@@ -89,97 +97,119 @@ class MigrationManager:
         if self.llm is None:
             raise ValueError("MigrationManager is not properly initialized.")
 
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        local_input_dir = os.path.join(os.path.dirname(__file__), "workspace")
+        local_output_dir = os.path.join(project_root, "output")
+
         with createDockerWorkspace(8081) as workspace:
 
+            remote_root = workspace.working_dir.rstrip("/")
+            remote_output_dir = f"{remote_root}/out"
 
-            def event_callback(event) -> None:  # pyright: ignore[reportUnknownParameterType]
-                event_type = type(event).__name__  # pyright: ignore[reportUnknownArgumentType]
-                logger.info(f"🔔 Callback received event: {event_type}\n{event}")
-                received_events.append(event)  # pyright: ignore[reportUnknownArgumentType]
-                last_event_time["ts"] = time.time()
+            self._upload_directory(workspace, local_input_dir, remote_root, logger)
 
-
-
-            agent = get_default_agent(
-                llm=self.llm,
-                cli_mode=False, # CLI mode = False will enable browser tools
+            # Pre-create the output directory inside the container so the agent
+            # can write to it without first having to mkdir.
+            mkdir_result = workspace.execute_command(
+                f"mkdir -p {remote_output_dir}", timeout=30
             )
-
-            # Set up callback collection
-            received_events = []
-            last_event_time = {"ts": time.time()}
-
-            # Wait for VNC server to initialize
-            logger.info("Waiting for VNC server to start...")
-
-            # First, let's see what processes are actually running
-            ps_result = workspace.execute_command("ps aux | grep -E '(vnc|novnc)' | grep -v grep")
-            logger.info(f"VNC-related processes:\n{ps_result.stdout}")
-
-            # Check if noVNC files exist
-            novnc_check = workspace.execute_command("ls -la /opt/novnc* /usr/share/novnc* 2>&1 || echo 'noVNC directories not found'")
-            logger.info(f"noVNC installation check:\n{novnc_check.stdout}")
-
-            vnc_ready = False
-            for attempt in range(10):
-                result = workspace.execute_command("pgrep -f novnc > /dev/null 2>&1 && echo true || echo false")
-                logger.info(f"VNC check attempt {attempt + 1}: stdout='{result.stdout.strip()}', exit_code={result.exit_code}")
-                if result.stdout.strip() == "true":
-                    vnc_ready = True
-                    logger.info("✓ VNC server is running")
-                    break
-                time.sleep(1)
-
-            if not vnc_ready:
-                logger.warning(
-                    "VNC server process not detected in workspace after 10 seconds. "
-                    "VNC access may not work as expected. Continuing anyway..."
+            if mkdir_result.exit_code != 0:
+                logger.error(
+                    f"Failed to create remote output dir {remote_output_dir} "
+                    f"(exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
                 )
 
-
-
+            # Create a conversation with the agent and workspace, then run the migration instructions.
             conversation = Conversation(
-                agent=agent,
+                agent=MigratorAgent().get_agent(self.llm),
                 workspace=workspace,
-                callbacks=[event_callback],
             )
             assert isinstance(conversation, RemoteConversation)
 
             try:
-                logger.info(f"\n📋 Conversation ID: {conversation.state.id}")
-
-                logger.info("📝 Sending first message...")
-
-            
-
+                # Send the inital message to the agent to start the migration process, then run the conversation loop until completion.
                 conversation.send_message(
-                    """
-                    Could you go to https://lmu.de/ find the Newsroom and 
-                    summarize the key points of the 5 latest news articles?
+                    f"""
+                    Read the AGENT.md file in the workspace and execute all instructions in it.
+                    Make sure to follow all instructions carefully, including any setup steps and
+                    how to use the browser tool to complete the tasks outlined in AGENT.md.
+
+                    IMPORTANT: Write every file you generate as part of this task into the
+                    directory `{remote_output_dir}`. Preserve any subdirectory structure you
+                    need inside that directory. Do not place generated output anywhere else —
+                    only the contents of `{remote_output_dir}` will be returned to the user.
                     """
                 )
                 conversation.run()
 
                 logger.info(f"Agent status: {conversation.state.execution_status}")
-
-                if os.getenv("CI"):
-                    logger.info(
-                        "CI environment detected; skipping interactive prompt and closing workspace."  # noqa: E501
-                    )
-                    conversation.close()
-                else:
-                    # Wait for user confirm to exit when running locally
-                    y = None
-                    while y != "y":
-                        y = input(
-                            "Because you've enabled extra_ports=True in DockerDevWorkspace, "
-                            "you can open a browser tab to see the *actual* browser OpenHands "
-                            "is interacting with via VNC.\n\n"
-                            "Link: http://localhost:8012/vnc.html?autoconnect=1&resize=remote\n\n"
-                            "Press 'y' and Enter to exit and terminate the workspace.\n"
-                            ">> "
-                        )
             finally:
+                try:
+                    self._download_directory(
+                        workspace, remote_output_dir, local_output_dir, logger
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to download workspace output: {e}")
+
                 print("\n🧹 Cleaning up conversation...")
                 conversation.close()
-        
+
+
+    def _upload_directory(self, workspace, local_dir: str, remote_dir: str, logger) -> None:
+        """Recursively upload a local directory to the remote workspace, preserving structure."""
+        if not os.path.isdir(local_dir):
+            raise ValueError(f"Local input directory does not exist: {local_dir}")
+
+        for root, _dirs, files in os.walk(local_dir):
+            for file in files:
+                local_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_path, local_dir)
+                # Normalize to POSIX separators for the remote (Linux) container
+                remote_rel = relative_path.replace(os.sep, "/")
+                destination_path = f"{remote_dir}/{remote_rel}"
+
+                logger.info(f"Uploading {local_path} -> {destination_path}")
+                result = workspace.file_upload(
+                    source_path=local_path,
+                    destination_path=destination_path,
+                )
+                if result.error is not None:
+                    raise RuntimeError(
+                        f"Failed to upload {local_path} -> {destination_path}: {result.error}"
+                    )
+
+
+    def _download_directory(self, workspace, remote_dir: str, local_dir: str, logger) -> None:
+        """Recursively download a remote workspace directory to a local directory, preserving structure."""
+        # Enumerate every regular file under the remote workspace root.
+        # Using -print0 to handle exotic filenames safely.
+        list_cmd = f"find {remote_dir} -type f -print0"
+        result = workspace.execute_command(list_cmd, timeout=120)
+        if result.exit_code != 0:
+            raise RuntimeError(
+                f"Failed to list remote files (exit={result.exit_code}): {result.stderr}"
+            )
+
+        stdout = result.stdout or ""
+        remote_files = [p for p in stdout.split("\0") if p]
+        if not remote_files:
+            logger.info(f"No files found under {remote_dir}; nothing to download.")
+            return
+
+        os.makedirs(local_dir, exist_ok=True)
+        logger.info(f"Downloading {len(remote_files)} file(s) from {remote_dir} -> {local_dir}")
+
+        for remote_path in remote_files:
+            relative_path = os.path.relpath(remote_path, remote_dir)
+            local_path = os.path.join(local_dir, relative_path)
+
+            logger.info(f"Downloading {remote_path} -> {local_path}")
+            download_result = workspace.file_download(
+                source_path=remote_path,
+                destination_path=local_path,
+            )
+            if download_result.error is not None:
+                logger.error(
+                    f"Failed to download {remote_path} -> {local_path}: {download_result.error}"
+                )
+
