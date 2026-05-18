@@ -4,6 +4,8 @@ import platform
 from openhands.sdk.agent import Agent
 from pydantic import SecretStr
 
+from .utils.prompt_generator import PromptGenerator
+
 from .agents.migrator import MigratorAgent
 from .utils.banner import show_banner
 from openhands.sdk import (
@@ -206,27 +208,9 @@ class MigrationManager:
             )
             assert isinstance(conversation, RemoteConversation)
 
-            # Print tmux monitoring command
-            print(f"\n📊 Agent activity logs: {agent_log_dir}")
-            print("To monitor in separate tmux panes:")
-            print(f"  tmux split-window -h 'tail -f {agent_log_dir}/main.log'")
-            print(f"  tmux split-window -v 'tail -f {agent_log_dir}/delegation.log'")
-            print()
-
             try:
                 # Send the inital message to the agent to start the migration process, then run the conversation loop until completion.
-                conversation.send_message(
-                    f"""
-                    Read the AGENT.md file in the workspace and execute all instructions in it.
-                    Make sure to follow all instructions carefully, including any setup steps and
-                    how to use the browser tool to complete the tasks outlined in AGENT.md.
-
-                    IMPORTANT: Write every file you generate as part of this task into the
-                    directory `{remote_output_dir}`. Preserve any subdirectory structure you
-                    need inside that directory. Do not place generated output anywhere else —
-                    only the contents of `{remote_output_dir}` will be returned to the user.
-                    """
-                )
+                conversation.send_message(PromptGenerator().prompt)
                 conversation.run()
                 logger.info(f"Agent status: {conversation.state.execution_status}")
 
@@ -286,8 +270,6 @@ class MigrationManager:
                 except Exception as e:
                     logger.error(f"Failed to download workspace output: {e}")
 
-                # Display cost and usage statistics
-                self._print_usage_summary(conversation, logger)
 
                 print("\n🧹 Cleaning up conversation...")
                 conversation.close()
@@ -315,70 +297,6 @@ class MigrationManager:
                     raise RuntimeError(
                         f"Failed to upload {local_path} -> {destination_path}: {result.error}"
                     )
-
-
-    def _print_usage_summary(self, conversation, logger) -> None:
-        """Print token usage and cost summary for the conversation."""
-        try:
-            stats = conversation.state.stats
-            if not stats:
-                return
-
-            # Get metrics from all LLMs used in the conversation
-            print("\n" + "=" * 60)
-            print("📊 Usage Summary")
-            print("=" * 60)
-
-            total_cost = 0.0
-            total_input_tokens = 0
-            total_output_tokens = 0
-            total_cache_read = 0
-            total_cache_write = 0
-
-            for usage_id, llm_stats in stats.llm_stats.items():
-                metrics = llm_stats.metrics
-                if not metrics.accumulated_token_usage:
-                    continue
-
-                usage = metrics.accumulated_token_usage
-                cost = metrics.accumulated_cost
-
-                print(f"\n{usage_id} ({metrics.model_name}):")
-                print(f"  Input tokens:  {usage.prompt_tokens:,}")
-                print(f"  Output tokens: {usage.completion_tokens:,}")
-                if usage.cache_read_tokens > 0:
-                    print(f"  Cache read:    {usage.cache_read_tokens:,}")
-                if usage.cache_write_tokens > 0:
-                    print(f"  Cache write:   {usage.cache_write_tokens:,}")
-                if usage.reasoning_tokens > 0:
-                    print(f"  Reasoning:     {usage.reasoning_tokens:,}")
-                if cost > 0:
-                    print(f"  Cost:          ${cost:.4f}")
-
-                total_cost += cost
-                total_input_tokens += usage.prompt_tokens
-                total_output_tokens += usage.completion_tokens
-                total_cache_read += usage.cache_read_tokens
-                total_cache_write += usage.cache_write_tokens
-
-            # Print totals
-            print("\n" + "-" * 60)
-            print(f"Total Input:       {total_input_tokens:,} tokens")
-            print(f"Total Output:      {total_output_tokens:,} tokens")
-            if total_cache_read > 0:
-                print(f"Total Cache Read:  {total_cache_read:,} tokens")
-            if total_cache_write > 0:
-                print(f"Total Cache Write: {total_cache_write:,} tokens")
-
-            if total_cost > 0:
-                print(f"\n💰 Total Cost: ${total_cost:.4f}")
-            else:
-                print(f"\n💰 Total Cost: $0.00 (local model)")
-            print("=" * 60)
-
-        except Exception as e:
-            logger.warning(f"Failed to print usage summary: {e}")
-
 
     def _remote_dir_has_files(self, workspace, remote_dir: str, logger) -> bool:
         """Return True iff at least one regular file exists under remote_dir."""
