@@ -82,7 +82,11 @@ class MigrationManager:
             usage_id="agent",
             model=model,
             api_key=SecretStr(api_key) if api_key else None,
-            base_url=base_url
+            base_url=base_url,
+            # Reasoning models (OpenAI o-series, GPT-5, etc.) → highest effort.
+            # Anthropic Claude uses extended_thinking_budget instead; the
+            # SDK default (200k tokens) is already plenty, so we leave it.
+            reasoning_effort="xhigh",
         )
 
         show_banner(model=model)
@@ -141,8 +145,56 @@ class MigrationManager:
                     """
                 )
                 conversation.run()
-
                 logger.info(f"Agent status: {conversation.state.execution_status}")
+
+                # The agent sometimes "finishes" after only outlining a plan,
+                # without actually writing any output files. Nudge it to finish
+                # the work, up to a small number of attempts.
+                max_nudges = 3
+                for attempt in range(1, max_nudges + 1):
+                    if self._remote_dir_has_files(workspace, remote_output_dir, logger):
+                        break
+
+                    logger.warning(
+                        f"Agent finished but {remote_output_dir} is empty "
+                        f"(nudge {attempt}/{max_nudges})."
+                    )
+                    conversation.send_message(
+                        f"""
+                        You stopped without completing the task. The directory
+                        `{remote_output_dir}` is still empty, so nothing will be
+                        returned to the user.
+
+                        Continue the work described in `/workspace/AGENT.md` and
+                        produce the required files inside `{remote_output_dir}`
+                        now.
+
+                        VERY IMPORTANT — about HOW you reply:
+                        - Do NOT emit JSON like {{"type": "function", ...}} or
+                          {{"thought": ...}} as your message content. That is plain
+                          text and will be ignored — no file will be written.
+                        - Instead, invoke the tools the normal way (function /
+                          tool calls). The `file_editor` tool with
+                          `command="create"` is the right way to write
+                          `{remote_output_dir}/<name>`.
+                        - After the tool call succeeds, verify with the
+                          `terminal` tool (`ls -la {remote_output_dir}` and
+                          `cat <file>`) that the file is actually on disk with the
+                          intended contents.
+                        - Only stop once `{remote_output_dir}` contains the
+                          finished output for every instruction in AGENT.md.
+                        """
+                    )
+                    conversation.run()
+                    logger.info(
+                        f"Agent status after nudge {attempt}: "
+                        f"{conversation.state.execution_status}"
+                    )
+                else:
+                    logger.error(
+                        f"Agent never produced output in {remote_output_dir} "
+                        f"after {max_nudges} nudges; giving up."
+                    )
             finally:
                 try:
                     self._download_directory(
@@ -177,6 +229,22 @@ class MigrationManager:
                     raise RuntimeError(
                         f"Failed to upload {local_path} -> {destination_path}: {result.error}"
                     )
+
+
+    def _remote_dir_has_files(self, workspace, remote_dir: str, logger) -> bool:
+        """Return True iff at least one regular file exists under remote_dir."""
+        # `find ... -print -quit` exits after the first match, which is much
+        # cheaper than enumerating the whole tree just to check emptiness.
+        result = workspace.execute_command(
+            f"find {remote_dir} -type f -print -quit", timeout=30
+        )
+        if result.exit_code != 0:
+            logger.warning(
+                f"Failed to probe {remote_dir} for files "
+                f"(exit={result.exit_code}): {result.stderr}"
+            )
+            return False
+        return bool((result.stdout or "").strip())
 
 
     def _download_directory(self, workspace, remote_dir: str, local_dir: str, logger) -> None:
