@@ -1,14 +1,29 @@
+import os
+from pathlib import Path
 from openhands.sdk import LLM, Agent, Tool
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
+from openhands.sdk.subagent import load_agents_from_dir, register_agent_if_absent, agent_definition_to_factory
 from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 from openhands.tools.delegate import DelegateTool
+from openhands.tools.browser_use import BrowserToolSet
 
 
 class MigratorAgent:
     """Main Migration agents that then spawns other agents to do the actual migration work"""
 
     def __init__(self):
+        # Register subagents from the subagents directory
+        subagents_dir = Path(__file__).parent / "subagents"
+        if subagents_dir.exists():
+            agent_defs = load_agents_from_dir(subagents_dir)
+            for agent_def in agent_defs:
+                factory = agent_definition_to_factory(agent_def)
+                register_agent_if_absent(
+                    name=agent_def.name,
+                    factory_func=factory,
+                    description=agent_def,
+                )
         return
 
 
@@ -23,6 +38,7 @@ class MigratorAgent:
                 Tool(name=TerminalTool.name),
                 Tool(name=FileEditorTool.name),
                 Tool(name=DelegateTool.name),
+                Tool(name=BrowserToolSet.name),
             ],
             condenser=LLMSummarizingCondenser(llm=condenser_llm, max_size=50),
         )

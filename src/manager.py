@@ -78,6 +78,35 @@ class MigrationManager:
         # Transform localhost URLs to be accessible from Docker containers
         base_url = self._transform_localhost_url(base_url)
 
+        # Ollama-specific parameters passed via litellm_extra_body.
+        extra_body = {}
+        if _is_ollama_provider:
+            # Context window size (num_ctx). Default: 32768
+            num_ctx_str = os.environ.get("LLM_NUM_CTX")
+            num_ctx = int(num_ctx_str) if num_ctx_str else 32768
+            extra_body["num_ctx"] = num_ctx
+
+            # Keep-alive duration (how long to keep model in memory).
+            # Default: 30m; override via LLM_KEEP_ALIVE env var.
+            # Format: duration string like "5m", "30m", "1h", or "-1" for indefinite.
+            keep_alive = os.environ.get("LLM_KEEP_ALIVE", "30m")
+            extra_body["keep_alive"] = keep_alive
+
+        # Cost tracking (optional) - set per-token costs for usage tracking.
+        # For Ollama (local), these default to 0. For API providers, set via env vars.
+        input_cost = None
+        output_cost = None
+        input_cost_str = os.environ.get("LLM_INPUT_COST_PER_TOKEN")
+        output_cost_str = os.environ.get("LLM_OUTPUT_COST_PER_TOKEN")
+        if input_cost_str:
+            input_cost = float(input_cost_str)
+        if output_cost_str:
+            output_cost = float(output_cost_str)
+        # Default to $0 for Ollama (local models)
+        if _is_ollama_provider:
+            input_cost = input_cost or 0.0
+            output_cost = output_cost or 0.0
+
         self.llm = LLM(
             usage_id="agent",
             model=model,
@@ -87,6 +116,12 @@ class MigrationManager:
             # Anthropic Claude uses extended_thinking_budget instead; the
             # SDK default (200k tokens) is already plenty, so we leave it.
             reasoning_effort="xhigh",
+            litellm_extra_body=extra_body,
+            input_cost_per_token=input_cost,
+            output_cost_per_token=output_cost,
+            # Disable native tool calling for models that don't support it properly.
+            # When False, OpenHands will use prompt-based tool calling with XML format.
+            native_tool_calling=False,
         )
 
         show_banner(model=model)
@@ -97,6 +132,10 @@ class MigrationManager:
     def migrate(self, extension: str):
 
         logger = get_logger(__name__)
+
+        # Enable DEBUG logging to see more detailed agent activity
+        import logging
+        logging.getLogger("openhands").setLevel(logging.DEBUG)
 
         if self.llm is None:
             raise ValueError("MigrationManager is not properly initialized.")
@@ -124,11 +163,55 @@ class MigrationManager:
                 )
 
             # Create a conversation with the agent and workspace, then run the migration instructions.
+            # Add a callback to log agent activity to files for tmux monitoring
+            agent_log_dir = os.path.join(project_root, "agent_logs")
+            os.makedirs(agent_log_dir, exist_ok=True)
+
+            def agent_activity_logger(event):
+                """Log events to agent-specific files for tmux pane monitoring."""
+                from openhands.sdk.event import ActionEvent, ObservationEvent, MessageEvent
+
+                # Determine which agent this event is from (main or delegated)
+                agent_name = "main"
+                if isinstance(event, (ActionEvent, ObservationEvent)):
+                    tool_name = getattr(event, 'tool_name', None)
+                    if tool_name == 'delegate':
+                        # This is a delegation event
+                        agent_name = "delegation"
+                    elif hasattr(event, 'tool_call_id'):
+                        # Try to infer from context - this is simplified
+                        # In practice, tracking delegation context is complex
+                        pass
+
+                log_file = os.path.join(agent_log_dir, f"{agent_name}.log")
+                timestamp = time.strftime("%H:%M:%S")
+
+                with open(log_file, "a") as f:
+                    if isinstance(event, ActionEvent):
+                        f.write(f"[{timestamp}] ACTION: {event.tool_name}\n")
+                        if hasattr(event, 'summary'):
+                            f.write(f"  Summary: {event.summary}\n")
+                    elif isinstance(event, ObservationEvent):
+                        f.write(f"[{timestamp}] RESULT: {event.tool_name}\n")
+                        if hasattr(event, 'error') and event.error:
+                            f.write(f"  Error: {event.error}\n")
+                    elif isinstance(event, MessageEvent):
+                        f.write(f"[{timestamp}] MESSAGE\n")
+                    f.flush()
+
             conversation = Conversation(
                 agent=MigratorAgent().get_agent(self.llm),
                 workspace=workspace,
+                callbacks=[agent_activity_logger],
             )
             assert isinstance(conversation, RemoteConversation)
+
+            # Print tmux monitoring command
+            print(f"\n📊 Agent activity logs: {agent_log_dir}")
+            print("To monitor in separate tmux panes:")
+            print(f"  tmux split-window -h 'tail -f {agent_log_dir}/main.log'")
+            print(f"  tmux split-window -v 'tail -f {agent_log_dir}/delegation.log'")
+            print()
 
             try:
                 # Send the inital message to the agent to start the migration process, then run the conversation loop until completion.
@@ -203,6 +286,9 @@ class MigrationManager:
                 except Exception as e:
                     logger.error(f"Failed to download workspace output: {e}")
 
+                # Display cost and usage statistics
+                self._print_usage_summary(conversation, logger)
+
                 print("\n🧹 Cleaning up conversation...")
                 conversation.close()
 
@@ -229,6 +315,69 @@ class MigrationManager:
                     raise RuntimeError(
                         f"Failed to upload {local_path} -> {destination_path}: {result.error}"
                     )
+
+
+    def _print_usage_summary(self, conversation, logger) -> None:
+        """Print token usage and cost summary for the conversation."""
+        try:
+            stats = conversation.state.stats
+            if not stats:
+                return
+
+            # Get metrics from all LLMs used in the conversation
+            print("\n" + "=" * 60)
+            print("📊 Usage Summary")
+            print("=" * 60)
+
+            total_cost = 0.0
+            total_input_tokens = 0
+            total_output_tokens = 0
+            total_cache_read = 0
+            total_cache_write = 0
+
+            for usage_id, llm_stats in stats.llm_stats.items():
+                metrics = llm_stats.metrics
+                if not metrics.accumulated_token_usage:
+                    continue
+
+                usage = metrics.accumulated_token_usage
+                cost = metrics.accumulated_cost
+
+                print(f"\n{usage_id} ({metrics.model_name}):")
+                print(f"  Input tokens:  {usage.prompt_tokens:,}")
+                print(f"  Output tokens: {usage.completion_tokens:,}")
+                if usage.cache_read_tokens > 0:
+                    print(f"  Cache read:    {usage.cache_read_tokens:,}")
+                if usage.cache_write_tokens > 0:
+                    print(f"  Cache write:   {usage.cache_write_tokens:,}")
+                if usage.reasoning_tokens > 0:
+                    print(f"  Reasoning:     {usage.reasoning_tokens:,}")
+                if cost > 0:
+                    print(f"  Cost:          ${cost:.4f}")
+
+                total_cost += cost
+                total_input_tokens += usage.prompt_tokens
+                total_output_tokens += usage.completion_tokens
+                total_cache_read += usage.cache_read_tokens
+                total_cache_write += usage.cache_write_tokens
+
+            # Print totals
+            print("\n" + "-" * 60)
+            print(f"Total Input:       {total_input_tokens:,} tokens")
+            print(f"Total Output:      {total_output_tokens:,} tokens")
+            if total_cache_read > 0:
+                print(f"Total Cache Read:  {total_cache_read:,} tokens")
+            if total_cache_write > 0:
+                print(f"Total Cache Write: {total_cache_write:,} tokens")
+
+            if total_cost > 0:
+                print(f"\n💰 Total Cost: ${total_cost:.4f}")
+            else:
+                print(f"\n💰 Total Cost: $0.00 (local model)")
+            print("=" * 60)
+
+        except Exception as e:
+            logger.warning(f"Failed to print usage summary: {e}")
 
 
     def _remote_dir_has_files(self, workspace, remote_dir: str, logger) -> bool:
