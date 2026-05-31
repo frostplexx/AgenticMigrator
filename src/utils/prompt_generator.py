@@ -1,8 +1,11 @@
+from collections import defaultdict
+
+
 class PromptGenerator:
     prompt: str
-    def __init__(self):
 
-        self.prompt = """
+    def __init__(self, findings: list[dict]):
+        self.prompt = f"""
 # Chrome Extension Migration Task
 
 Your task is to migrate the Chrome extension located at `/workspace/extension/` from
@@ -15,6 +18,8 @@ You are the main coordinator. Delegate work to the specialized subagents availab
 1. **extension-analyzer** - Reads the extension source and produces a structured migration plan
 2. **extension-transformer** - Applies the migration changes and writes the output files
 
+{_format_findings(findings)}
+
 ## Workflow
 
 ### Step 1: Delegate Analysis to extension-analyzer
@@ -23,26 +28,27 @@ Delegate the following task to the `extension-analyzer` agent:
 
 ```
 Inspect the Chrome extension at /workspace/extension/.
-Identify every change required to migrate it from Manifest V2 to Manifest V3, including:
-- manifest.json field changes (manifest_version, background, action, host_permissions, etc.)
-- API replacements (chrome.browserAction → chrome.action, background pages → service workers, etc.)
-- Content Security Policy updates
-- Any deprecated APIs or patterns
+Using the static analysis results provided above as the ground truth for which
+APIs need replacing, produce a structured migration plan at /workspace/analysis.json.
 
-Save the full analysis to /workspace/analysis.json with this structure:
-{
+Also identify any manifest.json field changes required (manifest_version, background,
+action, host_permissions, web_accessible_resources, content_security_policy, etc.)
+that are not covered by the static analysis.
+
+Output format for /workspace/analysis.json:
+{{
   "extension_name": "...",
   "current_manifest_version": 2,
   "files": [
-    {
+    {{
       "path": "relative/path/to/file",
       "changes": [
-        { "type": "manifest_field | api_replacement | csp | other", "description": "...", "before": "...", "after": "..." }
+        {{ "type": "api_replacement | manifest_field | csp | other", "description": "...", "line": <n>, "before": "...", "after": "..." }}
       ]
-    }
+    }}
   ],
   "summary": "Brief description of scope of changes"
-}
+}}
 ```
 
 ### Step 2: Verify Analysis
@@ -79,4 +85,30 @@ After extension-transformer finishes, verify:
 - Wait for each subagent to complete before proceeding to the next step
 - If a subagent fails, re-delegate with clearer or more specific instructions
 - Your final output is the complete migrated extension in `/workspace/out/`
-        """;
+        """
+
+
+def _format_findings(findings: list[dict]) -> str:
+    if not findings:
+        return "## Static Analysis\n\nNo deprecated API usages found in the extension source.\n"
+
+    by_file: dict[str, list[dict]] = defaultdict(list)
+    for f in findings:
+        by_file[f["file"]].append(f)
+
+    lines = ["## Static Analysis: Deprecated APIs Found\n"]
+    lines.append(
+        "The following deprecated APIs were detected by static analysis. "
+        "These are the ground truth for which lines need changing.\n"
+    )
+
+    for filepath in sorted(by_file):
+        lines.append(f"### {filepath}")
+        for hit in sorted(by_file[filepath], key=lambda h: h["line"]):
+            lines.append(
+                f"- Line {hit['line']}: `{hit['api']}` → `{hit['replacement']}`"
+                f"  \n  `{hit['snippet']}`"
+            )
+        lines.append("")
+
+    return "\n".join(lines)

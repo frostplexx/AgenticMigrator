@@ -1,0 +1,59 @@
+{
+  "extension_name": "Capybara Extension",
+  "current_manifest_version": 2,
+  "files": [
+    {
+      "path": "manifest.json",
+      "changes": [
+        {
+          "type": "manifest_field",
+          "description": "Bump manifest_version to 3",
+          "before": "\"manifest_version\": 2",
+          "after": "\"manifest_version\": 3"
+        },
+        {
+          "type": "manifest_field",
+          "description": "Rename browser_action to action",
+          "before": "\"browser_action\": {",
+          "after": "\"action\": {"
+        },
+        {
+          "type": "manifest_field",
+          "description": "Convert background scripts to service worker",
+          "before": "\"background\": {\n    \"scripts\": [\"background.js\"],\n    \"persistent\": true\n  }",
+          "after": "\"background\": {\n    \"service_worker\": \"background.js\"\n  }"
+        },
+        {
+          "type": "manifest_field",
+          "description": "Move host permissions to host_permissions",
+          "before": "\"permissions\": [\n    \"activeTab\",\n    \"tabs\",\n    \"storage\",\n    \"webRequest\",\n    \"webRequestBlocking\",\n    \"http://*.lmu.de/*\",\n    \"https://*.lmu.de/*\",\n    \"https://api.capy.lol/*\",\n    \"<all_urls>\"\n  ]",
+          "after": "\"permissions\": [\n    \"activeTab\",\n    \"tabs\",\n    \"storage\",\n    \"declarativeNetRequest\"\n  ],\n  \"host_permissions\": [\n    \"http://*.lmu.de/*\",\n    \"https://*.lmu.de/*\",\n    \"https://api.capy.lol/*\",\n    \"<all_urls>\"\n  ]"
+        }
+      ]
+    },
+    {
+      "path": "background.js",
+      "changes": [
+        {
+          "type": "api_replacement",
+          "description": "Replace blocking webRequest with declarativeNetRequest",
+          "before": "chrome.webRequest.onBeforeRequest.addListener(...)",
+          "after": "Use chrome.declarativeNetRequest.updateDynamicRules to redirect images from lmu.de to api.capy.lol"
+        },
+        {
+          "type": "api_replacement",
+          "description": "Replace chrome.extension.getURL with chrome.runtime.getURL",
+          "before": "chrome.extension.getURL('icons/icon48.png')",
+          "after": "chrome.runtime.getURL('icons/icon48.png')"
+        },
+        {
+          "type": "api_replacement",
+          "description": "Replace chrome.browserAction.onClicked with chrome.action.onClicked",
+          "before": "chrome.browserAction.onClicked.addListener",
+          "after": "chrome.action.onClicked.addListener"
+        }
+      ]
+    }
+  ],
+  "summary": "Migration requires updating manifest structure, shifting host permissions, replacing deprecated browserAction and extension APIs, and migrating blocking webRequest logic to declarativeNetRequest."
+}

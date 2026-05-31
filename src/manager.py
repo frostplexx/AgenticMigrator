@@ -5,6 +5,7 @@ from openhands.sdk.agent import Agent
 from pydantic import SecretStr
 
 from .utils.prompt_generator import PromptGenerator
+from .utils.static_analyzer import StaticAnalyzer
 
 from .agents.migrator import MigratorAgent
 from .utils.banner import show_banner
@@ -146,9 +147,14 @@ class MigrationManager:
         if not os.path.isdir(extension_path):
             raise ValueError(f"Extension path is not a directory: {extension_path}")
 
+        mappings_path = os.path.join(os.path.dirname(__file__), "utils", "api_mappings.json")
+        findings = StaticAnalyzer(mappings_path).analyze(extension_path)
+        logger.info(f"Static analysis found {len(findings)} deprecated API usage(s)")
+
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         local_input_dir = os.path.join(os.path.dirname(__file__), "workspace")
-        local_output_dir = os.path.join(project_root, "output")
+        local_output_root = os.path.join(project_root, "output")
+        local_output_dir = os.path.join(local_output_root, "extension")
 
         with createDockerWorkspace(8081) as workspace:
 
@@ -220,7 +226,7 @@ class MigrationManager:
 
             try:
                 # Send the inital message to the agent to start the migration process, then run the conversation loop until completion.
-                conversation.send_message(PromptGenerator().prompt)
+                conversation.send_message(PromptGenerator(findings).prompt)
                 conversation.run()
                 logger.info(f"Agent status: {conversation.state.execution_status}")
 
@@ -280,9 +286,97 @@ class MigrationManager:
                 except Exception as e:
                     logger.error(f"Failed to download workspace output: {e}")
 
+                # Download analysis.json and print it.
+                remote_analysis = f"{remote_root}/analysis.json"
+                local_analysis = os.path.join(local_output_root, "analysis.json")
+                try:
+                    os.makedirs(local_output_root, exist_ok=True)
+                    result = workspace.file_download(
+                        source_path=remote_analysis,
+                        destination_path=local_analysis,
+                    )
+                    if result.error is None:
+                        import json
+                        with open(local_analysis) as f:
+                            analysis = json.load(f)
+                        print("\n--- Migration Analysis ---")
+                        print(json.dumps(analysis, indent=2))
+                        print("-------------------------\n")
+                    else:
+                        logger.warning(f"analysis.json not available: {result.error}")
+                except Exception as e:
+                    logger.error(f"Failed to download analysis.json: {e}")
+
+                # Generate a unified diff between the original extension and the migrated output.
+                try:
+                    patch_path = os.path.join(local_output_root, "migration.patch")
+                    self._generate_patch(extension_path, local_output_dir, patch_path, logger)
+                except Exception as e:
+                    logger.error(f"Failed to generate patch: {e}")
 
                 print("\n🧹 Cleaning up conversation...")
                 conversation.close()
+
+
+    def _generate_patch(self, original_dir: str, migrated_dir: str, patch_path: str, logger) -> None:
+        """
+        Write a unified diff between original_dir and migrated_dir to patch_path.
+        Files that exist only in migrated_dir (e.g. analysis.json, migration.patch) and
+        that have no counterpart in original_dir are included as new-file diffs unless
+        they are non-extension artifacts (analysis.json, migration.patch).
+        """
+        import difflib
+
+        # Artifacts written by the migration tooling itself — exclude from the diff.
+        EXCLUDE = {"analysis.json", "migration.patch"}
+
+        def collect_files(directory: str) -> set[str]:
+            result = set()
+            for root, _, files in os.walk(directory):
+                for f in files:
+                    rel = os.path.relpath(os.path.join(root, f), directory)
+                    if rel not in EXCLUDE:
+                        result.add(rel)
+            return result
+
+        original_files = collect_files(original_dir)
+        migrated_files = collect_files(migrated_dir)
+        all_files = sorted(original_files | migrated_files)
+
+        patch_lines: list[str] = []
+
+        for rel_path in all_files:
+            orig_path = os.path.join(original_dir, rel_path)
+            migr_path = os.path.join(migrated_dir, rel_path)
+
+            orig_lines: list[str] = []
+            migr_lines: list[str] = []
+
+            if os.path.exists(orig_path):
+                with open(orig_path, encoding='utf-8', errors='replace') as fh:
+                    orig_lines = fh.readlines()
+
+            if os.path.exists(migr_path):
+                with open(migr_path, encoding='utf-8', errors='replace') as fh:
+                    migr_lines = fh.readlines()
+
+            diff = list(difflib.unified_diff(
+                orig_lines,
+                migr_lines,
+                fromfile=f"a/{rel_path}",
+                tofile=f"b/{rel_path}",
+            ))
+
+            if diff:
+                patch_lines.extend(diff)
+
+        os.makedirs(os.path.dirname(patch_path), exist_ok=True)
+        with open(patch_path, 'w', encoding='utf-8') as fh:
+            fh.writelines(patch_lines)
+
+        changed = sum(1 for line in patch_lines if line.startswith('--- '))
+        logger.info(f"Patch written to {patch_path} ({changed} file(s) changed)")
+        print(f"\nPatch written to {patch_path} ({changed} file(s) changed)")
 
 
     def _upload_directory(self, workspace, local_dir: str, remote_dir: str, logger) -> None:
