@@ -13,8 +13,9 @@ main.py <extension-path>
         ├── Spins up Docker workspace (OpenHands agent server)
         │     ├── VSCode Server  (host_port + 1)
         │     └── VNC Server     (host_port + 2)
-        ├── Uploads src/workspace/ (AGENT.md etc.) into /workspace/
+        ├── Uploads src/workspace/ (AGENT.md, harness/) into /workspace/
         ├── Uploads <extension-path>/ into /workspace/extension/
+        ├── Detects bundled Chromium + installs harness deps (npm)
         ├── Creates a Conversation with MigratorAgent
         └── Sends prompt → runs conversation loop
               │
@@ -24,31 +25,42 @@ main.py <extension-path>
               │     Reads /workspace/extension/, identifies all MV2→MV3 changes
               │     Saves structured plan to /workspace/analysis.json
               │
-              └── Delegates to → extension-transformer
-                    Reads analysis.json + every source file
-                    Applies all changes, writes migrated extension to /workspace/out/
+              ├── Delegates to → extension-transformer
+              │     Reads analysis.json + every source file
+              │     Applies all changes, writes migrated extension to /workspace/out/
+              │
+              └── Delegates to → extension-tester
+                    Loads /workspace/out/ in Chromium
+                    Captures runtime errors → /workspace/test_report.json
               │
               ▼
-        MigrationManager downloads /workspace/out/ → local output/
+        MigrationManager runs the smoke test; on failure, feeds errors back
+        to the agent to fix (up to 3 attempts), then downloads
+        /workspace/out/ + analysis.json + test_report.json → local output/
 ```
 
 ### Step-by-step flow
 
 1. **Setup** — `MigrationManager` reads LLM config from `.env`, initializes the LLM client, and starts a Docker container running the OpenHands agent server.
 
-2. **Workspace prep** — `src/workspace/` (containing `AGENT.md`) is uploaded to `/workspace/` in the container. The extension directory passed on the CLI is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
+2. **Workspace prep** — `src/workspace/` (containing `AGENT.md` and the Node test `harness/`) is uploaded to `/workspace/` in the container. The extension directory passed on the CLI is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
 
-3. **Orchestration** — A `Conversation` is started with `MigratorAgent`, which has access to `terminal`, `file_editor`, `delegate`, and `browser_tool_set` tools. The initial prompt from `PromptGenerator` is sent, kicking off the 4-step workflow:
+3. **Browser provisioning** — The Chromium that ships in the agent-server image is located, and the harness's npm deps (`puppeteer-core`) are installed. The browser version is fixed by the agent-server image tag (pin the tag, or build a custom image with `DockerDevWorkspace`, to control it). Chrome for Testing is intentionally **not** used: it has no native ARM64 Linux build and its amd64 build crashes under emulation on Apple Silicon.
+
+4. **Orchestration** — A `Conversation` is started with `MigratorAgent`, which has access to `terminal`, `file_editor`, `task` (sub-agent delegation), and `browser_tool_set` tools. The initial prompt from `PromptGenerator` is sent, kicking off the workflow:
    - Delegate analysis to `extension-analyzer`
    - Verify `/workspace/analysis.json` exists
    - Delegate migration to `extension-transformer`
    - Verify `/workspace/out/manifest.json` exists with `manifest_version: 3`
+   - Delegate testing to `extension-tester`
 
-4. **Subagents** — Each subagent is defined by a markdown file in `src/agents/subagents/` with frontmatter declaring its name, tools, and model. They run with the same LLM as the orchestrator (`model: inherit`).
+5. **Subagents** — Each subagent is defined by a markdown file in `src/agents/subagents/` with frontmatter declaring its name, tools, and model. They run with the same LLM as the orchestrator (`model: inherit`).
 
-5. **Nudging** — If the agent finishes without producing output files, the manager re-sends the task (up to 3 nudges) with explicit instructions to use tool calls rather than plain text.
+6. **Test → fix loop** — After output is produced, the manager runs the smoke test (loads the migrated extension into Chromium, captures service-worker/console/page errors). If it fails, the captured errors are sent back to the agent to fix, then the test re-runs — up to 3 attempts.
 
-6. **Output** — Once complete, `output/` on the host contains the migrated extension. Activity logs are written to `agent_logs/` for monitoring.
+7. **Nudging** — If the agent finishes without producing output files, the manager re-sends the task (up to 3 nudges) with explicit instructions to use tool calls rather than plain text.
+
+8. **Output** — Once complete, `output/` on the host contains the migrated extension (`extension/`), the migration plan (`analysis.json`), the diff (`migration.patch`), and the runtime report (`test_report.json`). Activity logs are written to `agent_logs/`.
 
 ---
 
@@ -60,16 +72,25 @@ main.py <extension-path>
 ├── src/
 │   ├── manager.py                  # MigrationManager — wires LLM, Docker, conversation
 │   ├── agents/
-│   │   ├── migrator.py             # MigratorAgent — orchestrator with delegate tool
+│   │   ├── migrator.py             # MigratorAgent — orchestrator with task (delegation) tool
 │   │   └── subagents/
 │   │       ├── extension-analyzer.md    # Inspects extension, produces analysis.json
-│   │       └── extension-transformer.md # Applies changes, writes migrated files to out/
+│   │       ├── extension-transformer.md # Applies changes, writes migrated files to out/
+│   │       └── extension-tester.md      # Loads migrated extension in Chrome, reports errors
 │   ├── utils/
 │   │   ├── banner.py               # Startup banner
 │   │   ├── docker.py               # Docker workspace factory
+│   │   ├── static_analyzer.py      # Scans source for deprecated APIs (api_mappings.json)
+│   │   ├── test_harness.py         # Detects bundled Chromium + runs the smoke test
 │   │   └── prompt_generator.py     # Initial task prompt
 │   └── workspace/                  # Files uploaded into the Docker container at startup
+│       ├── AGENT.md                # Workflow instructions for the agent
+│       └── harness/                # Node smoke-test harness (puppeteer-core)
 ├── output/                         # Downloaded agent output (created at runtime)
+│   ├── extension/                  #   the migrated extension
+│   ├── analysis.json               #   migration plan
+│   ├── migration.patch             #   unified diff (original → migrated)
+│   └── test_report.json            #   runtime smoke-test report
 ├── agent_logs/                     # Per-agent activity logs (created at runtime)
 ├── pyproject.toml
 ├── flake.nix

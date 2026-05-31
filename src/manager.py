@@ -6,6 +6,7 @@ from pydantic import SecretStr
 
 from .utils.prompt_generator import PromptGenerator
 from .utils.static_analyzer import StaticAnalyzer
+from .utils import test_harness
 
 from .agents.migrator import MigratorAgent
 from .utils.banner import show_banner
@@ -180,6 +181,12 @@ class MigrationManager:
                     f"(exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
                 )
 
+            # Locate the bundled Chromium and install the Node test harness deps so both
+            # the agent (via terminal) and the manager can run the smoke test.
+            remote_report_path = f"{remote_root}/test_report.json"
+            chrome_bin = test_harness.detect_chrome(workspace, logger)
+            test_harness.install_harness_deps(workspace, logger)
+
             # Create a conversation with the agent and workspace, then run the migration instructions.
             # Add a callback to log agent activity to files for tmux monitoring
             agent_log_dir = os.path.join(project_root, "agent_logs")
@@ -226,7 +233,9 @@ class MigrationManager:
 
             try:
                 # Send the inital message to the agent to start the migration process, then run the conversation loop until completion.
-                conversation.send_message(PromptGenerator(findings).prompt)
+                conversation.send_message(
+                    PromptGenerator(findings, chrome_bin=chrome_bin).prompt
+                )
                 conversation.run()
                 logger.info(f"Agent status: {conversation.state.execution_status}")
 
@@ -278,6 +287,63 @@ class MigrationManager:
                         f"Agent never produced output in {remote_output_dir} "
                         f"after {max_nudges} nudges; giving up."
                     )
+
+                # Authoritative test -> fix loop: run the migrated extension in Chrome
+                # for Testing and feed any captured errors back to the agent to fix.
+                max_test_attempts = 3
+                for attempt in range(1, max_test_attempts + 1):
+                    passed, report = test_harness.run_smoke_test(
+                        workspace,
+                        remote_output_dir,
+                        chrome_bin,
+                        remote_report_path,
+                        logger,
+                    )
+                    if passed:
+                        logger.info("Migrated extension passed the smoke test.")
+                        break
+
+                    if attempt == max_test_attempts:
+                        logger.error(
+                            f"Migrated extension still failing after "
+                            f"{max_test_attempts} test attempts; giving up."
+                        )
+                        break
+
+                    errors = report.get("errors", [])
+                    error_text = "\n".join(
+                        f"- ({e.get('source', '?')}) {e.get('text', '')}" for e in errors
+                    ) or "The extension failed to load (no service worker registered)."
+
+                    logger.warning(
+                        f"Migrated extension failed the smoke test "
+                        f"(attempt {attempt}/{max_test_attempts}). Asking agent to fix."
+                    )
+                    conversation.send_message(
+                        f"""
+                        The migrated extension in `{remote_output_dir}` was loaded into
+                        Chromium and FAILED the smoke test. The following
+                        errors were captured at runtime:
+
+                        {error_text}
+
+                        Delegate to `extension-transformer` to fix the migrated files in
+                        `{remote_output_dir}` so these runtime errors are resolved. Common
+                        causes: a service worker referencing APIs unavailable in MV3
+                        (DOM/`window`, `XMLHttpRequest`), leftover MV2 API calls, or an
+                        invalid `manifest.json`.
+
+                        You may re-run the test yourself to verify:
+                          `node {test_harness.HARNESS_SCRIPT} {remote_output_dir} {chrome_bin} {remote_report_path}`
+
+                        Do not stop until the test passes (exit code 0).
+                        """
+                    )
+                    conversation.run()
+                    logger.info(
+                        f"Agent status after fix attempt {attempt}: "
+                        f"{conversation.state.execution_status}"
+                    )
             finally:
                 try:
                     self._download_directory(
@@ -306,6 +372,33 @@ class MigrationManager:
                         logger.warning(f"analysis.json not available: {result.error}")
                 except Exception as e:
                     logger.error(f"Failed to download analysis.json: {e}")
+
+                # Download the smoke-test report and print a pass/fail summary.
+                local_report = os.path.join(local_output_root, "test_report.json")
+                try:
+                    os.makedirs(local_output_root, exist_ok=True)
+                    result = workspace.file_download(
+                        source_path=remote_report_path,
+                        destination_path=local_report,
+                    )
+                    if result.error is None:
+                        import json
+                        with open(local_report) as f:
+                            report = json.load(f)
+                        n_errors = len(report.get("errors", []))
+                        status = "PASSED" if report.get("loaded") and n_errors == 0 else "FAILED"
+                        print(f"\n--- Extension Smoke Test: {status} ---")
+                        print(
+                            f"loaded={report.get('loaded')}, "
+                            f"extensionId={report.get('extensionId')}, "
+                            f"errors={n_errors}, "
+                            f"warnings={len(report.get('warnings', []))}"
+                        )
+                        print("----------------------------------\n")
+                    else:
+                        logger.warning(f"test_report.json not available: {result.error}")
+                except Exception as e:
+                    logger.error(f"Failed to download test_report.json: {e}")
 
                 # Generate a unified diff between the original extension and the migrated output.
                 try:

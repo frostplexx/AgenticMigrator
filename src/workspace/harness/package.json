@@ -1,0 +1,10 @@
+{
+  "name": "extension-test-harness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Loads a migrated unpacked Chrome extension into the provided Chromium/Chrome binary and captures load/service-worker/console/page errors.",
+  "dependencies": {
+    "puppeteer-core": "23.11.1"
+  }
+}

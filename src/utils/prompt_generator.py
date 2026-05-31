@@ -4,12 +4,13 @@ from collections import defaultdict
 class PromptGenerator:
     prompt: str
 
-    def __init__(self, findings: list[dict]):
+    def __init__(self, findings: list[dict], chrome_bin: str = "chrome"):
         self.prompt = f"""
 # Chrome Extension Migration Task
 
 Your task is to migrate the Chrome extension located at `/workspace/extension/` from
-Manifest V2 to Manifest V3. The migrated extension must be written to `/workspace/out/`.
+Manifest V2 to Manifest V3. The migrated extension must be written to `/workspace/out/`,
+and it must load and run without errors in Chrome.
 
 ## Your Role: Orchestrator
 
@@ -17,6 +18,7 @@ You are the main coordinator. Delegate work to the specialized subagents availab
 
 1. **extension-analyzer** - Reads the extension source and produces a structured migration plan
 2. **extension-transformer** - Applies the migration changes and writes the output files
+3. **extension-tester** - Loads the migrated extension in Chromium and reports runtime errors
 
 {_format_findings(findings)}
 
@@ -79,12 +81,29 @@ After extension-transformer finishes, verify:
 - `/workspace/out/manifest.json` exists
 - `/workspace/out/` contains the same number of files as `/workspace/extension/`
 
+### Step 5: Test the Migrated Extension
+
+Delegate to the `extension-tester` agent, or run the smoke test directly:
+
+```
+node /workspace/harness/test_extension.mjs /workspace/out {chrome_bin} /workspace/test_report.json
+```
+
+This loads the migrated extension into Chromium and writes a JSON report to
+`/workspace/test_report.json` with `loaded`, `errors`, and `warnings`. The command exits
+non-zero if the extension failed to load or any errors were captured.
+
+If the test reports errors, delegate back to `extension-transformer` with the exact error
+messages and have it fix the migrated files in `/workspace/out/`, then re-run the test.
+**Do not finish while `loaded` is false or `errors` is non-empty.**
+
 ## Important Notes
 
-- Use the `delegate` tool to assign tasks to subagents
+- Use the `task` tool to delegate work to subagents
 - Wait for each subagent to complete before proceeding to the next step
 - If a subagent fails, re-delegate with clearer or more specific instructions
-- Your final output is the complete migrated extension in `/workspace/out/`
+- Your final output is the complete migrated extension in `/workspace/out/`, and it must
+  pass the smoke test (exit code 0)
         """
 
 

@@ -5,7 +5,7 @@ from openhands.sdk.context.condenser import LLMSummarizingCondenser
 from openhands.sdk.subagent import load_agents_from_dir, register_agent_if_absent, agent_definition_to_factory
 from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
-from openhands.tools.delegate import DelegateTool
+from openhands.tools.task import TaskToolSet
 from openhands.tools.browser_use import BrowserToolSet
 
 
@@ -37,7 +37,7 @@ class MigratorAgent:
             tools=[
                 Tool(name=TerminalTool.name),
                 Tool(name=FileEditorTool.name),
-                Tool(name=DelegateTool.name),
+                Tool(name=TaskToolSet.name),
                 Tool(name=BrowserToolSet.name),
             ],
             condenser=LLMSummarizingCondenser(llm=condenser_llm, max_size=50),

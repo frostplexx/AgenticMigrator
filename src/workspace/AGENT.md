@@ -9,6 +9,7 @@ Delegate work to the specialized subagents available to you:
 
 1. **extension-analyzer** - Reads the extension source and produces a structured migration plan
 2. **extension-transformer** - Applies the migration changes and writes the output files
+3. **extension-tester** - Loads the migrated extension in Chromium and reports runtime errors
 
 ## Workflow
 
@@ -66,9 +67,25 @@ After writing all files verify:
 Verify `/workspace/out/manifest.json` exists and `/workspace/out/` has the same number
 of files as `/workspace/extension/`.
 
+### Step 5: Test the Migrated Extension
+
+Delegate to `extension-tester` (or run the harness directly):
+
+```
+node /workspace/harness/test_extension.mjs /workspace/out <chrome-binary> /workspace/test_report.json
+```
+
+The harness loads the migrated extension into Chromium and writes
+`/workspace/test_report.json` (`loaded`, `errors`, `warnings`). It exits non-zero on failure.
+
+If errors are reported, delegate back to `extension-transformer` with the exact error
+messages to fix the files in `/workspace/out/`, then re-test. Do not finish while `loaded`
+is false or `errors` is non-empty.
+
 ## Important Notes
 
-- Use the `delegate` tool to assign tasks to subagents
+- Use the `task` tool to delegate work to subagents
 - Wait for each subagent to complete before moving on
 - If a subagent fails, re-delegate with clearer instructions
-- Final output is the complete migrated extension in `/workspace/out/`
+- Final output is the complete migrated extension in `/workspace/out/`, and it must pass
+  the smoke test (exit code 0)
