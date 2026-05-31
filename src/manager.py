@@ -142,6 +142,10 @@ class MigrationManager:
         if self.llm is None:
             raise ValueError("MigrationManager is not properly initialized.")
 
+        extension_path = os.path.abspath(extension)
+        if not os.path.isdir(extension_path):
+            raise ValueError(f"Extension path is not a directory: {extension_path}")
+
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         local_input_dir = os.path.join(os.path.dirname(__file__), "workspace")
         local_output_dir = os.path.join(project_root, "output")
@@ -151,7 +155,13 @@ class MigrationManager:
             remote_root = workspace.working_dir.rstrip("/")
             remote_output_dir = f"{remote_root}/out"
 
+            # Upload workspace scaffolding (AGENT.md etc.) to the container root.
             self._upload_directory(workspace, local_input_dir, remote_root, logger)
+
+            # Upload the Chrome extension into /workspace/extension/.
+            remote_extension_dir = f"{remote_root}/extension"
+            logger.info(f"Uploading extension {extension_path} -> {remote_extension_dir}")
+            self._upload_directory(workspace, extension_path, remote_extension_dir, logger)
 
             # Pre-create the output directory inside the container so the agent
             # can write to it without first having to mkdir.
