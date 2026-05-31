@@ -16,72 +16,44 @@ and it must load and run without errors in Chrome.
 
 You are the main coordinator. Delegate work to the specialized subagents available to you:
 
-1. **extension-analyzer** - Reads the extension source and produces a structured migration plan
-2. **extension-transformer** - Applies the migration changes and writes the output files
-3. **extension-tester** - Loads the migrated extension in Chromium and reports runtime errors
+1. **extension-transformer** - Applies the migration and writes the output files
+2. **extension-tester** - Loads the migrated extension in Chromium and reports runtime errors
+
+A static migration plan has already been produced for you at `/workspace/analysis.json`
+(no analysis step is needed). It lists the known deprecated API call sites and their MV3
+replacements. It does not cover everything — manifest changes and anything static analysis
+cannot see must still be applied using your migration knowledge, and will be caught at
+runtime by the `verify` skill.
 
 {_format_findings(findings)}
 
 ## Workflow
 
-### Step 1: Delegate Analysis to extension-analyzer
-
-Delegate the following task to the `extension-analyzer` agent:
-
-```
-Inspect the Chrome extension at /workspace/extension/.
-Using the static analysis results provided above as the ground truth for which
-APIs need replacing, produce a structured migration plan at /workspace/analysis.json.
-
-Also identify any manifest.json field changes required (manifest_version, background,
-action, host_permissions, web_accessible_resources, content_security_policy, etc.)
-that are not covered by the static analysis.
-
-Output format for /workspace/analysis.json:
-{{
-  "extension_name": "...",
-  "current_manifest_version": 2,
-  "files": [
-    {{
-      "path": "relative/path/to/file",
-      "changes": [
-        {{ "type": "api_replacement | manifest_field | csp | other", "description": "...", "line": <n>, "before": "...", "after": "..." }}
-      ]
-    }}
-  ],
-  "summary": "Brief description of scope of changes"
-}}
-```
-
-### Step 2: Verify Analysis
-
-After extension-analyzer finishes, verify `/workspace/analysis.json` exists and contains
-a `files` array with at least one entry.
-
-### Step 3: Delegate Migration to extension-transformer
+### Step 1: Delegate Migration to extension-transformer
 
 Delegate the following task to the `extension-transformer` agent:
 
 ```
-Read the migration plan at /workspace/analysis.json.
-Read every source file from /workspace/extension/.
-Apply all described changes and write the fully migrated extension to /workspace/out/.
+Read the static migration plan at /workspace/analysis.json and read every source file
+from /workspace/extension/. Apply the listed API replacements AND every other MV2->MV3
+change required (manifest_version, background -> service_worker, browser_action/page_action
+-> action, host_permissions, CSP, web_accessible_resources, etc.), writing the fully
+migrated extension to /workspace/out/.
 
 The output must be a complete, self-contained extension directory — every file from the
 original must be present (modified or unchanged). Do not omit any file.
 
-After writing all files, run a final check:
-- /workspace/out/manifest.json must exist and have "manifest_version": 3
-- Every file listed in /workspace/analysis.json must exist under /workspace/out/
+After writing all files, confirm /workspace/out/manifest.json exists with
+"manifest_version": 3 and that /workspace/out/ has the same files as /workspace/extension/.
 ```
 
-### Step 4: Verify Final Output
+### Step 2: Verify Final Output
 
 After extension-transformer finishes, verify:
 - `/workspace/out/manifest.json` exists
 - `/workspace/out/` contains the same number of files as `/workspace/extension/`
 
-### Step 5: Verify the Migrated Extension
+### Step 3: Verify the Migrated Extension
 
 Delegate to the `extension-tester` agent, or use the `verify` skill directly. You do NOT
 have a browser tool — the `verify` skill is the only way to test:
@@ -92,7 +64,8 @@ python /workspace/.openhands/skills/verify/scripts/verify.py /workspace/out /wor
 
 This loads the migrated extension into Chromium and writes a JSON report to
 `/workspace/test_report.json` with `loaded`, `errors`, and `warnings`. It exits non-zero
-if the extension failed to load or any errors were captured.
+if the extension failed to load or any errors were captured. This is what catches anything
+the static plan missed.
 
 If verification reports errors, delegate back to `extension-transformer` with the exact
 error messages and have it fix the migrated files in `/workspace/out/`, then verify again.
@@ -104,7 +77,7 @@ error messages and have it fix the migrated files in `/workspace/out/`, then ver
 - Wait for each subagent to complete before proceeding to the next step
 - If a subagent fails, re-delegate with clearer or more specific instructions
 - Your final output is the complete migrated extension in `/workspace/out/`, and it must
-  pass the smoke test (exit code 0)
+  pass verification (exit code 0)
         """
 
 

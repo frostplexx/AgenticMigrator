@@ -16,7 +16,7 @@ _SKILLS_DIR = Path(__file__).parent.parent / "skills"
 
 # Subagents that reason about the migration and therefore need the migration reference
 # appended to their system prompt (the tester only runs the verify skill).
-_MIGRATION_SUBAGENTS = {"extension-analyzer", "extension-transformer"}
+_MIGRATION_SUBAGENTS = {"extension-transformer"}
 
 
 class MigratorAgent:

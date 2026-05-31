@@ -1,6 +1,53 @@
 import json
 import os
 import re
+from collections import defaultdict
+
+
+def build_analysis(findings: list[dict], extension_path: str) -> dict:
+    """Turn static-analysis findings into the analysis.json migration plan.
+
+    This replaces the former LLM analyzer agent: the plan is produced statically (fast and
+    deterministic) for known API call-site replacements. Manifest-level changes and
+    anything static analysis cannot see are handled by the transformer (using the migration
+    reference) and surfaced at runtime by the verify skill.
+    """
+    extension_name = None
+    try:
+        with open(os.path.join(extension_path, "manifest.json")) as f:
+            extension_name = json.load(f).get("name")
+    except Exception:
+        pass
+
+    by_file: dict[str, list[dict]] = defaultdict(list)
+    for f in findings:
+        by_file[f["file"]].append(
+            {
+                "type": "api_replacement",
+                "line": f["line"],
+                "api": f["api"],
+                "replacement": f["replacement"],
+                "snippet": f["snippet"],
+            }
+        )
+
+    files = [
+        {"path": path, "changes": sorted(changes, key=lambda c: c["line"])}
+        for path, changes in sorted(by_file.items())
+    ]
+
+    return {
+        "extension_name": extension_name,
+        "source": "static-analysis",
+        "files": files,
+        "note": (
+            "Static analysis lists known deprecated API call sites and their MV3 "
+            "replacements. Manifest changes (manifest_version, background/service_worker, "
+            "action, host_permissions, CSP, web_accessible_resources) and anything not "
+            "listed here must still be applied using the migration reference, and are "
+            "verified at runtime by the verify skill."
+        ),
+    }
 
 
 class StaticAnalyzer:

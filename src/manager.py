@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import tempfile
@@ -7,7 +8,7 @@ from openhands.sdk.agent import Agent
 from pydantic import SecretStr
 
 from .utils.prompt_generator import PromptGenerator
-from .utils.static_analyzer import StaticAnalyzer
+from .utils.static_analyzer import StaticAnalyzer, build_analysis
 from .utils import test_harness
 
 from .agents.migrator import MigratorAgent
@@ -154,13 +155,16 @@ class MigrationManager:
         findings = StaticAnalyzer(mappings_path).analyze(extension_path)
         logger.info(f"Static analysis found {len(findings)} deprecated API usage(s)")
 
+        # The migration plan is produced statically (no LLM analyzer agent) for speed.
+        analysis = build_analysis(findings, extension_path)
+
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         local_output_root = os.path.join(project_root, "output")
         local_output_dir = os.path.join(local_output_root, "extension")
 
-        # Assemble the workspace scaffolding (AGENT.md + skills) in a temp staging dir at
-        # runtime, rather than keeping a checked-in `src/workspace` directory.
-        staging_dir = self._assemble_workspace(logger)
+        # Assemble the workspace scaffolding (AGENT.md, skills, analysis.json) in a temp
+        # staging dir at runtime, rather than keeping a checked-in `src/workspace` directory.
+        staging_dir = self._assemble_workspace(logger, analysis=analysis)
 
         with createDockerWorkspace(8081) as workspace:
 
@@ -476,12 +480,13 @@ class MigrationManager:
         print(f"\nPatch written to {patch_path} ({changed} file(s) changed)")
 
 
-    def _assemble_workspace(self, logger) -> str:
+    def _assemble_workspace(self, logger, analysis: dict | None = None) -> str:
         """Assemble the container workspace contents in a temp staging dir at runtime.
 
-        Combines the workflow doc and the skills (stored in ``src/``) into the layout that
-        is uploaded to ``/workspace`` — there is no checked-in ``src/workspace`` directory.
-        Returns the staging directory path; the caller is responsible for removing it.
+        Combines the workflow doc, the skills (stored in ``src/``), and the statically
+        produced migration plan into the layout that is uploaded to ``/workspace`` — there
+        is no checked-in ``src/workspace`` directory. Returns the staging directory path;
+        the caller is responsible for removing it.
         """
         src_dir = os.path.dirname(os.path.abspath(__file__))
         staging = tempfile.mkdtemp(prefix="agentic-workspace-")
@@ -500,6 +505,11 @@ class MigrationManager:
                 skills_dst,
                 ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
             )
+
+        # Static migration plan -> /workspace/analysis.json (no LLM analyzer agent).
+        if analysis is not None:
+            with open(os.path.join(staging, "analysis.json"), "w") as f:
+                json.dump(analysis, f, indent=2)
 
         logger.info(f"Assembled workspace scaffolding in {staging}")
         return staging
