@@ -181,11 +181,10 @@ class MigrationManager:
                     f"(exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
                 )
 
-            # Locate the bundled Chromium and install the Node test harness deps so both
-            # the agent (via terminal) and the manager can run the smoke test.
+            # Install the verify skill's dependencies so both the agent (via the verify
+            # skill) and the manager can run the extension verification.
             remote_report_path = f"{remote_root}/test_report.json"
-            chrome_bin = test_harness.detect_chrome(workspace, logger)
-            test_harness.install_harness_deps(workspace, logger)
+            test_harness.install_verify_deps(workspace, logger)
 
             # Create a conversation with the agent and workspace, then run the migration instructions.
             # Add a callback to log agent activity to files for tmux monitoring
@@ -233,9 +232,7 @@ class MigrationManager:
 
             try:
                 # Send the inital message to the agent to start the migration process, then run the conversation loop until completion.
-                conversation.send_message(
-                    PromptGenerator(findings, chrome_bin=chrome_bin).prompt
-                )
+                conversation.send_message(PromptGenerator(findings).prompt)
                 conversation.run()
                 logger.info(f"Agent status: {conversation.state.execution_status}")
 
@@ -288,19 +285,18 @@ class MigrationManager:
                         f"after {max_nudges} nudges; giving up."
                     )
 
-                # Authoritative test -> fix loop: run the migrated extension in Chrome
-                # for Testing and feed any captured errors back to the agent to fix.
+                # Authoritative test -> fix loop: verify the migrated extension in a real
+                # browser and feed any captured errors back to the agent to fix.
                 max_test_attempts = 3
                 for attempt in range(1, max_test_attempts + 1):
-                    passed, report = test_harness.run_smoke_test(
+                    passed, report = test_harness.run_verify(
                         workspace,
                         remote_output_dir,
-                        chrome_bin,
                         remote_report_path,
                         logger,
                     )
                     if passed:
-                        logger.info("Migrated extension passed the smoke test.")
+                        logger.info("Migrated extension passed verification.")
                         break
 
                     if attempt == max_test_attempts:
@@ -316,14 +312,14 @@ class MigrationManager:
                     ) or "The extension failed to load (no service worker registered)."
 
                     logger.warning(
-                        f"Migrated extension failed the smoke test "
+                        f"Migrated extension failed verification "
                         f"(attempt {attempt}/{max_test_attempts}). Asking agent to fix."
                     )
                     conversation.send_message(
                         f"""
                         The migrated extension in `{remote_output_dir}` was loaded into
-                        Chromium and FAILED the smoke test. The following
-                        errors were captured at runtime:
+                        Chromium and FAILED verification. The following errors were
+                        captured at runtime:
 
                         {error_text}
 
@@ -333,10 +329,10 @@ class MigrationManager:
                         (DOM/`window`, `XMLHttpRequest`), leftover MV2 API calls, or an
                         invalid `manifest.json`.
 
-                        You may re-run the test yourself to verify:
-                          `node {test_harness.HARNESS_SCRIPT} {remote_output_dir} {chrome_bin} {remote_report_path}`
+                        Re-run the `verify` skill to confirm the fix:
+                          `python {test_harness.VERIFY_SCRIPT} {remote_output_dir} {remote_report_path}`
 
-                        Do not stop until the test passes (exit code 0).
+                        Do not stop until verification passes (exit code 0).
                         """
                     )
                     conversation.run()
@@ -387,7 +383,7 @@ class MigrationManager:
                             report = json.load(f)
                         n_errors = len(report.get("errors", []))
                         status = "PASSED" if report.get("loaded") and n_errors == 0 else "FAILED"
-                        print(f"\n--- Extension Smoke Test: {status} ---")
+                        print(f"\n--- Extension Verification: {status} ---")
                         print(
                             f"loaded={report.get('loaded')}, "
                             f"extensionId={report.get('extensionId')}, "

@@ -8,26 +8,30 @@
         {
           "type": "manifest_field",
           "description": "Bump manifest_version to 3",
+          "line": 2,
           "before": "\"manifest_version\": 2",
           "after": "\"manifest_version\": 3"
         },
         {
           "type": "manifest_field",
-          "description": "Rename browser_action to action",
+          "description": "Change browser_action to action",
+          "line": 11,
           "before": "\"browser_action\": {",
           "after": "\"action\": {"
         },
         {
           "type": "manifest_field",
-          "description": "Convert background scripts to service worker",
+          "description": "Change background scripts to service_worker",
+          "line": 21,
           "before": "\"background\": {\n    \"scripts\": [\"background.js\"],\n    \"persistent\": true\n  }",
           "after": "\"background\": {\n    \"service_worker\": \"background.js\"\n  }"
         },
         {
           "type": "manifest_field",
-          "description": "Move host permissions to host_permissions",
+          "description": "Move host permissions to host_permissions field",
+          "line": 32,
           "before": "\"permissions\": [\n    \"activeTab\",\n    \"tabs\",\n    \"storage\",\n    \"webRequest\",\n    \"webRequestBlocking\",\n    \"http://*.lmu.de/*\",\n    \"https://*.lmu.de/*\",\n    \"https://api.capy.lol/*\",\n    \"<all_urls>\"\n  ]",
-          "after": "\"permissions\": [\n    \"activeTab\",\n    \"tabs\",\n    \"storage\",\n    \"declarativeNetRequest\"\n  ],\n  \"host_permissions\": [\n    \"http://*.lmu.de/*\",\n    \"https://*.lmu.de/*\",\n    \"https://api.capy.lol/*\",\n    \"<all_urls>\"\n  ]"
+          "after": "\"permissions\": [\n    \"activeTab\",\n    \"tabs\",\n    \"storage\",\n    \"webRequest\",\n    \"webRequestBlocking\"\n  ],\n  \"host_permissions\": [\n    \"http://*.lmu.de/*\",\n    \"https://*.lmu.de/*\",\n    \"https://api.capy.lol/*\",\n    \"<all_urls>\"\n  ]"
         }
       ]
     },
@@ -36,24 +40,20 @@
       "changes": [
         {
           "type": "api_replacement",
-          "description": "Replace blocking webRequest with declarativeNetRequest",
-          "before": "chrome.webRequest.onBeforeRequest.addListener(...)",
-          "after": "Use chrome.declarativeNetRequest.updateDynamicRules to redirect images from lmu.de to api.capy.lol"
+          "description": "Use chrome.runtime.getURL instead of chrome.extension.getURL",
+          "line": 21,
+          "before": "var iconUrl = chrome.extension.getURL('icons/icon48.png');",
+          "after": "var iconUrl = chrome.runtime.getURL('icons/icon48.png');"
         },
         {
           "type": "api_replacement",
-          "description": "Replace chrome.extension.getURL with chrome.runtime.getURL",
-          "before": "chrome.extension.getURL('icons/icon48.png')",
-          "after": "chrome.runtime.getURL('icons/icon48.png')"
-        },
-        {
-          "type": "api_replacement",
-          "description": "Replace chrome.browserAction.onClicked with chrome.action.onClicked",
-          "before": "chrome.browserAction.onClicked.addListener",
-          "after": "chrome.action.onClicked.addListener"
+          "description": "Use chrome.action.onClicked instead of chrome.browserAction.onClicked",
+          "line": 25,
+          "before": "chrome.browserAction.onClicked.addListener(function(tab) {",
+          "after": "chrome.action.onClicked.addListener(function(tab) {"
         }
       ]
     }
   ],
-  "summary": "Migration requires updating manifest structure, shifting host permissions, replacing deprecated browserAction and extension APIs, and migrating blocking webRequest logic to declarativeNetRequest."
+  "summary": "Migrate Capybara Extension from Manifest V2 to V3. Key changes include updating manifest version, converting browser_action to action, migrating background scripts to a service worker, separating host permissions, and updating deprecated chrome.extension and chrome.browserAction APIs in background.js."
 }

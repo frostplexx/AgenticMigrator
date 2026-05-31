@@ -4,7 +4,7 @@ from collections import defaultdict
 class PromptGenerator:
     prompt: str
 
-    def __init__(self, findings: list[dict], chrome_bin: str = "chrome"):
+    def __init__(self, findings: list[dict]):
         self.prompt = f"""
 # Chrome Extension Migration Task
 
@@ -81,20 +81,21 @@ After extension-transformer finishes, verify:
 - `/workspace/out/manifest.json` exists
 - `/workspace/out/` contains the same number of files as `/workspace/extension/`
 
-### Step 5: Test the Migrated Extension
+### Step 5: Verify the Migrated Extension
 
-Delegate to the `extension-tester` agent, or run the smoke test directly:
+Delegate to the `extension-tester` agent, or use the `verify` skill directly. You do NOT
+have a browser tool — the `verify` skill is the only way to test:
 
 ```
-node /workspace/harness/test_extension.mjs /workspace/out {chrome_bin} /workspace/test_report.json
+python /workspace/.openhands/skills/verify/scripts/verify.py /workspace/out /workspace/test_report.json
 ```
 
 This loads the migrated extension into Chromium and writes a JSON report to
-`/workspace/test_report.json` with `loaded`, `errors`, and `warnings`. The command exits
-non-zero if the extension failed to load or any errors were captured.
+`/workspace/test_report.json` with `loaded`, `errors`, and `warnings`. It exits non-zero
+if the extension failed to load or any errors were captured.
 
-If the test reports errors, delegate back to `extension-transformer` with the exact error
-messages and have it fix the migrated files in `/workspace/out/`, then re-run the test.
+If verification reports errors, delegate back to `extension-transformer` with the exact
+error messages and have it fix the migrated files in `/workspace/out/`, then verify again.
 **Do not finish while `loaded` is false or `errors` is non-empty.**
 
 ## Important Notes
