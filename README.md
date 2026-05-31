@@ -13,10 +13,10 @@ main.py <extension-path>
         ├── Spins up Docker workspace (OpenHands agent server)
         │     ├── VSCode Server  (host_port + 1)
         │     └── VNC Server     (host_port + 2)
-        ├── Uploads src/workspace/ (AGENT.md, harness/) into /workspace/
+        ├── Assembles workspace (AGENT.md + src/skills/) → uploads to /workspace/
         ├── Uploads <extension-path>/ into /workspace/extension/
-        ├── Detects bundled Chromium + installs harness deps (npm)
-        ├── Creates a Conversation with MigratorAgent
+        ├── Installs verify-skill deps (playwright, websocket-client)
+        ├── Creates a Conversation with MigratorAgent (+ verify skill, no browser tool)
         └── Sends prompt → runs conversation loop
               │
               ▼
@@ -30,11 +30,11 @@ main.py <extension-path>
               │     Applies all changes, writes migrated extension to /workspace/out/
               │
               └── Delegates to → extension-tester
-                    Loads /workspace/out/ in Chromium
+                    Runs the `verify` skill (Playwright loads the extension in Chromium)
                     Captures runtime errors → /workspace/test_report.json
               │
               ▼
-        MigrationManager runs the smoke test; on failure, feeds errors back
+        MigrationManager runs the verify skill; on failure, feeds errors back
         to the agent to fix (up to 3 attempts), then downloads
         /workspace/out/ + analysis.json + test_report.json → local output/
 ```
@@ -43,11 +43,11 @@ main.py <extension-path>
 
 1. **Setup** — `MigrationManager` reads LLM config from `.env`, initializes the LLM client, and starts a Docker container running the OpenHands agent server.
 
-2. **Workspace prep** — `src/workspace/` (containing `AGENT.md` and the Node test `harness/`) is uploaded to `/workspace/` in the container. The extension directory passed on the CLI is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
+2. **Workspace prep** — There is no checked-in `src/workspace/`; the container workspace is **assembled at runtime** in a temp staging dir from `src/AGENT.md` and the skills in `src/skills/` (copied to `.openhands/skills/`), then uploaded to `/workspace/`. The extension directory passed on the CLI is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
 
-3. **Browser provisioning** — The Chromium that ships in the agent-server image is located, and the harness's npm deps (`puppeteer-core`) are installed. The browser version is fixed by the agent-server image tag (pin the tag, or build a custom image with `DockerDevWorkspace`, to control it). Chrome for Testing is intentionally **not** used: it has no native ARM64 Linux build and its amd64 build crashes under emulation on Apple Silicon.
+3. **Verify provisioning** — The `verify` skill's Python deps (`playwright`, `websocket-client`) are installed in the container. It uses the Chromium that ships in the agent-server image (launched via Playwright), so no browser is downloaded. The browser version is fixed by the agent-server image tag (pin the tag, or build a custom image with `DockerDevWorkspace`, to control it). Chrome for Testing is intentionally **not** used: it has no native ARM64 Linux build and its amd64 build crashes under emulation on Apple Silicon.
 
-4. **Orchestration** — A `Conversation` is started with `MigratorAgent`, which has access to `terminal`, `file_editor`, `task` (sub-agent delegation), and `browser_tool_set` tools. The initial prompt from `PromptGenerator` is sent, kicking off the workflow:
+4. **Orchestration** — A `Conversation` is started with `MigratorAgent`, which has access to `terminal`, `file_editor`, and `task` (sub-agent delegation) tools — **no browser tool**, so the agent cannot drive a browser directly; testing happens only through the `verify` skill. Its **system prompt** carries the MV2→MV3 migration reference (`src/utils/migration_reference.py`) so the agent always knows what must change (manifest fields, service-worker constraints, API replacements). The initial prompt from `PromptGenerator` is sent, kicking off the workflow:
    - Delegate analysis to `extension-analyzer`
    - Verify `/workspace/analysis.json` exists
    - Delegate migration to `extension-transformer`
@@ -56,7 +56,7 @@ main.py <extension-path>
 
 5. **Subagents** — Each subagent is defined by a markdown file in `src/agents/subagents/` with frontmatter declaring its name, tools, and model. They run with the same LLM as the orchestrator (`model: inherit`).
 
-6. **Test → fix loop** — After output is produced, the manager runs the smoke test (loads the migrated extension into Chromium, captures service-worker/console/page errors). If it fails, the captured errors are sent back to the agent to fix, then the test re-runs — up to 3 attempts.
+6. **Test → fix loop** — After output is produced, the manager runs the `verify` skill (Playwright loads the migrated extension into Chromium, captures service-worker/console/page errors). If it fails, the captured errors are sent back to the agent to fix, then verification re-runs — up to 3 attempts.
 
 7. **Nudging** — If the agent finishes without producing output files, the manager re-sends the task (up to 3 nudges) with explicit instructions to use tool calls rather than plain text.
 
@@ -71,26 +71,29 @@ main.py <extension-path>
 ├── main.py                         # Entrypoint
 ├── src/
 │   ├── manager.py                  # MigrationManager — wires LLM, Docker, conversation
+│   ├── AGENT.md                    # Workflow doc, assembled into /workspace at runtime
 │   ├── agents/
 │   │   ├── migrator.py             # MigratorAgent — orchestrator with task (delegation) tool
 │   │   └── subagents/
 │   │       ├── extension-analyzer.md    # Inspects extension, produces analysis.json
 │   │       ├── extension-transformer.md # Applies changes, writes migrated files to out/
-│   │       └── extension-tester.md      # Loads migrated extension in Chrome, reports errors
+│   │       └── extension-tester.md      # Runs the verify skill, reports errors
+│   ├── skills/                     # Skills, assembled into /workspace/.openhands/skills at runtime
+│   │   └── verify/                 # `verify` skill: Playwright extension test
+│   │       ├── SKILL.md
+│   │       └── scripts/verify.py
 │   ├── utils/
 │   │   ├── banner.py               # Startup banner
 │   │   ├── docker.py               # Docker workspace factory
 │   │   ├── static_analyzer.py      # Scans source for deprecated APIs (api_mappings.json)
-│   │   ├── test_harness.py         # Detects bundled Chromium + runs the smoke test
+│   │   ├── migration_reference.py  # MV2→MV3 knowledge baked into the agent system prompt
+│   │   ├── test_harness.py         # Installs verify deps + runs the verify skill
 │   │   └── prompt_generator.py     # Initial task prompt
-│   └── workspace/                  # Files uploaded into the Docker container at startup
-│       ├── AGENT.md                # Workflow instructions for the agent
-│       └── harness/                # Node smoke-test harness (puppeteer-core)
 ├── output/                         # Downloaded agent output (created at runtime)
 │   ├── extension/                  #   the migrated extension
 │   ├── analysis.json               #   migration plan
 │   ├── migration.patch             #   unified diff (original → migrated)
-│   └── test_report.json            #   runtime smoke-test report
+│   └── test_report.json            #   runtime verification report
 ├── agent_logs/                     # Per-agent activity logs (created at runtime)
 ├── pyproject.toml
 ├── flake.nix
@@ -131,7 +134,7 @@ Docker must be running. The agent server image is pulled automatically on first 
 
 Once started, two URLs are printed:
 - **VSCode Server** — browse the workspace filesystem live
-- **VNC Server** — watch browser sessions the agent opens (`http://localhost:<port>/vnc.html?autoconnect=1`)
+- **VNC Server** — desktop view (`http://localhost:<port>/vnc.html?autoconnect=1`). Note: the `verify` skill runs Chromium with `--headless=new`, so the test browser does not appear here.
 
 Output files are written to `output/` when the run completes.
 

@@ -67,20 +67,21 @@ After writing all files verify:
 Verify `/workspace/out/manifest.json` exists and `/workspace/out/` has the same number
 of files as `/workspace/extension/`.
 
-### Step 5: Test the Migrated Extension
+### Step 5: Verify the Migrated Extension
 
-Delegate to `extension-tester` (or run the harness directly):
+Delegate to `extension-tester` (or use the `verify` skill directly). You have no browser
+tool — the `verify` skill is the only way to test:
 
 ```
-node /workspace/harness/test_extension.mjs /workspace/out <chrome-binary> /workspace/test_report.json
+python /workspace/.openhands/skills/verify/scripts/verify.py /workspace/out /workspace/test_report.json
 ```
 
-The harness loads the migrated extension into Chromium and writes
-`/workspace/test_report.json` (`loaded`, `errors`, `warnings`). It exits non-zero on failure.
+It loads the migrated extension into Chromium and writes `/workspace/test_report.json`
+(`loaded`, `errors`, `warnings`). It exits non-zero on failure.
 
 If errors are reported, delegate back to `extension-transformer` with the exact error
-messages to fix the files in `/workspace/out/`, then re-test. Do not finish while `loaded`
-is false or `errors` is non-empty.
+messages to fix the files in `/workspace/out/`, then verify again. Do not finish while
+`loaded` is false or `errors` is non-empty.
 
 ## Important Notes
 

@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 import time
 import platform
 from openhands.sdk.agent import Agent
@@ -153,17 +155,23 @@ class MigrationManager:
         logger.info(f"Static analysis found {len(findings)} deprecated API usage(s)")
 
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        local_input_dir = os.path.join(os.path.dirname(__file__), "workspace")
         local_output_root = os.path.join(project_root, "output")
         local_output_dir = os.path.join(local_output_root, "extension")
+
+        # Assemble the workspace scaffolding (AGENT.md + skills) in a temp staging dir at
+        # runtime, rather than keeping a checked-in `src/workspace` directory.
+        staging_dir = self._assemble_workspace(logger)
 
         with createDockerWorkspace(8081) as workspace:
 
             remote_root = workspace.working_dir.rstrip("/")
             remote_output_dir = f"{remote_root}/out"
 
-            # Upload workspace scaffolding (AGENT.md etc.) to the container root.
-            self._upload_directory(workspace, local_input_dir, remote_root, logger)
+            try:
+                # Upload the assembled scaffolding (AGENT.md, .openhands/skills/) to /workspace.
+                self._upload_directory(workspace, staging_dir, remote_root, logger)
+            finally:
+                shutil.rmtree(staging_dir, ignore_errors=True)
 
             # Upload the Chrome extension into /workspace/extension/.
             remote_extension_dir = f"{remote_root}/extension"
@@ -466,6 +474,35 @@ class MigrationManager:
         changed = sum(1 for line in patch_lines if line.startswith('--- '))
         logger.info(f"Patch written to {patch_path} ({changed} file(s) changed)")
         print(f"\nPatch written to {patch_path} ({changed} file(s) changed)")
+
+
+    def _assemble_workspace(self, logger) -> str:
+        """Assemble the container workspace contents in a temp staging dir at runtime.
+
+        Combines the workflow doc and the skills (stored in ``src/``) into the layout that
+        is uploaded to ``/workspace`` — there is no checked-in ``src/workspace`` directory.
+        Returns the staging directory path; the caller is responsible for removing it.
+        """
+        src_dir = os.path.dirname(os.path.abspath(__file__))
+        staging = tempfile.mkdtemp(prefix="agentic-workspace-")
+
+        # AGENT.md -> /workspace/AGENT.md
+        agent_md = os.path.join(src_dir, "AGENT.md")
+        if os.path.isfile(agent_md):
+            shutil.copy(agent_md, os.path.join(staging, "AGENT.md"))
+
+        # src/skills/* -> /workspace/.openhands/skills/* (skipping pycache/dotfiles)
+        skills_src = os.path.join(src_dir, "skills")
+        if os.path.isdir(skills_src):
+            skills_dst = os.path.join(staging, ".openhands", "skills")
+            shutil.copytree(
+                skills_src,
+                skills_dst,
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            )
+
+        logger.info(f"Assembled workspace scaffolding in {staging}")
+        return staging
 
 
     def _upload_directory(self, workspace, local_dir: str, remote_dir: str, logger) -> None:

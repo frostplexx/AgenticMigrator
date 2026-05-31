@@ -154,7 +154,7 @@ def main() -> int:
                     ws.send(json.dumps({"id": 1, "method": "Runtime.enable"}))
                     ws.send(json.dumps({"id": 2, "method": "Log.enable"}))
                 except Exception as e:
-                    record(warnings, "harness", f"Could not attach to service worker: {e}")
+                    record(warnings, "verify", f"Could not attach to service worker: {e}")
                     ws = None
 
         # Exercise the extension's own pages to wake the service worker and surface
@@ -184,7 +184,7 @@ def main() -> int:
                     pg.goto(f"chrome-extension://{ext_id}/{rel}", timeout=8000)
                     pg.wait_for_timeout(1000)
                 except Exception as e:
-                    record(warnings, "harness", f"Could not open {rel}: {e}")
+                    record(warnings, "verify", f"Could not open {rel}: {e}")
 
         # Drain service-worker CDP events for a short window.
         if ws is not None:
@@ -236,7 +236,7 @@ def main() -> int:
         if not report["loaded"]:
             record(
                 errors,
-                "harness",
+                "verify",
                 "Extension service worker never registered — the extension failed to "
                 "load. Check manifest.json (manifest_version, background.service_worker) "
                 "and look for top-level errors in the service worker.",
