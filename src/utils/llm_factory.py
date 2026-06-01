@@ -1,11 +1,14 @@
 """Build the configured LLM from environment variables."""
 
 import os
+from typing import Literal, cast, get_args
 
 from openhands.sdk import LLM
 from pydantic import SecretStr
 
 from .docker import _transform_localhost_url
+
+ReasoningEffort = Literal["low", "medium", "high", "xhigh", "none"]
 
 
 def build_llm() -> LLM:
@@ -49,7 +52,13 @@ def build_llm() -> LLM:
     # Reasoning effort drives how many thinking tokens the model emits — which then get
     # fed back into context every turn. Default to "low" to keep context small; override
     # with LLM_REASONING_EFFORT (e.g. "high"/"xhigh") if you need it.
-    reasoning_effort = os.environ.get("LLM_REASONING_EFFORT", "low")
+    reasoning_effort_str = os.environ.get("LLM_REASONING_EFFORT", "low")
+    if reasoning_effort_str not in get_args(ReasoningEffort):
+        raise ValueError(
+            f"LLM_REASONING_EFFORT must be one of {get_args(ReasoningEffort)}, "
+            f"got {reasoning_effort_str!r}."
+        )
+    reasoning_effort = cast(ReasoningEffort, reasoning_effort_str)
 
     return LLM(
         usage_id="agent",

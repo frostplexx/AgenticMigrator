@@ -29,8 +29,6 @@ def make_activity_logger(agent_log_dir: str):
                     f.write(f"  Summary: {event.summary}\n")
             elif isinstance(event, ObservationEvent):
                 f.write(f"[{timestamp}] RESULT: {event.tool_name}\n")
-                if getattr(event, "error", None):
-                    f.write(f"  Error: {event.error}\n")
             elif isinstance(event, MessageEvent):
                 f.write(f"[{timestamp}] MESSAGE\n")
             f.flush()

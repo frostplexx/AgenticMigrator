@@ -11,3 +11,17 @@ dependencies = [
     "openhands-workspace>=1.22.1",
     "python-dotenv>=1.2.2",
 ]
+
+[tool.basedpyright]
+# Upstream-pyright "standard" posture. basedpyright's default ("recommended") floods
+# reportUnknown*/reportAny because the OpenHands SDK ships no type information; those
+# warnings aren't actionable in our code.
+typeCheckingMode = "standard"
+# The verify skill's scripts run inside the container with their own deps (playwright,
+# websocket-client) and are imported as scripts (sys.path[0]); they're validated by
+# running, not by host type-checking.
+exclude = [
+    "**/__pycache__",
+    ".venv",
+    "src/skills/*/scripts",
+]
