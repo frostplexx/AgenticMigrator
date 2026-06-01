@@ -1,15 +1,14 @@
 """Tier A: manifest-driven exerciser.
 
-Actively drives the extension along the surface declared in its manifest so that use-time
-errors (not just load-time ones) surface and get captured:
+Actively drives the extension along the surface declared in its manifest so that use-time errors (not just load-time
+ones) surface and get captured:
 
-  - content scripts: navigate to a page matching each `content_scripts[].matches` pattern
-    (served synthetically via request interception, so it works offline and deterministically)
+  - content scripts: navigate to a page matching each `content_scripts[].matches` pattern (served synthetically via
+    request interception, so it works offline and deterministically)
   - popup / options pages: open them and click their interactive controls
   - web_accessible_resources: load each literal resource
 
-It does not assert behavior — it just makes the extension run. Errors are captured by the
-BrowserSession's page/service-worker wiring.
+It does not assert behavior. Errors are captured by the BrowserSession's page/service-worker wiring.
 """
 
 import json
