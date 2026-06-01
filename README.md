@@ -14,7 +14,7 @@ main.py <extension-path>
         │     ├── VSCode Server  (host_port + 1)
         │     └── VNC Server     (host_port + 2)
         ├── Static analysis (api_mappings.json) → writes analysis.json (the migration plan)
-        ├── Assembles workspace (AGENT.md + src/skills/ + analysis.json) → uploads to /workspace/
+        ├── Assembles workspace (src/skills/ + analysis.json) → uploads to /workspace/
         ├── Uploads <extension-path>/ into /workspace/extension/
         ├── Installs verify-skill deps (playwright, websocket-client)
         ├── Creates a Conversation with MigratorAgent (+ verify skill, no browser tool)
@@ -42,7 +42,7 @@ main.py <extension-path>
 
 2. **Static analysis** — `StaticAnalyzer` scans the extension's JS/HTML against `api_mappings.json` and `build_analysis()` writes the migration plan (`analysis.json`) directly — there is **no LLM analyzer agent**. This is fast and deterministic for known API call-site replacements; manifest-level changes and anything static analysis can't see are handled by the transformer (using the `mv3-migration` skill) and caught at runtime by `verify`.
 
-3. **Workspace prep** — There is no checked-in `src/workspace/`; the container workspace is **assembled at runtime** in a temp staging dir from `src/AGENT.md`, the skills in `src/skills/` (copied to `.openhands/skills/`), and the generated `analysis.json`, then uploaded to `/workspace/`. The extension directory passed on the CLI is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
+3. **Workspace prep** — There is no checked-in `src/workspace/`; the container workspace is **assembled at runtime** in a temp staging dir from the skills in `src/skills/` (copied to `.openhands/skills/`) and the generated `analysis.json`, then uploaded to `/workspace/`. The extension directory passed on the CLI is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
 
 4. **Verify provisioning** — The `verify` skill's Python deps (`playwright`, `websocket-client`) are installed in the container. It uses the Chromium that ships in the agent-server image (launched via Playwright), so no browser is downloaded. The browser version is fixed by the agent-server image tag (pin the tag, or build a custom image with `DockerDevWorkspace`, to control it). Chrome for Testing is intentionally **not** used: it has no native ARM64 Linux build and its amd64 build crashes under emulation on Apple Silicon.
 
@@ -67,8 +67,7 @@ main.py <extension-path>
 .
 ├── main.py                         # Entrypoint
 ├── src/
-│   ├── manager.py                  # MigrationManager — wires LLM, Docker, conversation
-│   ├── AGENT.md                    # Workflow doc, assembled into /workspace at runtime
+│   ├── manager.py                  # MigrationManager — thin orchestrator of the migrate() flow
 │   ├── agents/
 │   │   ├── migrator.py             # MigratorAgent — orchestrator with task (delegation) tool
 │   │   └── subagents/
@@ -83,9 +82,13 @@ main.py <extension-path>
 │   ├── utils/
 │   │   ├── banner.py               # Startup banner
 │   │   ├── docker.py               # Docker workspace factory
+│   │   ├── llm_factory.py          # Builds the LLM from env vars
 │   │   ├── static_analyzer.py      # Scans source for deprecated APIs + builds analysis.json
-│   │   ├── test_harness.py         # Installs verify deps + runs the verify skill
-│   │   └── prompt_generator.py     # Initial task prompt
+│   │   ├── prompt_generator.py     # Initial task prompt
+│   │   ├── workspace_io.py         # Assemble / upload / download the container workspace
+│   │   ├── conversation_loops.py   # Activity logger + nudge loop + verify→fix loop
+│   │   ├── artifacts.py            # Download outputs + build migration.patch
+│   │   └── test_harness.py         # Installs verify deps + runs the verify skill
 ├── output/                         # Downloaded agent output (created at runtime)
 │   ├── extension/                  #   the migrated extension
 │   ├── analysis.json               #   migration plan (static analysis)

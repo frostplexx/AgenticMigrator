@@ -60,6 +60,11 @@ class MigratorAgent:
                 Tool(name=TaskToolSet.name),
             ],
             agent_context=AgentContext(skills=self._load_skills()),
-            condenser=LLMSummarizingCondenser(llm=condenser_llm, max_size=50),
+            # Condense history sooner to keep each request within the model's context
+            # window: summarize once history exceeds ~20 events, always keeping the first
+            # 2 (the task definition).
+            condenser=LLMSummarizingCondenser(
+                llm=condenser_llm, max_size=20, keep_first=2
+            ),
         )
 
