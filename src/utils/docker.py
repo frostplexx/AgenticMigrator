@@ -22,26 +22,11 @@ def _detect_platform():
 
 
 
-def _transform_localhost_url( url: str | None) -> str | None:
-    """
-    Transform localhost URLs to be accessible from Docker containers.
-
-    On macOS and Windows Docker Desktop, use 'host.docker.internal'.
-    On Linux, use the Docker bridge gateway IP '172.17.0.1'.
-    """
+def _transform_localhost_url(url: str | None) -> str | None:
+    """Transform localhost URLs to be accessible from Docker containers via host.docker.internal."""
     if not url or 'localhost' not in url:
         return url
-
-    system = platform.system().lower()
-
-    # macOS and Windows Docker Desktop support host.docker.internal
-    if system in ('darwin', 'windows'):
-        transformed_url = url.replace('localhost', 'host.docker.internal')
-    else:
-        # Linux: use Docker bridge network gateway
-        # Note: host.docker.internal is supported in Docker 20.10+ on Linux
-        transformed_url = url.replace('localhost', 'host.docker.internal')
-
+    transformed_url = url.replace('localhost', 'host.docker.internal')
     print(f"ℹ️  Transformed localhost URL for Docker container access:")
     print(f"   {url} → {transformed_url}")
     return transformed_url
@@ -50,10 +35,7 @@ def _transform_localhost_url( url: str | None) -> str | None:
 
 def _get_server_image():
     """Get the server image tag, using PR-specific image in CI."""
-    platform_str = _detect_platform()
-    arch = "arm64" if "arm64" in platform_str else "amd64"
-    # If GITHUB_SHA is set (e.g. running in CI of a PR), use that to ensure consistency
-    # Otherwise, use the latest image from main
+    arch = "arm64" if "arm64" in _detect_platform() else "amd64"
     github_sha = os.getenv("GITHUB_SHA")
     if github_sha:
         return f"ghcr.io/openhands/agent-server:{github_sha[:7]}-python-{arch}"

@@ -22,8 +22,8 @@ You are the main coordinator. Delegate work to the specialized subagents availab
 A static migration plan has already been produced for you at `/workspace/analysis.json`
 (no analysis step is needed). It lists the known deprecated API call sites and their MV3
 replacements. It does not cover everything — manifest changes and anything static analysis
-cannot see must still be applied using your migration knowledge, and will be caught at
-runtime by the `verify` skill.
+cannot see must still be applied using the `mv3-migration` skill (the MV2->MV3 reference),
+and will be caught at runtime by the `verify` skill.
 
 {_format_findings(findings)}
 
@@ -34,11 +34,12 @@ runtime by the `verify` skill.
 Delegate the following task to the `extension-transformer` agent:
 
 ```
-Read the static migration plan at /workspace/analysis.json and read every source file
-from /workspace/extension/. Apply the listed API replacements AND every other MV2->MV3
-change required (manifest_version, background -> service_worker, browser_action/page_action
--> action, host_permissions, CSP, web_accessible_resources, etc.), writing the fully
-migrated extension to /workspace/out/.
+First read the mv3-migration skill (cat /workspace/.openhands/skills/mv3-migration/SKILL.md)
+for the correct MV3 form of each manifest field and API. Then read the static migration plan
+at /workspace/analysis.json and every source file from /workspace/extension/. Apply the
+listed API replacements AND every other MV2->MV3 change required (manifest_version,
+background -> service_worker, browser_action/page_action -> action, host_permissions, CSP,
+web_accessible_resources, etc.), writing the fully migrated extension to /workspace/out/.
 
 The output must be a complete, self-contained extension directory — every file from the
 original must be present (modified or unchanged). Do not omit any file.

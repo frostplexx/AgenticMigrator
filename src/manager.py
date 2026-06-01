@@ -1,10 +1,12 @@
+import difflib
 import json
+import logging
 import os
 import shutil
 import tempfile
 import time
-import platform
 from openhands.sdk.agent import Agent
+from openhands.sdk.event import ActionEvent, ObservationEvent, MessageEvent
 from pydantic import SecretStr
 
 from .utils.prompt_generator import PromptGenerator
@@ -20,7 +22,11 @@ from openhands.sdk import (
     get_logger,
 )
 from openhands.tools.preset.default import get_default_agent
-from .utils.docker import createDockerWorkspace
+from .utils.docker import createDockerWorkspace, _transform_localhost_url
+
+_logger = get_logger(__name__)
+
+_PATCH_EXCLUDE = {"analysis.json", "migration.patch"}
 
 class MigrationManager:
     instance = None  # pyright: ignore[reportUnannotatedClassAttribute]
@@ -30,30 +36,6 @@ class MigrationManager:
 
 
 
-    def _transform_localhost_url(self, url: str | None) -> str | None:
-        """
-        Transform localhost URLs to be accessible from Docker containers.
-
-        On macOS and Windows Docker Desktop, use 'host.docker.internal'.
-        On Linux, use the Docker bridge gateway IP '172.17.0.1'.
-        """
-        if not url or 'localhost' not in url:
-            return url
-
-        system = platform.system().lower()
-
-        # macOS and Windows Docker Desktop support host.docker.internal
-        if system in ('darwin', 'windows'):
-            transformed_url = url.replace('localhost', 'host.docker.internal')
-        else:
-            # Linux: use Docker bridge network gateway
-            # Note: host.docker.internal is supported in Docker 20.10+ on Linux
-            transformed_url = url.replace('localhost', 'host.docker.internal')
-
-        print(f"ℹ️  Transformed localhost URL for Docker container access:")
-        print(f"   {url} → {transformed_url}")
-        return transformed_url
-    
 
 
     def __new__(cls):
@@ -82,8 +64,7 @@ class MigrationManager:
         if base_url is None and _is_ollama_provider:
             raise ValueError("LLM_BASE_URL environment variable is not set for Ollama provider.")
 
-        # Transform localhost URLs to be accessible from Docker containers
-        base_url = self._transform_localhost_url(base_url)
+        base_url = _transform_localhost_url(base_url)
 
         # Ollama-specific parameters passed via litellm_extra_body.
         extra_body = {}
@@ -137,11 +118,7 @@ class MigrationManager:
 
 
     def migrate(self, extension: str):
-
-        logger = get_logger(__name__)
-
-        # Enable DEBUG logging to see more detailed agent activity
-        import logging
+        logger = _logger
         logging.getLogger("openhands").setLevel(logging.DEBUG)
 
         if self.llm is None:
@@ -205,8 +182,6 @@ class MigrationManager:
 
             def agent_activity_logger(event):
                 """Log events to agent-specific files for tmux pane monitoring."""
-                from openhands.sdk.event import ActionEvent, ObservationEvent, MessageEvent
-
                 # Determine which agent this event is from (main or delegated)
                 agent_name = "main"
                 if isinstance(event, (ActionEvent, ObservationEvent)):
@@ -243,200 +218,215 @@ class MigrationManager:
             assert isinstance(conversation, RemoteConversation)
 
             try:
-                # Send the inital message to the agent to start the migration process, then run the conversation loop until completion.
                 conversation.send_message(PromptGenerator(findings).prompt)
                 conversation.run()
                 logger.info(f"Agent status: {conversation.state.execution_status}")
 
-                # The agent sometimes "finishes" after only outlining a plan,
-                # without actually writing any output files. Nudge it to finish
-                # the work, up to a small number of attempts.
-                max_nudges = 3
-                for attempt in range(1, max_nudges + 1):
-                    if self._remote_dir_has_files(workspace, remote_output_dir, logger):
-                        break
-
-                    logger.warning(
-                        f"Agent finished but {remote_output_dir} is empty "
-                        f"(nudge {attempt}/{max_nudges})."
-                    )
-                    conversation.send_message(
-                        f"""
-                        You stopped without completing the task. The directory
-                        `{remote_output_dir}` is still empty, so nothing will be
-                        returned to the user.
-
-                        Continue the work described in `/workspace/AGENT.md` and
-                        produce the required files inside `{remote_output_dir}`
-                        now.
-
-                        VERY IMPORTANT — about HOW you reply:
-                        - Do NOT emit JSON like {{"type": "function", ...}} or
-                          {{"thought": ...}} as your message content. That is plain
-                          text and will be ignored — no file will be written.
-                        - Instead, invoke the tools the normal way (function /
-                          tool calls). The `file_editor` tool with
-                          `command="create"` is the right way to write
-                          `{remote_output_dir}/<name>`.
-                        - After the tool call succeeds, verify with the
-                          `terminal` tool (`ls -la {remote_output_dir}` and
-                          `cat <file>`) that the file is actually on disk with the
-                          intended contents.
-                        - Only stop once `{remote_output_dir}` contains the
-                          finished output for every instruction in AGENT.md.
-                        """
-                    )
-                    conversation.run()
-                    logger.info(
-                        f"Agent status after nudge {attempt}: "
-                        f"{conversation.state.execution_status}"
-                    )
-                else:
-                    logger.error(
-                        f"Agent never produced output in {remote_output_dir} "
-                        f"after {max_nudges} nudges; giving up."
-                    )
-
-                # Authoritative test -> fix loop: verify the migrated extension in a real
-                # browser and feed any captured errors back to the agent to fix.
-                max_test_attempts = 3
-                for attempt in range(1, max_test_attempts + 1):
-                    passed, report = test_harness.run_verify(
-                        workspace,
-                        remote_output_dir,
-                        remote_report_path,
-                        logger,
-                    )
-                    if passed:
-                        logger.info("Migrated extension passed verification.")
-                        break
-
-                    if attempt == max_test_attempts:
-                        logger.error(
-                            f"Migrated extension still failing after "
-                            f"{max_test_attempts} test attempts; giving up."
-                        )
-                        break
-
-                    errors = report.get("errors", [])
-                    error_text = "\n".join(
-                        f"- ({e.get('source', '?')}) {e.get('text', '')}" for e in errors
-                    ) or "The extension failed to load (no service worker registered)."
-
-                    logger.warning(
-                        f"Migrated extension failed verification "
-                        f"(attempt {attempt}/{max_test_attempts}). Asking agent to fix."
-                    )
-                    conversation.send_message(
-                        f"""
-                        The migrated extension in `{remote_output_dir}` was loaded into
-                        Chromium and FAILED verification. The following errors were
-                        captured at runtime:
-
-                        {error_text}
-
-                        Delegate to `extension-transformer` to fix the migrated files in
-                        `{remote_output_dir}` so these runtime errors are resolved. Common
-                        causes: a service worker referencing APIs unavailable in MV3
-                        (DOM/`window`, `XMLHttpRequest`), leftover MV2 API calls, or an
-                        invalid `manifest.json`.
-
-                        Re-run the `verify` skill to confirm the fix:
-                          `python {test_harness.VERIFY_SCRIPT} {remote_output_dir} {remote_report_path}`
-
-                        Do not stop until verification passes (exit code 0).
-                        """
-                    )
-                    conversation.run()
-                    logger.info(
-                        f"Agent status after fix attempt {attempt}: "
-                        f"{conversation.state.execution_status}"
-                    )
+                self._run_nudge_loop(conversation, workspace, remote_output_dir, logger)
+                self._run_test_fix_loop(
+                    conversation, workspace, remote_output_dir, remote_report_path, logger
+                )
             finally:
-                try:
-                    self._download_directory(
-                        workspace, remote_output_dir, local_output_dir, logger
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to download workspace output: {e}")
-
-                # Download analysis.json and print it.
-                remote_analysis = f"{remote_root}/analysis.json"
-                local_analysis = os.path.join(local_output_root, "analysis.json")
-                try:
-                    os.makedirs(local_output_root, exist_ok=True)
-                    result = workspace.file_download(
-                        source_path=remote_analysis,
-                        destination_path=local_analysis,
-                    )
-                    if result.error is None:
-                        import json
-                        with open(local_analysis) as f:
-                            analysis = json.load(f)
-                        print("\n--- Migration Analysis ---")
-                        print(json.dumps(analysis, indent=2))
-                        print("-------------------------\n")
-                    else:
-                        logger.warning(f"analysis.json not available: {result.error}")
-                except Exception as e:
-                    logger.error(f"Failed to download analysis.json: {e}")
-
-                # Download the smoke-test report and print a pass/fail summary.
-                local_report = os.path.join(local_output_root, "test_report.json")
-                try:
-                    os.makedirs(local_output_root, exist_ok=True)
-                    result = workspace.file_download(
-                        source_path=remote_report_path,
-                        destination_path=local_report,
-                    )
-                    if result.error is None:
-                        import json
-                        with open(local_report) as f:
-                            report = json.load(f)
-                        n_errors = len(report.get("errors", []))
-                        status = "PASSED" if report.get("loaded") and n_errors == 0 else "FAILED"
-                        print(f"\n--- Extension Verification: {status} ---")
-                        print(
-                            f"loaded={report.get('loaded')}, "
-                            f"extensionId={report.get('extensionId')}, "
-                            f"errors={n_errors}, "
-                            f"warnings={len(report.get('warnings', []))}"
-                        )
-                        print("----------------------------------\n")
-                    else:
-                        logger.warning(f"test_report.json not available: {result.error}")
-                except Exception as e:
-                    logger.error(f"Failed to download test_report.json: {e}")
-
-                # Generate a unified diff between the original extension and the migrated output.
-                try:
-                    patch_path = os.path.join(local_output_root, "migration.patch")
-                    self._generate_patch(extension_path, local_output_dir, patch_path, logger)
-                except Exception as e:
-                    logger.error(f"Failed to generate patch: {e}")
-
+                self._download_outputs(
+                    workspace,
+                    remote_output_dir,
+                    local_output_dir,
+                    local_output_root,
+                    remote_root,
+                    remote_report_path,
+                    extension_path,
+                    logger,
+                )
                 print("\n🧹 Cleaning up conversation...")
                 conversation.close()
 
 
+    def _run_nudge_loop(self, conversation, workspace, remote_output_dir: str, logger) -> None:
+        """Nudge the agent if it finishes without writing any output files."""
+        max_nudges = 3
+        for attempt in range(1, max_nudges + 1):
+            if self._remote_dir_has_files(workspace, remote_output_dir, logger):
+                break
+
+            logger.warning(
+                f"Agent finished but {remote_output_dir} is empty "
+                f"(nudge {attempt}/{max_nudges})."
+            )
+            conversation.send_message(
+                f"""
+                You stopped without completing the task. The directory
+                `{remote_output_dir}` is still empty, so nothing will be
+                returned to the user.
+
+                Continue the work described in `/workspace/AGENT.md` and
+                produce the required files inside `{remote_output_dir}`
+                now.
+
+                VERY IMPORTANT — about HOW you reply:
+                - Do NOT emit JSON like {{"type": "function", ...}} or
+                  {{"thought": ...}} as your message content. That is plain
+                  text and will be ignored — no file will be written.
+                - Instead, invoke the tools the normal way (function /
+                  tool calls). The `file_editor` tool with
+                  `command="create"` is the right way to write
+                  `{remote_output_dir}/<name>`.
+                - After the tool call succeeds, verify with the
+                  `terminal` tool (`ls -la {remote_output_dir}` and
+                  `cat <file>`) that the file is actually on disk with the
+                  intended contents.
+                - Only stop once `{remote_output_dir}` contains the
+                  finished output for every instruction in AGENT.md.
+                """
+            )
+            conversation.run()
+            logger.info(
+                f"Agent status after nudge {attempt}: "
+                f"{conversation.state.execution_status}"
+            )
+        else:
+            logger.error(
+                f"Agent never produced output in {remote_output_dir} "
+                f"after {max_nudges} nudges; giving up."
+            )
+
+    def _run_test_fix_loop(
+        self,
+        conversation,
+        workspace,
+        remote_output_dir: str,
+        remote_report_path: str,
+        logger,
+    ) -> None:
+        """Verify the migrated extension and ask the agent to fix any errors."""
+        max_test_attempts = 3
+        for attempt in range(1, max_test_attempts + 1):
+            passed, report = test_harness.run_verify(
+                workspace,
+                remote_output_dir,
+                remote_report_path,
+                logger,
+            )
+            if passed:
+                logger.info("Migrated extension passed verification.")
+                break
+
+            if attempt == max_test_attempts:
+                logger.error(
+                    f"Migrated extension still failing after "
+                    f"{max_test_attempts} test attempts; giving up."
+                )
+                break
+
+            errors = report.get("errors", [])
+            error_text = "\n".join(
+                f"- ({e.get('source', '?')}) {e.get('text', '')}" for e in errors
+            ) or "The extension failed to load (no service worker registered)."
+
+            logger.warning(
+                f"Migrated extension failed verification "
+                f"(attempt {attempt}/{max_test_attempts}). Asking agent to fix."
+            )
+            conversation.send_message(
+                f"""
+                The migrated extension in `{remote_output_dir}` was loaded into
+                Chromium and FAILED verification. The following errors were
+                captured at runtime:
+
+                {error_text}
+
+                Delegate to `extension-transformer` to fix the migrated files in
+                `{remote_output_dir}` so these runtime errors are resolved. Common
+                causes: a service worker referencing APIs unavailable in MV3
+                (DOM/`window`, `XMLHttpRequest`), leftover MV2 API calls, or an
+                invalid `manifest.json`.
+
+                Re-run the `verify` skill to confirm the fix:
+                  `python {test_harness.VERIFY_SCRIPT} {remote_output_dir} {remote_report_path}`
+
+                Do not stop until verification passes (exit code 0).
+                """
+            )
+            conversation.run()
+            logger.info(
+                f"Agent status after fix attempt {attempt}: "
+                f"{conversation.state.execution_status}"
+            )
+
+    def _download_outputs(
+        self,
+        workspace,
+        remote_output_dir: str,
+        local_output_dir: str,
+        local_output_root: str,
+        remote_root: str,
+        remote_report_path: str,
+        extension_path: str,
+        logger,
+    ) -> None:
+        """Download all migration artifacts from the workspace and print summaries."""
+        try:
+            self._download_directory(workspace, remote_output_dir, local_output_dir, logger)
+        except Exception as e:
+            logger.error(f"Failed to download workspace output: {e}")
+
+        remote_analysis = f"{remote_root}/analysis.json"
+        local_analysis = os.path.join(local_output_root, "analysis.json")
+        try:
+            os.makedirs(local_output_root, exist_ok=True)
+            result = workspace.file_download(
+                source_path=remote_analysis,
+                destination_path=local_analysis,
+            )
+            if result.error is None:
+                with open(local_analysis) as f:
+                    analysis = json.load(f)
+                print("\n--- Migration Analysis ---")
+                print(json.dumps(analysis, indent=2))
+                print("-------------------------\n")
+            else:
+                logger.warning(f"analysis.json not available: {result.error}")
+        except Exception as e:
+            logger.error(f"Failed to download analysis.json: {e}")
+
+        local_report = os.path.join(local_output_root, "test_report.json")
+        try:
+            os.makedirs(local_output_root, exist_ok=True)
+            result = workspace.file_download(
+                source_path=remote_report_path,
+                destination_path=local_report,
+            )
+            if result.error is None:
+                with open(local_report) as f:
+                    report = json.load(f)
+                n_errors = len(report.get("errors", []))
+                status = "PASSED" if report.get("loaded") and n_errors == 0 else "FAILED"
+                print(f"\n--- Extension Verification: {status} ---")
+                print(
+                    f"loaded={report.get('loaded')}, "
+                    f"extensionId={report.get('extensionId')}, "
+                    f"errors={n_errors}, "
+                    f"warnings={len(report.get('warnings', []))}"
+                )
+                print("----------------------------------\n")
+            else:
+                logger.warning(f"test_report.json not available: {result.error}")
+        except Exception as e:
+            logger.error(f"Failed to download test_report.json: {e}")
+
+        try:
+            patch_path = os.path.join(local_output_root, "migration.patch")
+            self._generate_patch(extension_path, local_output_dir, patch_path, logger)
+        except Exception as e:
+            logger.error(f"Failed to generate patch: {e}")
+
     def _generate_patch(self, original_dir: str, migrated_dir: str, patch_path: str, logger) -> None:
-        """
-        Write a unified diff between original_dir and migrated_dir to patch_path.
-        Files that exist only in migrated_dir (e.g. analysis.json, migration.patch) and
-        that have no counterpart in original_dir are included as new-file diffs unless
-        they are non-extension artifacts (analysis.json, migration.patch).
-        """
-        import difflib
-
-        # Artifacts written by the migration tooling itself — exclude from the diff.
-        EXCLUDE = {"analysis.json", "migration.patch"}
-
+        """Write a unified diff between original_dir and migrated_dir to patch_path."""
         def collect_files(directory: str) -> set[str]:
             result = set()
             for root, _, files in os.walk(directory):
                 for f in files:
                     rel = os.path.relpath(os.path.join(root, f), directory)
-                    if rel not in EXCLUDE:
+                    if rel not in _PATCH_EXCLUDE:
                         result.add(rel)
             return result
 

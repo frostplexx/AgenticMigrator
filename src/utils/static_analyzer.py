@@ -2,6 +2,7 @@ import json
 import os
 import re
 from collections import defaultdict
+from typing import Pattern
 
 
 def build_analysis(findings: list[dict], extension_path: str) -> dict:
@@ -68,6 +69,13 @@ class StaticAnalyzer:
             if source_api and target_api and source_api not in self.api_map:
                 self.api_map[source_api] = target_api
 
+        # Compile a single regex that matches any known deprecated API.
+        # Sort longest first so the alternation always prefers the most-specific match
+        # (e.g. chrome.browserAction.setTitle over chrome.browserAction).
+        sorted_apis = sorted(self.api_map, key=len, reverse=True)
+        pattern = "|".join(re.escape(a) for a in sorted_apis)
+        self._api_re: Pattern[str] = re.compile(pattern) if pattern else re.compile(r"(?!)")
+
     def analyze(self, extension_path: str) -> list[dict]:
         """
         Scan JS/HTML files in extension_path for deprecated API usage.
@@ -87,20 +95,20 @@ class StaticAnalyzer:
                     lines = f.readlines()
 
                 for lineno, line in enumerate(lines, 1):
-                    matched = [api for api in self.api_map if api in line]
-                    # Drop any match that is a strict prefix of a longer match on the same line,
-                    # e.g. don't report chrome.browserAction when chrome.browserAction.setTitle also matched.
-                    matched = [
-                        api for api in matched
-                        if not any(other != api and other.startswith(api) for other in matched)
-                    ]
-                    for api in matched:
-                        findings.append({
-                            "api": api,
-                            "replacement": self.api_map[api],
-                            "file": rel_path,
-                            "line": lineno,
-                            "snippet": line.strip(),
-                        })
+                    # Single-pass: collect all non-overlapping matches; the regex is already
+                    # sorted longest-first so shorter prefixes are never reported when a
+                    # longer match exists on the same line.
+                    seen: set[str] = set()
+                    for m in self._api_re.finditer(line):
+                        api = m.group(0)
+                        if api not in seen:
+                            seen.add(api)
+                            findings.append({
+                                "api": api,
+                                "replacement": self.api_map[api],
+                                "file": rel_path,
+                                "line": lineno,
+                                "snippet": line.strip(),
+                            })
 
         return findings

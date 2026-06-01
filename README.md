@@ -40,13 +40,13 @@ main.py <extension-path>
 
 1. **Setup** — `MigrationManager` reads LLM config from `.env`, initializes the LLM client, and starts a Docker container running the OpenHands agent server.
 
-2. **Static analysis** — `StaticAnalyzer` scans the extension's JS/HTML against `api_mappings.json` and `build_analysis()` writes the migration plan (`analysis.json`) directly — there is **no LLM analyzer agent**. This is fast and deterministic for known API call-site replacements; manifest-level changes and anything static analysis can't see are handled by the transformer (using the migration reference) and caught at runtime by `verify`.
+2. **Static analysis** — `StaticAnalyzer` scans the extension's JS/HTML against `api_mappings.json` and `build_analysis()` writes the migration plan (`analysis.json`) directly — there is **no LLM analyzer agent**. This is fast and deterministic for known API call-site replacements; manifest-level changes and anything static analysis can't see are handled by the transformer (using the `mv3-migration` skill) and caught at runtime by `verify`.
 
 3. **Workspace prep** — There is no checked-in `src/workspace/`; the container workspace is **assembled at runtime** in a temp staging dir from `src/AGENT.md`, the skills in `src/skills/` (copied to `.openhands/skills/`), and the generated `analysis.json`, then uploaded to `/workspace/`. The extension directory passed on the CLI is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
 
 4. **Verify provisioning** — The `verify` skill's Python deps (`playwright`, `websocket-client`) are installed in the container. It uses the Chromium that ships in the agent-server image (launched via Playwright), so no browser is downloaded. The browser version is fixed by the agent-server image tag (pin the tag, or build a custom image with `DockerDevWorkspace`, to control it). Chrome for Testing is intentionally **not** used: it has no native ARM64 Linux build and its amd64 build crashes under emulation on Apple Silicon.
 
-5. **Orchestration** — A `Conversation` is started with `MigratorAgent`, which has access to `terminal`, `file_editor`, and `task` (sub-agent delegation) tools — **no browser tool**, so the agent cannot drive a browser directly; testing happens only through the `verify` skill. Its **system prompt** carries the MV2→MV3 migration reference (`src/utils/migration_reference.py`) so the agent always knows what must change (manifest fields, service-worker constraints, API replacements). The initial prompt from `PromptGenerator` is sent, kicking off the workflow:
+5. **Orchestration** — A `Conversation` is started with `MigratorAgent`, which has access to `terminal`, `file_editor`, and `task` (sub-agent delegation) tools — **no browser tool**, so the agent cannot drive a browser directly; testing happens only through the `verify` skill. The MV2→MV3 migration knowledge (manifest fields, service-worker constraints, API replacements) lives in the `mv3-migration` skill rather than the system prompt, so it's pulled on demand. The initial prompt from `PromptGenerator` is sent, kicking off the workflow:
    - Delegate migration to `extension-transformer` (applies the pre-generated `analysis.json` plus all other MV2→MV3 changes)
    - Verify `/workspace/out/manifest.json` exists with `manifest_version: 3`
    - Delegate testing to `extension-tester`
@@ -75,14 +75,15 @@ main.py <extension-path>
 │   │       ├── extension-transformer.md # Applies the migration, writes migrated files to out/
 │   │       └── extension-tester.md      # Runs the verify skill, reports errors
 │   ├── skills/                     # Skills, assembled into /workspace/.openhands/skills at runtime
-│   │   └── verify/                 # `verify` skill: Playwright extension test
-│   │       ├── SKILL.md
-│   │       └── scripts/verify.py
+│   │   ├── verify/                 # `verify` skill: Playwright extension test + exerciser
+│   │   │   ├── SKILL.md
+│   │   │   └── scripts/            # verify.py, browser_session.py, exerciser.py, …
+│   │   └── mv3-migration/          # `mv3-migration` skill: MV2→MV3 knowledge (on demand)
+│   │       └── SKILL.md
 │   ├── utils/
 │   │   ├── banner.py               # Startup banner
 │   │   ├── docker.py               # Docker workspace factory
 │   │   ├── static_analyzer.py      # Scans source for deprecated APIs + builds analysis.json
-│   │   ├── migration_reference.py  # MV2→MV3 knowledge baked into the agent system prompt
 │   │   ├── test_harness.py         # Installs verify deps + runs the verify skill
 │   │   └── prompt_generator.py     # Initial task prompt
 ├── output/                         # Downloaded agent output (created at runtime)
