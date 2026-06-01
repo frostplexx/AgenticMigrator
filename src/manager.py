@@ -5,7 +5,7 @@ import shutil
 from openhands.sdk import LLM, Conversation, RemoteConversation, get_logger
 
 from .agents.migrator import MigratorAgent
-from .utils import artifacts, conversation_loops, test_harness, workspace_io
+from .utils import artifacts, conversation_loops, manifest_converter, test_harness, workspace_io
 from .utils.banner import show_banner
 from .utils.docker import createDockerWorkspace
 from .utils.llm_factory import build_llm
@@ -44,74 +44,82 @@ class MigrationManager:
         if not os.path.isdir(extension_path):
             raise ValueError(f"Extension path is not a directory: {extension_path}")
 
-        # Produce the migration plan statically (no LLM analyzer agent) for speed.
-        mappings_path = os.path.join(os.path.dirname(__file__), "utils", "api_mappings.json")
-        findings = StaticAnalyzer(mappings_path).analyze(extension_path)
-        _logger.info(f"Static analysis found {len(findings)} deprecated API usage(s)")
-        analysis = build_analysis(findings, extension_path)
+        # Host-side pre-pass: run the extension through extension-manifest-converter so the
+        # deterministic MV2->MV3 changes are applied before upload; the LLM finishes the
+        # rest. `converted_dir` is what gets uploaded/analyzed; `extension_path` (the
+        # original) is kept for the migration diff.
+        converted_dir = manifest_converter.convert(extension_path, _logger)
+        try:
+            # Produce the migration plan statically (no LLM analyzer agent) for speed.
+            mappings_path = os.path.join(os.path.dirname(__file__), "utils", "api_mappings.json")
+            findings = StaticAnalyzer(mappings_path).analyze(converted_dir)
+            _logger.info(f"Static analysis found {len(findings)} deprecated API usage(s)")
+            analysis = build_analysis(findings, converted_dir)
 
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        local_output_root = os.path.join(project_root, "output")
-        local_output_dir = os.path.join(local_output_root, "extension")
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            local_output_root = os.path.join(project_root, "output")
+            local_output_dir = os.path.join(local_output_root, "extension")
 
-        staging_dir = workspace_io.assemble_workspace(analysis, _logger)
+            staging_dir = workspace_io.assemble_workspace(analysis, _logger)
 
-        with createDockerWorkspace(8081) as workspace:
-            remote_root = workspace.working_dir.rstrip("/")
-            remote_output_dir = f"{remote_root}/out"
-            remote_report_path = f"{remote_root}/test_report.json"
+            with createDockerWorkspace(8081) as workspace:
+                remote_root = workspace.working_dir.rstrip("/")
+                remote_output_dir = f"{remote_root}/out"
+                remote_report_path = f"{remote_root}/test_report.json"
 
-            try:
-                workspace_io.upload_directory(workspace, staging_dir, remote_root, _logger)
-            finally:
-                shutil.rmtree(staging_dir, ignore_errors=True)
+                try:
+                    workspace_io.upload_directory(workspace, staging_dir, remote_root, _logger)
+                finally:
+                    shutil.rmtree(staging_dir, ignore_errors=True)
 
-            _logger.info(f"Uploading extension {extension_path} -> {remote_root}/extension")
-            workspace_io.upload_directory(
-                workspace, extension_path, f"{remote_root}/extension", _logger
-            )
-
-            # Pre-create the output dir so the agent can write to it without mkdir.
-            mkdir_result = workspace.execute_command(f"mkdir -p {remote_output_dir}", timeout=30)
-            if mkdir_result.exit_code != 0:
-                _logger.error(
-                    f"Failed to create remote output dir {remote_output_dir} "
-                    f"(exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
+                _logger.info(f"Uploading converted extension -> {remote_root}/extension")
+                workspace_io.upload_directory(
+                    workspace, converted_dir, f"{remote_root}/extension", _logger
                 )
 
-            test_harness.install_verify_deps(workspace, _logger)
+                # Pre-create the output dir so the agent can write to it without mkdir.
+                mkdir_result = workspace.execute_command(f"mkdir -p {remote_output_dir}", timeout=30)
+                if mkdir_result.exit_code != 0:
+                    _logger.error(
+                        f"Failed to create remote output dir {remote_output_dir} "
+                        f"(exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
+                    )
 
-            agent_log_dir = os.path.join(project_root, "agent_logs")
-            os.makedirs(agent_log_dir, exist_ok=True)
+                test_harness.install_verify_deps(workspace, _logger)
 
-            conversation = Conversation(
-                agent=MigratorAgent().get_agent(self.llm),
-                workspace=workspace,
-                callbacks=[conversation_loops.make_activity_logger(agent_log_dir)],
-            )
-            assert isinstance(conversation, RemoteConversation)
+                agent_log_dir = os.path.join(project_root, "agent_logs")
+                os.makedirs(agent_log_dir, exist_ok=True)
 
-            try:
-                conversation.send_message(PromptGenerator(findings).prompt)
-                conversation.run()
-                _logger.info(f"Agent status: {conversation.state.execution_status}")
-
-                conversation_loops.run_nudge_loop(
-                    conversation, workspace, remote_output_dir, _logger
+                conversation = Conversation(
+                    agent=MigratorAgent().get_agent(self.llm),
+                    workspace=workspace,
+                    callbacks=[conversation_loops.make_activity_logger(agent_log_dir)],
                 )
-                conversation_loops.run_test_fix_loop(
-                    conversation, workspace, remote_output_dir, remote_report_path, _logger
-                )
-            finally:
-                artifacts.download_outputs(
-                    workspace,
-                    remote_output_dir=remote_output_dir,
-                    local_output_dir=local_output_dir,
-                    local_output_root=local_output_root,
-                    remote_root=remote_root,
-                    remote_report_path=remote_report_path,
-                    extension_path=extension_path,
-                    logger=_logger,
-                )
-                print("\n🧹 Cleaning up conversation...")
-                conversation.close()
+                assert isinstance(conversation, RemoteConversation)
+
+                try:
+                    conversation.send_message(PromptGenerator(findings).prompt)
+                    conversation.run()
+                    _logger.info(f"Agent status: {conversation.state.execution_status}")
+
+                    conversation_loops.run_nudge_loop(
+                        conversation, workspace, remote_output_dir, _logger
+                    )
+                    conversation_loops.run_test_fix_loop(
+                        conversation, workspace, remote_output_dir, remote_report_path, _logger
+                    )
+                finally:
+                    artifacts.download_outputs(
+                        workspace,
+                        remote_output_dir=remote_output_dir,
+                        local_output_dir=local_output_dir,
+                        local_output_root=local_output_root,
+                        remote_root=remote_root,
+                        remote_report_path=remote_report_path,
+                        extension_path=extension_path,
+                        logger=_logger,
+                    )
+                    print("\n🧹 Cleaning up conversation...")
+                    conversation.close()
+        finally:
+            shutil.rmtree(converted_dir, ignore_errors=True)

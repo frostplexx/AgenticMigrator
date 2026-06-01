@@ -13,9 +13,10 @@ main.py <extension-path>
         ├── Spins up Docker workspace (OpenHands agent server)
         │     ├── VSCode Server  (host_port + 1)
         │     └── VNC Server     (host_port + 2)
+        ├── Pre-pass: extension-manifest-converter (host) → partially-migrated extension
         ├── Static analysis (api_mappings.json) → writes analysis.json (the migration plan)
         ├── Assembles workspace (src/skills/ + analysis.json) → uploads to /workspace/
-        ├── Uploads <extension-path>/ into /workspace/extension/
+        ├── Uploads converted extension into /workspace/extension/
         ├── Installs verify-skill deps (playwright, websocket-client)
         ├── Creates a Conversation with MigratorAgent (+ verify skill, no browser tool)
         └── Sends prompt → runs conversation loop
@@ -40,24 +41,26 @@ main.py <extension-path>
 
 1. **Setup** — `MigrationManager` reads LLM config from `.env`, initializes the LLM client, and starts a Docker container running the OpenHands agent server.
 
-2. **Static analysis** — `StaticAnalyzer` scans the extension's JS/HTML against `api_mappings.json` and `build_analysis()` writes the migration plan (`analysis.json`) directly — there is **no LLM analyzer agent**. This is fast and deterministic for known API call-site replacements; manifest-level changes and anything static analysis can't see are handled by the transformer (using the `mv3-migration` skill) and caught at runtime by `verify`.
+2. **Converter pre-pass** — On the host, the extension is run through GoogleChromeLabs' [extension-manifest-converter](https://github.com/GoogleChromeLabs/extension-manifest-converter) (vendored as a git submodule under `third_party/`, invoked by `src/utils/manifest_converter.py`). This applies the deterministic MV2→MV3 changes — `manifest_version`, `host_permissions`, background→service worker, browser/page action→action, `executeScript`/`insertCSS`→`scripting`, CSP, WAR — into a temp copy. The original is left untouched (kept for the diff); if the submodule is missing or the converter fails, the original is passed through unchanged.
 
-3. **Workspace prep** — There is no checked-in `src/workspace/`; the container workspace is **assembled at runtime** in a temp staging dir from the skills in `src/skills/` (copied to `.openhands/skills/`) and the generated `analysis.json`, then uploaded to `/workspace/`. The extension directory passed on the CLI is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
+3. **Static analysis** — `StaticAnalyzer` scans the *converted* extension against `api_mappings.json` and `build_analysis()` writes the migration plan (`analysis.json`) of the deprecated call sites that **remain** — there is **no LLM analyzer agent**. Anything static analysis can't see is handled by the transformer (using the `mv3-migration` skill) and caught at runtime by `verify`.
 
-4. **Verify provisioning** — The `verify` skill's Python deps (`playwright`, `websocket-client`) are installed in the container. It uses the Chromium that ships in the agent-server image (launched via Playwright), so no browser is downloaded. The browser version is fixed by the agent-server image tag (pin the tag, or build a custom image with `DockerDevWorkspace`, to control it). Chrome for Testing is intentionally **not** used: it has no native ARM64 Linux build and its amd64 build crashes under emulation on Apple Silicon.
+4. **Workspace prep** — There is no checked-in `src/workspace/`; the container workspace is **assembled at runtime** in a temp staging dir from the skills in `src/skills/` (copied to `.openhands/skills/`) and the generated `analysis.json`, then uploaded to `/workspace/`. The **converted** extension is uploaded to `/workspace/extension/`. An `out/` directory is pre-created for agent output.
 
-5. **Orchestration** — A `Conversation` is started with `MigratorAgent`, which has access to `terminal`, `file_editor`, and `task` (sub-agent delegation) tools — **no browser tool**, so the agent cannot drive a browser directly; testing happens only through the `verify` skill. The MV2→MV3 migration knowledge (manifest fields, service-worker constraints, API replacements) lives in the `mv3-migration` skill rather than the system prompt, so it's pulled on demand. The initial prompt from `PromptGenerator` is sent, kicking off the workflow:
+5. **Verify provisioning** — The `verify` skill's Python deps (`playwright`, `websocket-client`) are installed in the container. It uses the Chromium that ships in the agent-server image (launched via Playwright), so no browser is downloaded. The browser version is fixed by the agent-server image tag (pin the tag, or build a custom image with `DockerDevWorkspace`, to control it). Chrome for Testing is intentionally **not** used: it has no native ARM64 Linux build and its amd64 build crashes under emulation on Apple Silicon.
+
+6. **Orchestration** — A `Conversation` is started with `MigratorAgent`, which has access to `terminal`, `file_editor`, and `task` (sub-agent delegation) tools — **no browser tool**, so the agent cannot drive a browser directly; testing happens only through the `verify` skill. The MV2→MV3 migration knowledge (manifest fields, service-worker constraints, API replacements) lives in the `mv3-migration` skill rather than the system prompt, so it's pulled on demand. The initial prompt from `PromptGenerator` is sent, kicking off the workflow:
    - Delegate migration to `extension-transformer` (applies the pre-generated `analysis.json` plus all other MV2→MV3 changes)
    - Verify `/workspace/out/manifest.json` exists with `manifest_version: 3`
    - Delegate testing to `extension-tester`
 
-6. **Subagents** — Each subagent is defined by a markdown file in `src/agents/subagents/` with frontmatter declaring its name, tools, and model. They run with the same LLM as the orchestrator (`model: inherit`).
+7. **Subagents** — Each subagent is defined by a markdown file in `src/agents/subagents/` with frontmatter declaring its name, tools, and model. They run with the same LLM as the orchestrator (`model: inherit`).
 
-7. **Test → fix loop** — After output is produced, the manager runs the `verify` skill (Playwright loads the migrated extension into Chromium, captures service-worker/console/page errors). If it fails, the captured errors are sent back to the agent to fix, then verification re-runs — up to 3 attempts. This is what catches anything the static plan missed.
+8. **Test → fix loop** — After output is produced, the manager runs the `verify` skill (Playwright loads the migrated extension into Chromium, captures service-worker/console/page errors). If it fails, the captured errors are sent back to the agent to fix, then verification re-runs — up to 3 attempts. This is what catches anything the static plan missed.
 
-8. **Nudging** — If the agent finishes without producing output files, the manager re-sends the task (up to 3 nudges) with explicit instructions to use tool calls rather than plain text.
+9. **Nudging** — If the agent finishes without producing output files, the manager re-sends the task (up to 3 nudges) with explicit instructions to use tool calls rather than plain text.
 
-9. **Output** — Once complete, `output/` on the host contains the migrated extension (`extension/`), the migration plan (`analysis.json`), the diff (`migration.patch`), and the runtime report (`test_report.json`). Activity logs are written to `agent_logs/`.
+10. **Output** — Once complete, `output/` on the host contains the migrated extension (`extension/`), the migration plan (`analysis.json`), the diff (`migration.patch`), and the runtime report (`test_report.json`). Activity logs are written to `agent_logs/`.
 
 ---
 
@@ -83,12 +86,15 @@ main.py <extension-path>
 │   │   ├── banner.py               # Startup banner
 │   │   ├── docker.py               # Docker workspace factory
 │   │   ├── llm_factory.py          # Builds the LLM from env vars
+│   │   ├── manifest_converter.py   # Host-side extension-manifest-converter pre-pass
 │   │   ├── static_analyzer.py      # Scans source for deprecated APIs + builds analysis.json
 │   │   ├── prompt_generator.py     # Initial task prompt
 │   │   ├── workspace_io.py         # Assemble / upload / download the container workspace
 │   │   ├── conversation_loops.py   # Activity logger + nudge loop + verify→fix loop
 │   │   ├── artifacts.py            # Download outputs + build migration.patch
 │   │   └── test_harness.py         # Installs verify deps + runs the verify skill
+├── third_party/
+│   └── extension-manifest-converter/   # git submodule — GoogleChromeLabs MV2→MV3 converter
 ├── output/                         # Downloaded agent output (created at runtime)
 │   ├── extension/                  #   the migrated extension
 │   ├── analysis.json               #   migration plan (static analysis)
@@ -124,6 +130,14 @@ Copy `.env.example` to `.env` and fill in the values:
 ---
 
 ## Running
+
+First fetch the vendored converter submodule (once, after cloning):
+
+```bash
+git submodule update --init --recursive
+```
+
+Then run:
 
 ```bash
 uv run python main.py /path/to/my-extension

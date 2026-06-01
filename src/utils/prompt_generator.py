@@ -19,11 +19,17 @@ You are the main coordinator. Delegate work to the specialized subagents availab
 1. **extension-transformer** - Applies the migration and writes the output files
 2. **extension-tester** - Loads the migrated extension in Chromium and reports runtime errors
 
+The extension at `/workspace/extension/` has ALREADY been run through an automated
+converter (extension-manifest-converter), so the manifest is likely already MV3 and the
+simple search-and-replace API swaps are done. Your job is to finish what the converter
+cannot do automatically (e.g. service-worker code that used the DOM/`window`, blocking
+`webRequest`, anything subtle) and make it actually run.
+
 A static migration plan has already been produced for you at `/workspace/analysis.json`
-(no analysis step is needed). It lists the known deprecated API call sites and their MV3
-replacements. It does not cover everything — manifest changes and anything static analysis
-cannot see must still be applied using the `mv3-migration` skill (the MV2->MV3 reference),
-and will be caught at runtime by the `verify` skill.
+(no analysis step is needed). It lists the deprecated API call sites that REMAIN and their
+MV3 replacements. It does not cover everything — remaining manifest issues and anything
+static analysis cannot see must still be applied using the `mv3-migration` skill (the
+MV2->MV3 reference), and will be caught at runtime by the `verify` skill.
 
 {_format_findings(findings)}
 
