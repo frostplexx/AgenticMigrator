@@ -18,6 +18,8 @@ You are the main coordinator. Delegate work to the specialized subagents availab
 
 1. **extension-transformer** - Applies the migration and writes the output files
 2. **extension-tester** - Loads the migrated extension in Chromium and reports runtime errors
+3. **extension-critic** - Scores the migration quality and reports actionable issues
+   (used by the host-driven refinement step after verification passes)
 
 The extension at `/workspace/extension/` has ALREADY been run through an automated
 converter (extension-manifest-converter), so the manifest is likely already MV3 and the

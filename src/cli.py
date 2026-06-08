@@ -73,6 +73,11 @@ def render_result(result: MigrationResult) -> None:
     table.add_row("Status", f"[{color}]{result.status.upper()}[/{color}]")
     table.add_row("Verify", "PASSED" if result.verify_passed else f"FAILED ({len(result.verify_errors)} error(s))")
     table.add_row("API sites", str(result.num_findings))
+    if result.quality_score is not None:
+        table.add_row(
+            "Quality",
+            f"{result.quality_score:.0f}/100 ({result.refine_iterations} refine pass(es))",
+        )
     table.add_row("Cost", f"${result.accumulated_cost:.4f}")
     table.add_row("Tokens", f"{total_tokens:,} (in {result.prompt_tokens:,} / out {result.completion_tokens:,})")
     table.add_row("Time", f"{result.wall_time_s:.1f}s")
@@ -94,6 +99,18 @@ def migrate(
     temperature: float = typer.Option(
         None, "--temperature", "-t", help="LLM sampling temperature (overrides LLM_TEMPERATURE)"
     ),
+    refine: bool = typer.Option(
+        True, "--refine/--no-refine", envvar="REFINE",
+        help="Run the iterative quality-refinement loop after verification (--no-refine to skip)",
+    ),
+    refine_threshold: float = typer.Option(
+        80.0, "--refine-threshold", envvar="REFINE_THRESHOLD",
+        help="Stop refining once the critic's average score reaches this (0-100)",
+    ),
+    refine_iterations: int = typer.Option(
+        2, "--refine-iterations", envvar="REFINE_MAX_ITERATIONS",
+        help="Max critique/improvement passes",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose (DEBUG) logging"),
 ) -> None:
     """Migrate a single extension and leave the result in OUTPUT."""
@@ -107,6 +124,8 @@ def migrate(
         conversation_id=conversation_id_for(extension),
         keep_workspace=keep_workspace,
         quiet=False,
+        refine_max_iterations=refine_iterations if refine else 0,
+        refine_threshold=refine_threshold,
     )
     result = run_migration(config, llm)
     render_result(result)
@@ -124,6 +143,18 @@ def batch(
     port: int = typer.Option(DEFAULT_PORT_BASE, "--port", help="Base host port (worker i uses port + i*10)"),
     temperature: float = typer.Option(
         None, "--temperature", "-t", help="LLM sampling temperature (overrides LLM_TEMPERATURE)"
+    ),
+    refine: bool = typer.Option(
+        True, "--refine/--no-refine", envvar="REFINE",
+        help="Run the iterative quality-refinement loop after verification (--no-refine to skip)",
+    ),
+    refine_threshold: float = typer.Option(
+        80.0, "--refine-threshold", envvar="REFINE_THRESHOLD",
+        help="Stop refining once the critic's average score reaches this (0-100)",
+    ),
+    refine_iterations: int = typer.Option(
+        2, "--refine-iterations", envvar="REFINE_MAX_ITERATIONS",
+        help="Max critique/improvement passes per extension",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose (DEBUG) logging"),
 ) -> None:
@@ -149,6 +180,8 @@ def batch(
         limit=limit,
         port_base=port,
         temperature=temperature,
+        refine_max_iterations=refine_iterations if refine else 0,
+        refine_threshold=refine_threshold,
     )
     summary = run_batch(cfg, console)
     raise typer.Exit(0 if summary.get("errors", 0) == 0 and summary.get("total", 0) > 0 else 1)

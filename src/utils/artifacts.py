@@ -7,7 +7,7 @@ import os
 from . import workspace_io
 
 # Files that live in the output root but are not part of the extension diff.
-_PATCH_EXCLUDE = {"analysis.json", "migration.patch"}
+_PATCH_EXCLUDE = {"analysis.json", "migration.patch", "critique.json"}
 
 
 def download_outputs(
@@ -20,9 +20,11 @@ def download_outputs(
     remote_report_path: str,
     extension_path: str,
     logger,
+    remote_critique_path: str | None = None,
 ) -> None:
-    """Download the migrated extension, analysis.json, and test_report.json, print
-    summaries, and generate the migration patch."""
+    """Download the migrated extension, analysis.json, and test_report.json (and the
+    critique report when refinement ran), print summaries, and generate the migration
+    patch."""
     try:
         workspace_io.download_directory(workspace, remote_output_dir, local_output_dir, logger)
     except Exception as e:
@@ -32,6 +34,8 @@ def download_outputs(
 
     _download_and_print_analysis(workspace, remote_root, local_output_root, logger)
     _download_and_print_report(workspace, remote_report_path, local_output_root, logger)
+    if remote_critique_path:
+        _download_critique(workspace, remote_critique_path, local_output_root, logger)
 
     try:
         patch_path = os.path.join(local_output_root, "migration.patch")
@@ -83,6 +87,26 @@ def _download_and_print_report(workspace, remote_report_path, local_output_root,
         print("----------------------------------\n")
     except Exception as e:
         logger.error(f"Failed to download test_report.json: {e}")
+
+
+def _download_critique(workspace, remote_critique_path, local_output_root, logger) -> None:
+    local_critique = os.path.join(local_output_root, "critique.json")
+    try:
+        result = workspace.file_download(
+            source_path=remote_critique_path,
+            destination_path=local_critique,
+        )
+        if result.error is not None:
+            logger.info(f"critique.json not available: {result.error}")
+            return
+        with open(local_critique) as f:
+            critique = json.load(f)
+        print(
+            f"\n--- Quality Critique: average {critique.get('average_score')}/100 ---\n"
+            f"{critique.get('summary', '')}\n----------------------------------\n"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to download critique.json: {e}")
 
 
 def generate_patch(original_dir: str, migrated_dir: str, patch_path: str, logger) -> None:

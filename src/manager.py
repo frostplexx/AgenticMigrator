@@ -56,6 +56,11 @@ class RunConfig:
     conversation_id: UUID | None = None
     keep_workspace: bool = False
     quiet: bool = False
+    # Iterative quality refinement (on by default): 0 disables it. After a passing
+    # verification the critic scores the migration and the transformer improves it until the
+    # score reaches ``refine_threshold`` (0-100) or ``refine_max_iterations`` passes are used.
+    refine_max_iterations: int = 2
+    refine_threshold: float = 80.0
 
     @property
     def migrated_dir(self) -> str:
@@ -82,6 +87,8 @@ class MigrationResult:
     num_findings: int = 0
     nudge_attempts: int = 0
     test_attempts: int = 0
+    quality_score: float | None = None
+    refine_iterations: int = 0
     accumulated_cost: float = 0.0
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -142,6 +149,7 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
             remote_root = workspace.working_dir.rstrip("/")
             remote_output_dir = f"{remote_root}/out"
             remote_report_path = f"{remote_root}/test_report.json"
+            remote_critique_path = f"{remote_root}/critique.json"
 
             try:
                 workspace_io.upload_directory(workspace, staging_dir, remote_root, _logger)
@@ -188,6 +196,32 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                 result.test_attempts = test_attempts
                 result.verify_errors = report.get("errors", [])
                 result.status = "success" if passed else "verify_failed"
+
+                # Iterative refinement (quality pass). Only refine a migration that already
+                # verifies — there is no point polishing a broken one.
+                if config.refine_max_iterations > 0 and passed:
+                    score, refine_iters = conversation_loops.run_refine_loop(
+                        conversation,
+                        workspace,
+                        remote_output_dir,
+                        remote_critique_path,
+                        config.refine_threshold,
+                        config.refine_max_iterations,
+                        _logger,
+                    )
+                    result.quality_score = score
+                    result.refine_iterations = refine_iters
+                    # Refinement edited files; re-verify so we never report a refined-but-
+                    # broken extension. (Honest signal: a regression flips it to FAILED.)
+                    if refine_iters > 0:
+                        passed, report = test_harness.run_verify(
+                            workspace, remote_output_dir, remote_report_path, _logger
+                        )
+                        result.verify_passed = passed
+                        result.verify_errors = report.get("errors", [])
+                        result.status = "success" if passed else "verify_failed"
+                        if not passed:
+                            _logger.warning(f"[{name}] Refinement regressed verification.")
             finally:
                 # Capture metrics + the conversation trace before the remote conversation
                 # is torn down, then download the artifacts.
@@ -215,6 +249,9 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                     remote_report_path=remote_report_path,
                     extension_path=extension_path,
                     logger=_logger,
+                    remote_critique_path=remote_critique_path
+                    if config.refine_max_iterations > 0
+                    else None,
                 )
                 result.migrated_dir = config.migrated_dir
                 conversation.close()

@@ -1,6 +1,7 @@
-"""Drive the agent conversation: activity logging, the output nudge loop, and the
-verify -> fix loop."""
+"""Drive the agent conversation: activity logging, the output nudge loop, the
+verify -> fix loop, and the iterative quality-refinement loop."""
 
+import json
 import os
 import time
 
@@ -141,3 +142,100 @@ def run_test_fix_loop(
         logger.info(f"Agent status after fix attempt {attempt}: {conversation.state.execution_status}")
 
     return passed, report, _MAX_TEST_ATTEMPTS
+
+
+def _read_critique_score(workspace, remote_critique_path: str, logger) -> tuple[float | None, dict]:
+    """Read the critic's JSON report and return ``(average_score, critique)``.
+
+    Returns ``(None, {})`` if the report is missing or unparseable.
+    """
+    cat = workspace.execute_command(f"cat {remote_critique_path}", timeout=30)
+    if cat.exit_code != 0 or not (cat.stdout or "").strip():
+        logger.warning(f"Critique report not found at {remote_critique_path}")
+        return None, {}
+    try:
+        critique = json.loads(cat.stdout)
+    except json.JSONDecodeError as e:
+        logger.warning(f"Could not parse critique JSON: {e}")
+        return None, {}
+    score = critique.get("average_score")
+    if not isinstance(score, (int, float)):
+        logger.warning("Critique JSON has no numeric 'average_score'.")
+        return None, critique
+    return float(score), critique
+
+
+def run_refine_loop(
+    conversation,
+    workspace,
+    remote_output_dir: str,
+    remote_critique_path: str,
+    threshold: float,
+    max_iterations: int,
+    logger,
+) -> tuple[float | None, int]:
+    """Iteratively critique and improve the migrated extension (quality refinement).
+
+    Each pass delegates to ``extension-critic`` to score ``remote_output_dir`` and write a
+    JSON critique to ``remote_critique_path``. While the average score is below
+    ``threshold`` and passes remain, the critique is fed back to ``extension-transformer``
+    to address. Returns ``(final_score, edit_iterations)`` where ``edit_iterations`` is the
+    number of improvement passes the transformer was asked to make.
+    """
+    score: float | None = None
+    edits = 0
+    for attempt in range(1, max_iterations + 1):
+        conversation.send_message(
+            f"""
+            Delegate to the `extension-critic` agent to evaluate the QUALITY of the
+            migrated extension in `{remote_output_dir}` against the original in
+            `/workspace/extension`.
+
+            It must score correctness, completeness, code quality, and MV3 best practices
+            (0-100 each) and write a STRICT JSON critique to `{remote_critique_path}` with
+            an integer `average_score` and an actionable `issues` list. After it finishes,
+            confirm the file exists: `cat {remote_critique_path}`.
+            """
+        )
+        conversation.run()
+        score, critique = _read_critique_score(workspace, remote_critique_path, logger)
+        logger.info(
+            f"Critique pass {attempt}/{max_iterations}: score={score} (threshold {threshold})"
+        )
+
+        if score is None:
+            logger.warning("No usable critique score; stopping refinement.")
+            break
+        if score >= threshold:
+            logger.info(f"Quality threshold met (score {score} >= {threshold}).")
+            break
+        if attempt == max_iterations:
+            logger.info(f"Reached max refine iterations ({max_iterations}); final score {score}.")
+            break
+
+        issues = critique.get("issues", [])
+        issue_text = "\n".join(
+            f"- [{i.get('severity', '?')}] {i.get('file', '')}: {i.get('problem', '')} "
+            f"-> {i.get('fix', '')}"
+            for i in issues
+        ) or "See the critique report for details."
+        logger.info(f"Refining (score {score} < {threshold}); delegating fixes to transformer.")
+        conversation.send_message(
+            f"""
+            The migrated extension scored {score}/100 on quality review (below the target
+            of {threshold}). The full critique is at `{remote_critique_path}`. The issues:
+
+            {issue_text}
+
+            Delegate to `extension-transformer` to address these issues in
+            `{remote_output_dir}`. Critical constraints:
+            - Do NOT drop or disable any functionality to raise the score.
+            - Keep the extension a valid, loadable MV3 extension (it currently passes
+              verification — do not regress that).
+            - Only change what the critique calls out.
+            """
+        )
+        conversation.run()
+        edits += 1
+
+    return score, edits

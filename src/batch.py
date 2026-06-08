@@ -44,6 +44,8 @@ _CSV_FIELDS = [
     "num_findings",
     "nudge_attempts",
     "test_attempts",
+    "quality_score",
+    "refine_iterations",
     "accumulated_cost",
     "prompt_tokens",
     "completion_tokens",
@@ -66,6 +68,8 @@ class BatchConfig:
     limit: int | None = None
     port_base: int = DEFAULT_PORT_BASE
     temperature: float | None = None
+    refine_max_iterations: int = 2
+    refine_threshold: float = 80.0
 
 
 def discover_extensions(config: BatchConfig) -> list[str]:
@@ -125,6 +129,7 @@ def _write_summary(results_path: str, output_root: str) -> dict:
     successes = sum(1 for r in results if r["status"] == "success")
     verify_failed = sum(1 for r in results if r["status"] == "verify_failed")
     errors = sum(1 for r in results if r["status"] == "error")
+    scored = [r["quality_score"] for r in results if r.get("quality_score") is not None]
     aggregate = {
         "total": total,
         "success": successes,
@@ -138,6 +143,7 @@ def _write_summary(results_path: str, output_root: str) -> dict:
         "mean_wall_time_s": round(sum(r.get("wall_time_s", 0.0) for r in results) / total, 2)
         if total
         else 0.0,
+        "mean_quality_score": round(sum(scored) / len(scored), 1) if scored else None,
     }
     with open(os.path.join(output_root, "aggregate.json"), "w", encoding="utf-8") as fh:
         json.dump(aggregate, fh, indent=2)
@@ -166,6 +172,8 @@ def run_batch(config: BatchConfig, console: Console) -> dict:
                 else os.environ.get("LLM_TEMPERATURE"),
                 "workers": config.workers,
                 "port_base": config.port_base,
+                "refine_max_iterations": config.refine_max_iterations,
+                "refine_threshold": config.refine_threshold,
                 "input_dir": config.input_dir,
                 "from_file": config.from_file,
                 "total_discovered": len(extensions),
@@ -203,6 +211,8 @@ def run_batch(config: BatchConfig, console: Console) -> dict:
                 docker_port_base=config.port_base + slot * 10,
                 conversation_id=conversation_id_for(ext_path),
                 quiet=True,
+                refine_max_iterations=config.refine_max_iterations,
+                refine_threshold=config.refine_threshold,
             )
             # Fresh LLM per run so llm.metrics stay isolated per extension.
             return run_migration(cfg, build_llm(temperature=config.temperature))

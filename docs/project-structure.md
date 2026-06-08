@@ -10,7 +10,8 @@
 │   │   ├── migrator.py             # MigratorAgent: orchestrator with the task tool
 │   │   └── subagents/
 │   │       ├── extension-transformer.md  # Applies the migration, writes to out/
-│   │       └── extension-tester.md       # Runs the verify skill, reports errors
+│   │       ├── extension-tester.md       # Runs the verify skill, reports errors
+│   │       └── extension-critic.md       # Scores migration quality (refinement loop)
 │   ├── skills/                     # Copied to /workspace/.openhands/skills at runtime
 │   │   ├── verify/                 # Playwright load + exercise + error capture
 │   │   │   ├── SKILL.md

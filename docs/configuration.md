@@ -13,6 +13,9 @@ Copy `.env.example` to `.env` and set the variables below.
 | `LLM_OUTPUT_COST_PER_TOKEN` | Optional, for cost tracking. |
 | `LLM_NUM_CTX` | Ollama only. Context window size, default 32768. |
 | `LLM_KEEP_ALIVE` | Ollama only. How long to keep the model loaded, default `30m`. |
+| `REFINE` | Iterative quality-refinement loop. On by default; `REFINE=0` or `--no-refine` to skip. |
+| `REFINE_THRESHOLD` | Stop refining once the critic's average score reaches this (0-100). Default 80. `--refine-threshold`. |
+| `REFINE_MAX_ITERATIONS` | Max critique/improvement passes. Default 2. `--refine-iterations`. |
 
 ## Providers
 
@@ -31,6 +34,26 @@ agentictester batch ./corpus --workers 4 --temperature 0.7
 
 The CLI value wins over `LLM_TEMPERATURE`; if neither is set the provider default is used.
 The temperature in effect for a bulk run is recorded in `runs/<timestamp>/run_config.json`.
+
+## Iterative refinement
+
+Verification only checks that the extension *works*. On by default, a second,
+quality-focused loop runs after a passing verification: the `extension-critic` agent scores
+the migration 0–100 across correctness, completeness, code quality, and MV3 best practices
+and writes `critique.json`; if the average is below `--refine-threshold`, the
+`extension-transformer` agent addresses the critique and the migration is re-scored, up to
+`--refine-iterations` times. The output is re-verified afterwards so a refinement that
+regresses correctness is reported honestly.
+
+```bash
+agentictester migrate ./ext --refine-threshold 85 --refine-iterations 3
+agentictester batch ./corpus --workers 4 --no-refine   # skip it to save cost
+```
+
+The final `quality_score` and the number of refinement passes are recorded per extension
+(in `MigrationResult`, `summary.csv`, and `results.jsonl`), and the batch `aggregate.json`
+reports `mean_quality_score`. Refinement adds LLM cost, so pass `--no-refine` (or `REFINE=0`)
+to turn it off.
 
 ## Keeping requests inside the context window
 
