@@ -22,9 +22,9 @@ def download_outputs(
     logger,
     remote_critique_path: str | None = None,
 ) -> None:
-    """Download the migrated extension, analysis.json, and test_report.json (and the
-    critique report when refinement ran), print summaries, and generate the migration
-    patch."""
+    """Download the migrated extension and analysis.json (and the critique report when
+    refinement ran), print summaries, and generate the migration patch. The verification
+    report is summarized to the console but not saved as an artifact."""
     try:
         workspace_io.download_directory(workspace, remote_output_dir, local_output_dir, logger)
     except Exception as e:
@@ -33,7 +33,7 @@ def download_outputs(
     os.makedirs(local_output_root, exist_ok=True)
 
     _download_and_print_analysis(workspace, remote_root, local_output_root, logger)
-    _download_and_print_report(workspace, remote_report_path, local_output_root, logger)
+    _print_report_summary(workspace, remote_report_path, logger)
     if remote_critique_path:
         _download_critique(workspace, remote_critique_path, local_output_root, logger)
 
@@ -63,18 +63,15 @@ def _download_and_print_analysis(workspace, remote_root, local_output_root, logg
         logger.error(f"Failed to download analysis.json: {e}")
 
 
-def _download_and_print_report(workspace, remote_report_path, local_output_root, logger) -> None:
-    local_report = os.path.join(local_output_root, "test_report.json")
+def _print_report_summary(workspace, remote_report_path, logger) -> None:
+    """Print the verification summary. The report is read in-memory and not saved as an
+    output artifact (the result is already captured in MigrationResult)."""
     try:
-        result = workspace.file_download(
-            source_path=remote_report_path,
-            destination_path=local_report,
-        )
-        if result.error is not None:
-            logger.warning(f"test_report.json not available: {result.error}")
+        cat = workspace.execute_command(f"cat {remote_report_path}", timeout=30)
+        if cat.exit_code != 0 or not (cat.stdout or "").strip():
+            logger.warning("test_report.json not available")
             return
-        with open(local_report) as f:
-            report = json.load(f)
+        report = json.loads(cat.stdout)
         n_errors = len(report.get("errors", []))
         status = "PASSED" if report.get("loaded") and n_errors == 0 else "FAILED"
         print(f"\n--- Extension Verification: {status} ---")
@@ -86,7 +83,7 @@ def _download_and_print_report(workspace, remote_report_path, local_output_root,
         )
         print("----------------------------------\n")
     except Exception as e:
-        logger.error(f"Failed to download test_report.json: {e}")
+        logger.error(f"Failed to read test report: {e}")
 
 
 def _download_critique(workspace, remote_critique_path, local_output_root, logger) -> None:

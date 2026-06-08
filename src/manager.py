@@ -183,7 +183,7 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
 
             try:
                 conversation.send_message(PromptGenerator(findings).prompt)
-                conversation.run()
+                conversation_loops.run_with_heartbeat(conversation, _logger, f"migration [{name}]")
                 _logger.info(f"[{name}] Agent status: {conversation.state.execution_status}")
 
                 result.nudge_attempts = conversation_loops.run_nudge_loop(

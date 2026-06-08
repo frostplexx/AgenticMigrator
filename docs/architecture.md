@@ -36,8 +36,9 @@ agentictester migrate <extension-path>
         run_migration runs verify; on failure it feeds the errors back (up to 3 times).
         Once it verifies, run_migration runs the refinement loop (critique → improve →
         re-score until the threshold or iteration budget; --no-refine skips), re-verifies. It
-        then captures metrics + the conversation trace and downloads /workspace/out/,
-        analysis.json, and test_report.json to the run's output directory
+        then captures metrics + the conversation trace and downloads /workspace/out/
+        and analysis.json to the run's output directory (the verification result is kept in
+        the MigrationResult/metrics, not written as a separate report file)
 ```
 
 ## Run flow
@@ -116,10 +117,11 @@ agentictester migrate <extension-path>
 
 12. Output. When the run finishes, the output directory holds the migrated extension
     (`extension/`), the plan (`analysis.json`), a unified diff against the original
-    (`migration.patch`), the verification report (`test_report.json`), the quality critique
-    (`critique.json`, when refinement ran), per-agent logs (`agent_log/`), and the metrics +
-    trace (`conversation/`). `run_migration` returns a `MigrationResult` summarizing all of
-    this.
+    (`migration.patch`), the quality critique (`critique.json`, when refinement ran),
+    per-agent logs (`agent_log/`), and the metrics + trace (`conversation/`). The
+    verification result is summarized to the console and captured in the `MigrationResult`
+    (and `results.jsonl`/`summary.csv` for batches), not saved as a separate report file.
+    `run_migration` returns a `MigrationResult` summarizing all of this.
 
 ## Bulk runs
 

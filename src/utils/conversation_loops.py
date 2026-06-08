@@ -3,6 +3,7 @@ verify -> fix loop, and the iterative quality-refinement loop."""
 
 import json
 import os
+import threading
 import time
 
 from openhands.sdk.event import ActionEvent, ObservationEvent, MessageEvent
@@ -12,21 +13,34 @@ from . import test_harness, workspace_io
 _MAX_NUDGES = 3
 _MAX_TEST_ATTEMPTS = 3
 
+# How often to print a "still working" heartbeat while a blocking conversation.run()
+# is in flight. Delegation runs the subagent as a nested, server-side conversation whose
+# events are NOT streamed to this client, so without a heartbeat a long delegation looks
+# frozen (it can be many minutes on a slow/local model). Override with HEARTBEAT_INTERVAL=0
+# to disable.
+_HEARTBEAT_INTERVAL = int(os.environ.get("HEARTBEAT_INTERVAL", "30"))
+
+# The orchestrator delegates to subagents through the `task` tool (TaskTool.name == "task").
+_DELEGATION_TOOLS = {"task", "task_tool_set"}
+
 
 def make_activity_logger(agent_log_dir: str):
     """Build a conversation callback that logs agent activity to files (tmux monitoring)."""
     def agent_activity_logger(event):
         agent_name = "main"
+        target = None
         if isinstance(event, (ActionEvent, ObservationEvent)):
-            if getattr(event, "tool_name", None) == "delegate":
+            if getattr(event, "tool_name", None) in _DELEGATION_TOOLS:
                 agent_name = "delegation"
+                target = getattr(getattr(event, "action", None), "subagent_type", None)
 
         log_file = os.path.join(agent_log_dir, f"{agent_name}.log")
         timestamp = time.strftime("%H:%M:%S")
         with open(log_file, "a") as f:
             if isinstance(event, ActionEvent):
-                f.write(f"[{timestamp}] ACTION: {event.tool_name}\n")
-                if hasattr(event, "summary"):
+                label = event.tool_name + (f" -> {target}" if target else "")
+                f.write(f"[{timestamp}] ACTION: {label}\n")
+                if getattr(event, "summary", None):
                     f.write(f"  Summary: {event.summary}\n")
             elif isinstance(event, ObservationEvent):
                 f.write(f"[{timestamp}] RESULT: {event.tool_name}\n")
@@ -35,6 +49,35 @@ def make_activity_logger(agent_log_dir: str):
             f.flush()
 
     return agent_activity_logger
+
+
+def run_with_heartbeat(conversation, logger, label: str, interval: int = _HEARTBEAT_INTERVAL) -> None:
+    """Run ``conversation.run()`` while printing an elapsed-time heartbeat.
+
+    ``conversation.run()`` blocks until the agent (and any subagents it delegates to)
+    finish. Subagent steps run in a nested server-side conversation that is not streamed
+    back here, so this heartbeat is the only liveness signal during a long delegation.
+    """
+    if interval <= 0:
+        conversation.run()
+        return
+
+    stop = threading.Event()
+    start = time.monotonic()
+
+    def beat():
+        while not stop.wait(interval):
+            elapsed = int(time.monotonic() - start)
+            logger.info(f"… {label} still running: {elapsed // 60}m{elapsed % 60:02d}s elapsed")
+
+    ticker = threading.Thread(target=beat, name=f"heartbeat-{label}", daemon=True)
+    ticker.start()
+    try:
+        conversation.run()
+    finally:
+        stop.set()
+        ticker.join(timeout=1)
+    logger.info(f"✓ {label} finished in {int(time.monotonic() - start)}s")
 
 
 def run_nudge_loop(conversation, workspace, remote_output_dir: str, logger) -> int:
@@ -76,7 +119,7 @@ def run_nudge_loop(conversation, workspace, remote_output_dir: str, logger) -> i
               finished, migrated extension.
             """
         )
-        conversation.run()
+        run_with_heartbeat(conversation, logger, f"nudge {attempt}")
         logger.info(f"Agent status after nudge {attempt}: {conversation.state.execution_status}")
     else:
         logger.error(
@@ -138,7 +181,7 @@ def run_test_fix_loop(
             Do not stop until verification passes (exit code 0).
             """
         )
-        conversation.run()
+        run_with_heartbeat(conversation, logger, f"fix attempt {attempt}")
         logger.info(f"Agent status after fix attempt {attempt}: {conversation.state.execution_status}")
 
     return passed, report, _MAX_TEST_ATTEMPTS
@@ -197,7 +240,7 @@ def run_refine_loop(
             confirm the file exists: `cat {remote_critique_path}`.
             """
         )
-        conversation.run()
+        run_with_heartbeat(conversation, logger, f"critique pass {attempt}")
         score, critique = _read_critique_score(workspace, remote_critique_path, logger)
         logger.info(
             f"Critique pass {attempt}/{max_iterations}: score={score} (threshold {threshold})"
@@ -235,7 +278,7 @@ def run_refine_loop(
             - Only change what the critique calls out.
             """
         )
-        conversation.run()
+        run_with_heartbeat(conversation, logger, f"refine pass {attempt}")
         edits += 1
 
     return score, edits

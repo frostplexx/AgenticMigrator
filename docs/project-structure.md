@@ -37,7 +37,6 @@
 │   ├── extension/                  #   the migrated extension
 │   ├── analysis.json               #   migration plan from static analysis
 │   ├── migration.patch             #   unified diff, original → migrated
-│   ├── test_report.json            #   verification report
 │   ├── agent_log/                  #   per-agent activity logs
 │   └── conversation/               #   events.jsonl (trace) + metrics.json (cost/tokens)
 ├── runs/                           # Bulk-migrate output (created at runtime)
