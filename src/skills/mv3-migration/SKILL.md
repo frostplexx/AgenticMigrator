@@ -78,6 +78,56 @@ Note: the exact set of APIs an extension uses is detected up front by static ana
 provided in the task instructions — treat that list as authoritative for which call sites
 to change, and use the table above for the correct replacement.
 
+## Blocking webRequest -> declarativeNetRequest (DNR)
+
+MV3 removes blocking `webRequest` (redirect/block/modify). Re-express those rules
+declaratively with `declarativeNetRequest`. Get the rule JSON shape exactly right — Chrome
+rejects the **entire extension at load time** if any rule is malformed (e.g. *"Rule with id
+1 specifies an incorrect value for the 'action.redirect' key"*).
+
+manifest.json:
+
+```json
+"permissions": ["declarativeNetRequest"],
+"declarative_net_request": {
+  "rule_resources": [
+    { "id": "ruleset_1", "enabled": true, "path": "rules.json" }
+  ]
+}
+```
+
+`rules.json` is an **array** of rule objects. Every rule needs `id` (unique int ≥ 1),
+`priority` (int ≥ 1), `action`, and `condition`:
+
+```json
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "redirect", "redirect": { "url": "https://example.com/" } },
+    "condition": { "urlFilter": "||tracker.example", "resourceTypes": ["main_frame"] }
+  }
+]
+```
+
+Rules for `action`:
+
+- `action.type` is one of `"block"`, `"redirect"`, `"allow"`, `"upgradeScheme"`,
+  `"modifyHeaders"`.
+- For `"redirect"`, `action.redirect` MUST be an **object** — never a bare string. Use
+  exactly one of: `{ "url": "<absolute-url>" }`, `{ "extensionPath": "/page.html" }`
+  (leading slash, points at a web-accessible resource), `{ "regexSubstitution": "..." }`
+  (with `condition.regexFilter`), or `{ "transform": { ... } }`.
+- A `redirect` action requires host permissions for the matched URLs — use the
+  `declarativeNetRequestWithHostAccess` permission (plus `host_permissions`) instead of
+  plain `declarativeNetRequest` when redirecting.
+- `condition.resourceTypes` should list the request types to match (e.g. `"main_frame"`,
+  `"sub_frame"`, `"xmlhttprequest"`, `"image"`); use `urlFilter` for plain matches or
+  `regexFilter` for regexes (not both).
+
+Non-blocking `webRequest` (observation only) can stay, but the blocking listener and the
+`"webRequestBlocking"` permission must go.
+
 ## Other common changes
 
 - Replace any executable/remotely-hosted code with bundled, local code.

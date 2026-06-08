@@ -27,10 +27,10 @@ agentictester migrate <extension-path>
               ├── Delegates to extension-transformer
               │     Reads /workspace/analysis.json and the source files,
               │     writes the migrated extension to /workspace/out/
-              ├── Delegates to extension-tester
-              │     Runs the verify skill; errors go to /workspace/test_report.json
               └── Delegates to extension-critic  (refinement; --no-refine to skip)
                     Scores the migration; the critique goes to /workspace/critique.json
+
+        (The orchestrator does NOT verify — the harness owns verification, below.)
               │
               ▼
         run_migration runs verify; on failure it feeds the errors back (up to 3 times).
@@ -76,12 +76,13 @@ agentictester migrate <extension-path>
    Linux build, and the amd64 build crashes under emulation on Apple Silicon.
 
 6. Orchestration. A conversation starts with `MigratorAgent`. It has the `terminal`,
-   `file_editor`, and `task` (delegation) tools, and no browser tool, so it cannot drive a
-   browser directly; testing only happens through the verify skill. The MV2→MV3 reference
+   `file_editor`, and `task` (delegation) tools, and no browser tool. The MV2→MV3 reference
    lives in the `mv3-migration` skill rather than the system prompt, so the agent pulls it
    on demand. The opening prompt comes from `PromptGenerator` and lays out the steps:
-   delegate the migration to `extension-transformer`, confirm `/workspace/out/manifest.json`
-   has `manifest_version: 3`, then delegate testing to `extension-tester`.
+   delegate the migration to `extension-transformer` and confirm `/workspace/out/` is
+   complete. The agent does NOT run verification itself — doing so from the terminal tool
+   trips its soft timeout and wastes tokens; the harness verifies after the agent finishes
+   (step 8) and feeds any errors back.
 
 7. Subagents. Each subagent is a markdown file in `src/agents/subagents/` whose frontmatter
    sets its name, tools, and model. They run on the same LLM as the orchestrator

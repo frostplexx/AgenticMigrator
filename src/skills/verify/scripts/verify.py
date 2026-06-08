@@ -22,11 +22,35 @@ import json
 import os
 import sys
 
-from browser_session import BrowserSession
+from browser_session import BrowserSession, capture_load_errors
 from exerciser import exercise
 from report import Report
 
 COLLECT_S = 5
+
+
+def preflight_manifest(migrated_dir: str, report: Report) -> bool:
+    """Cheap checks before launching Chrome. Returns False (and records an error) if the
+    extension is obviously unloadable — a missing/invalid manifest.json can make Chrome
+    refuse to start, which would otherwise crash the browser launch. Catching it here keeps
+    verification fast and always returns a usable report."""
+    manifest_path = os.path.join(migrated_dir, "manifest.json")
+    if not os.path.isfile(manifest_path):
+        report.error("manifest", "manifest.json is missing from the extension output.")
+        return False
+    try:
+        with open(manifest_path, encoding="utf-8") as f:
+            manifest = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        report.error("manifest", f"manifest.json is not valid JSON: {e}")
+        return False
+    if manifest.get("manifest_version") != 3:
+        report.error(
+            "manifest",
+            f"manifest_version must be 3, got {manifest.get('manifest_version')!r}.",
+        )
+        return False
+    return True
 
 
 def main() -> int:
@@ -41,14 +65,25 @@ def main() -> int:
 
     report = Report()
 
-    # --- Runtime check: load, exercise, capture errors ---
-    with BrowserSession(migrated_dir, report) as session:
-        session.wait_for_service_worker()
-        if report.extension_id:
-            exercise(session, migrated_dir, report.extension_id)
-        session.drain_service_worker(COLLECT_S)
+    # --- Pre-flight: a broken manifest can make Chrome refuse to start, so check it
+    # before launching the browser. If it's unloadable, skip the browser entirely. ---
+    if preflight_manifest(migrated_dir, report):
+        # --- Runtime check: load, exercise, capture errors. Never let a browser launch
+        # failure crash the script — we must always write a report. ---
+        try:
+            with BrowserSession(migrated_dir, report) as session:
+                session.wait_for_service_worker()
+                if report.extension_id:
+                    exercise(session, migrated_dir, report.extension_id)
+                session.drain_service_worker(COLLECT_S)
+        except Exception as e:
+            # Chrome failed to launch or crashed (often a bad manifest). Pull any reason
+            # Chrome managed to log, and record the failure rather than crashing.
+            capture_load_errors(report)
+            report.error("verify", f"Chrome failed to launch or crashed during verification: {e}")
 
-    if not report.loaded:
+    if not report.loaded and not report.errors:
+        # Fallback only when nothing more specific was captured.
         report.error(
             "verify",
             "Extension service worker never registered — the extension failed to load. "

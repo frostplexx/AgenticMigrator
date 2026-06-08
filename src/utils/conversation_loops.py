@@ -170,15 +170,16 @@ def run_test_fix_loop(
             {error_text}
 
             Delegate to `extension-transformer` to fix the migrated files in
-            `{remote_output_dir}` so these runtime errors are resolved. Common
-            causes: a service worker referencing APIs unavailable in MV3
-            (DOM/`window`, `XMLHttpRequest`), leftover MV2 API calls, or an
-            invalid `manifest.json`.
+            `{remote_output_dir}` so these errors are resolved. Common causes:
+            a service worker referencing APIs unavailable in MV3 (DOM/`window`,
+            `XMLHttpRequest`), leftover MV2 API calls, an invalid `manifest.json`,
+            or an invalid `declarativeNetRequest` `rules.json` (an `extension.load`
+            error means Chrome rejected the extension at load time — fix the exact
+            key it names).
 
-            Re-run the `verify` skill to confirm the fix:
-              `python {test_harness.VERIFY_SCRIPT} {remote_output_dir} {remote_report_path}`
-
-            Do not stop until verification passes (exit code 0).
+            Apply the fixes and then stop. Do NOT run the verify script yourself —
+            the harness re-verifies automatically and will send you any remaining
+            errors. Just make the fixes.
             """
         )
         run_with_heartbeat(conversation, logger, f"fix attempt {attempt}")

@@ -17,9 +17,8 @@ and it must load and run without errors in Chrome.
 You are the main coordinator. Delegate work to the specialized subagents available to you:
 
 1. **extension-transformer** - Applies the migration and writes the output files
-2. **extension-tester** - Loads the migrated extension in Chromium and reports runtime errors
-3. **extension-critic** - Scores the migration quality and reports actionable issues
-   (used by the host-driven refinement step after verification passes)
+
+(Verification and quality scoring are run by the harness, not by you — do not call them.)
 
 The extension at `/workspace/extension/` has ALREADY been run through an automated
 converter (extension-manifest-converter), so the manifest is likely already MV3 and the
@@ -31,7 +30,7 @@ A static migration plan has already been produced for you at `/workspace/analysi
 (no analysis step is needed). It lists the deprecated API call sites that REMAIN and their
 MV3 replacements. It does not cover everything — remaining manifest issues and anything
 static analysis cannot see must still be applied using the `mv3-migration` skill (the
-MV2->MV3 reference), and will be caught at runtime by the `verify` skill.
+MV2->MV3 reference), and will be caught at runtime by the harness's verification step.
 
 {_format_findings(findings)}
 
@@ -62,31 +61,25 @@ After extension-transformer finishes, verify:
 - `/workspace/out/manifest.json` exists
 - `/workspace/out/` contains the same number of files as `/workspace/extension/`
 
-### Step 3: Verify the Migrated Extension
+### Step 3: Finish — verification is automatic
 
-Delegate to the `extension-tester` agent, or use the `verify` skill directly. You do NOT
-have a browser tool — the `verify` skill is the only way to test:
+Do NOT run the `verify` skill yourself. The harness runs verification automatically once
+you finish, with a proper timeout. Running the verify script from the `terminal` tool
+yourself launches Chromium and will hit the tool's soft timeout — wasting time and tokens —
+so leave it to the harness.
 
-```
-python /workspace/.openhands/skills/verify/scripts/verify.py /workspace/out /workspace/test_report.json
-```
-
-This loads the migrated extension into Chromium and writes a JSON report to
-`/workspace/test_report.json` with `loaded`, `errors`, and `warnings`. It exits non-zero
-if the extension failed to load or any errors were captured. This is what catches anything
-the static plan missed.
-
-If verification reports errors, delegate back to `extension-transformer` with the exact
-error messages and have it fix the migrated files in `/workspace/out/`, then verify again.
-**Do not finish while `loaded` is false or `errors` is non-empty.**
+Once `/workspace/out/` holds the complete migrated extension, stop. The harness loads it in
+Chromium and, if anything fails to load or errors at runtime, sends you the exact error
+messages (including extension load errors such as an invalid `rules.json`). Only then do you
+delegate the specific fixes back to `extension-transformer`.
 
 ## Important Notes
 
-- Use the `task` tool to delegate work to subagents
+- Use the `task` tool to delegate the migration (and any fixes) to subagents
+- Do not test the extension yourself — the harness owns verification
 - Wait for each subagent to complete before proceeding to the next step
 - If a subagent fails, re-delegate with clearer or more specific instructions
-- Your final output is the complete migrated extension in `/workspace/out/`, and it must
-  pass verification (exit code 0)
+- Your final output is the complete migrated extension in `/workspace/out/`
 
 ## Response Pattern
 

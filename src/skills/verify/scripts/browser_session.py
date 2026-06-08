@@ -23,6 +23,19 @@ except ImportError:  # pragma: no cover - dependency installed by provisioning
 DEBUG_PORT = 9222
 LOAD_TIMEOUT_S = 20
 USER_DATA_DIR = "/tmp/verify-profile"
+# Chrome writes extension load failures (bad manifest, invalid rules.json, etc.) here.
+LOG_FILE = "/tmp/verify-chrome.log"
+
+# Markers Chrome uses when it refuses to load an unpacked extension. We surface the
+# matching log line verbatim so the agent gets the actual reason (e.g. the offending
+# rules.json key) instead of a vague "service worker never registered".
+_LOAD_ERROR_MARKERS = (
+    "Failed to load extension",
+    "Could not load manifest",
+    "Manifest file is missing or unreadable",
+    "Manifest is not valid JSON",
+    "Invalid value for",
+)
 
 _CHROME_CANDIDATES = (
     os.environ.get("CHROME_BIN"),
@@ -44,6 +57,33 @@ def http_json(path: str):
         return json.loads(r.read())
 
 
+def capture_load_errors(report) -> int:
+    """Scan Chrome's log for extension load failures and add them to ``report``.
+
+    When an unpacked extension is rejected (bad manifest, invalid declarativeNetRequest
+    rules.json, etc.) the service worker never registers, so the only place the actual
+    reason exists is Chrome's own log. We surface the matching line verbatim. Safe to call
+    even if Chrome never started (the log may still hold the reason). Returns the number of
+    load errors found.
+    """
+    try:
+        with open(LOG_FILE, encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except OSError:
+        return 0
+
+    seen: set[str] = set()
+    for line in content.splitlines():
+        if not any(marker in line for marker in _LOAD_ERROR_MARKERS):
+            continue
+        # Trim Chrome's log prefix ("[pid:tid:ts:ERROR:file] ") to the message itself.
+        msg = line.split("] ", 1)[-1].strip()
+        if msg and msg not in seen:
+            seen.add(msg)
+            report.error("extension.load", msg)
+    return len(seen)
+
+
 class BrowserSession:
     """Headed Chromium with the extension loaded, wired for error capture."""
 
@@ -60,6 +100,11 @@ class BrowserSession:
         # popups and event handlers actually run as they would in real use.
         os.environ.setdefault("DISPLAY", ":1")
         shutil.rmtree(USER_DATA_DIR, ignore_errors=True)
+        # Start from a clean log so we only read load errors from this run.
+        try:
+            os.remove(LOG_FILE)
+        except OSError:
+            pass
 
         self._pw_cm = sync_playwright()
         self._pw = self._pw_cm.__enter__()
@@ -73,6 +118,9 @@ class BrowserSession:
                 f"--remote-allow-origins=http://127.0.0.1:{DEBUG_PORT}",
                 f"--disable-extensions-except={self.extension_dir}",
                 f"--load-extension={self.extension_dir}",
+                # Log extension load failures to a file we can read back.
+                "--enable-logging",
+                f"--log-file={LOG_FILE}",
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
@@ -145,6 +193,9 @@ class BrowserSession:
             time.sleep(0.5)
 
         if not sw_target:
+            # The extension didn't come up. Pull the concrete reason from Chrome's log
+            # (e.g. an invalid rules.json key) so the failure is actionable.
+            self._capture_load_errors()
             return
 
         self.report.loaded = True
@@ -160,6 +211,9 @@ class BrowserSession:
             except Exception as e:
                 self.report.warn("verify", f"Could not attach to service worker: {e}")
                 self._ws = None
+
+    def _capture_load_errors(self) -> None:
+        capture_load_errors(self.report)
 
     def drain_service_worker(self, seconds: float) -> None:
         """Read buffered service-worker CDP events (exceptions, console, log) into the
