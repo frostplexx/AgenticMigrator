@@ -21,13 +21,15 @@ wheels = [
 [[package]]
 name = "agentictester"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "botocore" },
     { name = "openhands-sdk" },
     { name = "openhands-tools" },
     { name = "openhands-workspace" },
     { name = "python-dotenv" },
+    { name = "rich" },
+    { name = "typer" },
 ]
 
 [package.metadata]
@@ -37,6 +39,8 @@ requires-dist = [
     { name = "openhands-tools", specifier = ">=1.22.1" },
     { name = "openhands-workspace", specifier = ">=1.22.1" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "rich", specifier = ">=13.0" },
+    { name = "typer", specifier = ">=0.12" },
 ]
 
 [[package]]

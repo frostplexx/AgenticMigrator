@@ -10,7 +10,19 @@ dependencies = [
     "openhands-tools>=1.22.1",
     "openhands-workspace>=1.22.1",
     "python-dotenv>=1.2.2",
+    "rich>=13.0",
+    "typer>=0.12",
 ]
+
+[project.scripts]
+agentictester = "src.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
 [tool.basedpyright]
 # Upstream-pyright "standard" posture. basedpyright's default ("recommended") floods

@@ -72,12 +72,20 @@ def _print_vnc_host(workspace: DockerWorkspace):
 
 
 
-def createDockerWorkspace(port: int) -> DockerWorkspace:
+def createDockerWorkspace(port: int, quiet: bool = False) -> DockerWorkspace:
+    """Start an OpenHands agent-server container bound to ``port``.
+
+    ``port`` is the base host port; the server also exposes VSCode at ``port + 1`` and
+    VNC at ``port + 2``, so concurrent workspaces must be given port bases at least 3
+    apart (the batch runner spaces them by 10). When ``quiet`` is True the VSCode/VNC
+    URLs are not printed — used by bulk runs so the progress display stays clean.
+    """
     # Transform localhost URLs to be accessible from Docker containers
     server_image = _get_server_image()
 
-    # Enable VNC by setting the environment variable
-    os.environ["OH_ENABLE_VNC"] = "true"
+    # Enable VNC. Use setdefault so concurrent workers don't race on os.environ and an
+    # explicit "OH_ENABLE_VNC=false" from the user is respected.
+    os.environ.setdefault("OH_ENABLE_VNC", "true")
 
     ws = DockerWorkspace(
         server_image=server_image,
@@ -88,7 +96,8 @@ def createDockerWorkspace(port: int) -> DockerWorkspace:
         forward_env=["DEBUG", "OH_ENABLE_VNC"]  # Forward VNC enable flag to container
     )
 
-    _print_vscode_host(ws)
-    _print_vnc_host(ws)
+    if not quiet:
+        _print_vscode_host(ws)
+        _print_vnc_host(ws)
 
     return ws

@@ -11,12 +11,16 @@ from .docker import _transform_localhost_url
 ReasoningEffort = Literal["low", "medium", "high", "xhigh", "none"]
 
 
-def build_llm() -> LLM:
+def build_llm(temperature: float | None = None) -> LLM:
     """Construct the agent LLM from env vars, validating required ones.
 
     Recognized env: LLM_MODEL (required), LLM_API_KEY (required for non-Ollama),
     LLM_BASE_URL (required for Ollama), LLM_NUM_CTX, LLM_KEEP_ALIVE,
-    LLM_INPUT_COST_PER_TOKEN, LLM_OUTPUT_COST_PER_TOKEN, LLM_REASONING_EFFORT.
+    LLM_INPUT_COST_PER_TOKEN, LLM_OUTPUT_COST_PER_TOKEN, LLM_REASONING_EFFORT,
+    LLM_TEMPERATURE.
+
+    ``temperature`` overrides the LLM_TEMPERATURE env var when provided; if both are
+    unset the provider default is used.
     """
     model = os.environ.get("LLM_MODEL")
     api_key = os.environ.get("LLM_API_KEY")
@@ -60,12 +64,20 @@ def build_llm() -> LLM:
         )
     reasoning_effort = cast(ReasoningEffort, reasoning_effort_str)
 
+    # Sampling temperature. The CLI override (if any) wins over LLM_TEMPERATURE; if both
+    # are unset, leave it None so the provider's default is used.
+    if temperature is None:
+        temperature = _float_env("LLM_TEMPERATURE")
+    if temperature is not None and temperature < 0:
+        raise ValueError(f"Temperature must be >= 0, got {temperature}.")
+
     return LLM(
         usage_id="agent",
         model=model,
         api_key=SecretStr(api_key) if api_key else None,
         base_url=base_url,
         reasoning_effort=reasoning_effort,
+        temperature=temperature,
         litellm_extra_body=extra_body,
         input_cost_per_token=input_cost,
         output_cost_per_token=output_cost,

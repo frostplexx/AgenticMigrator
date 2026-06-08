@@ -1,125 +1,231 @@
-import logging
+"""The migration unit of work.
+
+``run_migration(config, llm)`` migrates a single extension and returns a
+``MigrationResult`` describing the outcome (status, verification, token/cost metrics,
+artifact locations). It is deliberately:
+
+- **parameterized** — all output paths and the Docker port come from ``RunConfig``, so a
+  bulk runner can point many migrations at distinct directories/ports, and
+- **non-raising** — any failure is captured into ``MigrationResult(status="error")``
+  instead of propagating, so one bad extension never aborts a 1000-extension batch.
+
+The single-extension CLI and the bulk runner both call ``run_migration``; the only
+difference is how they build the ``RunConfig`` and present the result.
+"""
+
+import dataclasses
 import os
 import shutil
+import time
+import traceback
+from dataclasses import dataclass, field
+from uuid import UUID
 
 from openhands.sdk import LLM, Conversation, RemoteConversation, get_logger
 
 from .agents.migrator import MigratorAgent
-from .utils import artifacts, conversation_loops, manifest_converter, test_harness, workspace_io
-from .utils.banner import show_banner
+from .utils import (
+    artifacts,
+    conversation_loops,
+    manifest_converter,
+    persistence,
+    test_harness,
+    workspace_io,
+)
 from .utils.docker import createDockerWorkspace
-from .utils.llm_factory import build_llm
 from .utils.prompt_generator import PromptGenerator
 from .utils.static_analyzer import StaticAnalyzer, build_analysis
 
 _logger = get_logger(__name__)
 
+# Default Docker host port base. The server also exposes VSCode at +1 and VNC at +2.
+DEFAULT_PORT_BASE = 8081
 
-class MigrationManager:
-    """Singleton that wires the LLM, Docker workspace, and migration conversation."""
 
-    instance = None  # pyright: ignore[reportUnannotatedClassAttribute]
-    llm: LLM | None = None
-    _initialized: bool = False
+@dataclass(frozen=True)
+class RunConfig:
+    """Everything ``run_migration`` needs to migrate one extension.
 
-    def __new__(cls):
-        if cls.instance is None:
-            cls.instance = super().__new__(cls)
-        return cls.instance
+    ``output_dir`` is the per-extension directory that receives the migrated extension,
+    the analysis/report/patch, the agent activity log, and the conversation trace.
+    """
 
-    def __init__(self):
-        if self._initialized:
-            return
-        self.llm = build_llm()
-        show_banner(model=os.environ["LLM_MODEL"])
-        self._initialized = True
+    extension_path: str
+    output_dir: str
+    docker_port_base: int = DEFAULT_PORT_BASE
+    conversation_id: UUID | None = None
+    keep_workspace: bool = False
+    quiet: bool = False
 
-    def migrate(self, extension: str) -> None:
-        logging.getLogger("openhands").setLevel(logging.DEBUG)
+    @property
+    def migrated_dir(self) -> str:
+        return os.path.join(self.output_dir, "extension")
 
-        if self.llm is None:
-            raise ValueError("MigrationManager is not properly initialized.")
+    @property
+    def agent_log_dir(self) -> str:
+        return os.path.join(self.output_dir, "agent_log")
 
-        extension_path = os.path.abspath(extension)
+    @property
+    def conversation_dir(self) -> str:
+        return os.path.join(self.output_dir, "conversation")
+
+
+@dataclass
+class MigrationResult:
+    """Outcome of a single migration, suitable for JSON/CSV serialization."""
+
+    extension_name: str
+    output_dir: str
+    status: str = "error"  # "success" | "verify_failed" | "error"
+    verify_passed: bool = False
+    verify_errors: list[dict] = field(default_factory=list)
+    num_findings: int = 0
+    nudge_attempts: int = 0
+    test_attempts: int = 0
+    accumulated_cost: float = 0.0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
+    reasoning_tokens: int = 0
+    per_usage_metrics: dict[str, dict] = field(default_factory=dict)
+    wall_time_s: float = 0.0
+    conversation_id: str | None = None
+    migrated_dir: str | None = None
+    error: str | None = None
+    traceback: str | None = None
+
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)
+
+
+def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
+    """Migrate the extension described by ``config`` and return a ``MigrationResult``.
+
+    Never raises: a failure before/after the agent runs is recorded as
+    ``status="error"`` with the traceback so callers (especially the batch runner) can
+    keep going.
+    """
+    start = time.monotonic()
+    name = os.path.basename(config.extension_path.rstrip("/")) or "extension"
+    result = MigrationResult(
+        extension_name=name,
+        output_dir=config.output_dir,
+        conversation_id=str(config.conversation_id) if config.conversation_id else None,
+    )
+
+    converted_dir: str | None = None
+    try:
+        extension_path = os.path.abspath(config.extension_path)
         if not os.path.isdir(extension_path):
             raise ValueError(f"Extension path is not a directory: {extension_path}")
+
+        os.makedirs(config.output_dir, exist_ok=True)
+        os.makedirs(config.agent_log_dir, exist_ok=True)
 
         # Host-side pre-pass: run the extension through extension-manifest-converter so the
         # deterministic MV2->MV3 changes are applied before upload; the LLM finishes the
         # rest. `converted_dir` is what gets uploaded/analyzed; `extension_path` (the
         # original) is kept for the migration diff.
         converted_dir = manifest_converter.convert(extension_path, _logger)
-        try:
-            # Produce the migration plan statically (no LLM analyzer agent) for speed.
-            mappings_path = os.path.join(os.path.dirname(__file__), "utils", "api_mappings.json")
-            findings = StaticAnalyzer(mappings_path).analyze(converted_dir)
-            _logger.info(f"Static analysis found {len(findings)} deprecated API usage(s)")
-            analysis = build_analysis(findings, converted_dir)
 
-            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            local_output_root = os.path.join(project_root, "output")
-            local_output_dir = os.path.join(local_output_root, "extension")
+        # Produce the migration plan statically (no LLM analyzer agent) for speed.
+        mappings_path = os.path.join(os.path.dirname(__file__), "utils", "api_mappings.json")
+        findings = StaticAnalyzer(mappings_path).analyze(converted_dir)
+        result.num_findings = len(findings)
+        _logger.info(f"[{name}] Static analysis found {len(findings)} deprecated API usage(s)")
+        analysis = build_analysis(findings, converted_dir)
 
-            staging_dir = workspace_io.assemble_workspace(analysis, _logger)
+        staging_dir = workspace_io.assemble_workspace(analysis, _logger)
 
-            with createDockerWorkspace(8081) as workspace:
-                remote_root = workspace.working_dir.rstrip("/")
-                remote_output_dir = f"{remote_root}/out"
-                remote_report_path = f"{remote_root}/test_report.json"
+        with createDockerWorkspace(config.docker_port_base, quiet=config.quiet) as workspace:
+            remote_root = workspace.working_dir.rstrip("/")
+            remote_output_dir = f"{remote_root}/out"
+            remote_report_path = f"{remote_root}/test_report.json"
 
-                try:
-                    workspace_io.upload_directory(workspace, staging_dir, remote_root, _logger)
-                finally:
-                    shutil.rmtree(staging_dir, ignore_errors=True)
+            try:
+                workspace_io.upload_directory(workspace, staging_dir, remote_root, _logger)
+            finally:
+                shutil.rmtree(staging_dir, ignore_errors=True)
 
-                _logger.info(f"Uploading converted extension -> {remote_root}/extension")
-                workspace_io.upload_directory(
-                    workspace, converted_dir, f"{remote_root}/extension", _logger
+            _logger.info(f"[{name}] Uploading converted extension -> {remote_root}/extension")
+            workspace_io.upload_directory(
+                workspace, converted_dir, f"{remote_root}/extension", _logger
+            )
+
+            # Pre-create the output dir so the agent can write to it without mkdir.
+            mkdir_result = workspace.execute_command(f"mkdir -p {remote_output_dir}", timeout=30)
+            if mkdir_result.exit_code != 0:
+                _logger.error(
+                    f"[{name}] Failed to create remote output dir {remote_output_dir} "
+                    f"(exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
                 )
 
-                # Pre-create the output dir so the agent can write to it without mkdir.
-                mkdir_result = workspace.execute_command(f"mkdir -p {remote_output_dir}", timeout=30)
-                if mkdir_result.exit_code != 0:
-                    _logger.error(
-                        f"Failed to create remote output dir {remote_output_dir} "
-                        f"(exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
-                    )
+            test_harness.install_verify_deps(workspace, _logger)
 
-                test_harness.install_verify_deps(workspace, _logger)
+            conversation = Conversation(
+                agent=MigratorAgent().get_agent(llm),
+                workspace=workspace,
+                callbacks=[conversation_loops.make_activity_logger(config.agent_log_dir)],
+                conversation_id=config.conversation_id,
+                delete_on_close=not config.keep_workspace,
+            )
+            assert isinstance(conversation, RemoteConversation)
+            result.conversation_id = str(conversation.id)
 
-                agent_log_dir = os.path.join(project_root, "agent_logs")
-                os.makedirs(agent_log_dir, exist_ok=True)
+            try:
+                conversation.send_message(PromptGenerator(findings).prompt)
+                conversation.run()
+                _logger.info(f"[{name}] Agent status: {conversation.state.execution_status}")
 
-                conversation = Conversation(
-                    agent=MigratorAgent().get_agent(self.llm),
-                    workspace=workspace,
-                    callbacks=[conversation_loops.make_activity_logger(agent_log_dir)],
+                result.nudge_attempts = conversation_loops.run_nudge_loop(
+                    conversation, workspace, remote_output_dir, _logger
                 )
-                assert isinstance(conversation, RemoteConversation)
-
+                passed, report, test_attempts = conversation_loops.run_test_fix_loop(
+                    conversation, workspace, remote_output_dir, remote_report_path, _logger
+                )
+                result.verify_passed = passed
+                result.test_attempts = test_attempts
+                result.verify_errors = report.get("errors", [])
+                result.status = "success" if passed else "verify_failed"
+            finally:
+                # Capture metrics + the conversation trace before the remote conversation
+                # is torn down, then download the artifacts.
                 try:
-                    conversation.send_message(PromptGenerator(findings).prompt)
-                    conversation.run()
-                    _logger.info(f"Agent status: {conversation.state.execution_status}")
+                    combined, per_usage = persistence.collect_metrics(conversation)
+                    result.accumulated_cost = combined["accumulated_cost"]
+                    result.prompt_tokens = combined["prompt_tokens"]
+                    result.completion_tokens = combined["completion_tokens"]
+                    result.cache_read_tokens = combined["cache_read_tokens"]
+                    result.cache_write_tokens = combined["cache_write_tokens"]
+                    result.reasoning_tokens = combined["reasoning_tokens"]
+                    result.per_usage_metrics = per_usage
+                    persistence.persist_conversation(
+                        conversation, config.conversation_dir, combined, per_usage, _logger
+                    )
+                except Exception as e:
+                    _logger.warning(f"[{name}] Could not capture metrics/trace: {e}")
 
-                    conversation_loops.run_nudge_loop(
-                        conversation, workspace, remote_output_dir, _logger
-                    )
-                    conversation_loops.run_test_fix_loop(
-                        conversation, workspace, remote_output_dir, remote_report_path, _logger
-                    )
-                finally:
-                    artifacts.download_outputs(
-                        workspace,
-                        remote_output_dir=remote_output_dir,
-                        local_output_dir=local_output_dir,
-                        local_output_root=local_output_root,
-                        remote_root=remote_root,
-                        remote_report_path=remote_report_path,
-                        extension_path=extension_path,
-                        logger=_logger,
-                    )
-                    print("\n🧹 Cleaning up conversation...")
-                    conversation.close()
-        finally:
+                artifacts.download_outputs(
+                    workspace,
+                    remote_output_dir=remote_output_dir,
+                    local_output_dir=config.migrated_dir,
+                    local_output_root=config.output_dir,
+                    remote_root=remote_root,
+                    remote_report_path=remote_report_path,
+                    extension_path=extension_path,
+                    logger=_logger,
+                )
+                result.migrated_dir = config.migrated_dir
+                conversation.close()
+    except Exception as e:
+        result.status = "error"
+        result.error = str(e)
+        result.traceback = traceback.format_exc()
+        _logger.error(f"[{name}] Migration failed: {e}")
+    finally:
+        if converted_dir:
             shutil.rmtree(converted_dir, ignore_errors=True)
+        result.wall_time_s = round(time.monotonic() - start, 2)
+
+    return result

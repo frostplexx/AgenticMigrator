@@ -11,11 +11,19 @@ in a real browser.
 ```bash
 git submodule update --init --recursive   # fetch the vendored converter
 cp .env.example .env                       # then set LLM_MODEL, etc.
-uv run python main.py /path/to/unpacked-extension
+uv sync                                     # install deps + the `agentictester` CLI
+
+# migrate one extension
+uv run agentictester migrate /path/to/unpacked-extension
+
+# bulk-migrate a whole corpus (for research): parallel, resumable, with metrics
+uv run agentictester batch /path/to/corpus --workers 4
 ```
 
-Docker must be running. When the run finishes, the migrated extension and the migration
-artifacts are in `output/`.
+Docker must be running. After a single `migrate`, the migrated extension and artifacts
+are in `output/`; a `batch` run writes per-extension output plus `results.jsonl`,
+`summary.csv`, and `aggregate.json` (cost, tokens, success rate) under `runs/<timestamp>/`.
+See [running](docs/running.md) for all options.
 
 ## Documentation
 

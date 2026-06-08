@@ -4,9 +4,13 @@ A run takes an unpacked MV2 extension, applies an automated converter on the hos
 hands the result to an LLM agent running in a Docker container to finish the migration and
 check that it works.
 
+The same per-extension flow backs both the single-extension `migrate` command and the
+bulk `batch` runner; `batch` just calls it for many extensions in parallel (see
+[running](running.md)).
+
 ```
-main.py <extension-path>
-  └── MigrationManager (singleton)
+agentictester migrate <extension-path>
+  └── run_migration(config, llm) -> MigrationResult
         ├── Builds the LLM from env vars
         ├── Starts a Docker workspace (OpenHands agent server)
         │     ├── VSCode Server  (host_port + 1)
@@ -27,14 +31,18 @@ main.py <extension-path>
                     Runs the verify skill; errors go to /workspace/test_report.json
               │
               ▼
-        Manager runs verify; on failure it feeds the errors back (up to 3 times),
-        then downloads /workspace/out/, analysis.json, and test_report.json to output/
+        run_migration runs verify; on failure it feeds the errors back (up to 3 times),
+        then captures metrics + the conversation trace and downloads /workspace/out/,
+        analysis.json, and test_report.json to the run's output directory
 ```
 
 ## Run flow
 
-1. Setup. `MigrationManager` reads the LLM config from `.env`, builds the LLM client, and
-   starts a Docker container running the OpenHands agent server.
+1. Setup. The CLI (`src/cli.py`) reads the LLM config from `.env` and builds the LLM
+   client; `run_migration` (`src/manager.py`) starts a Docker container running the
+   OpenHands agent server. `run_migration` never raises — any failure is returned as a
+   `MigrationResult` with `status="error"`, so a bulk run is never aborted by one bad
+   extension.
 
 2. Converter pre-pass. The extension is run through GoogleChromeLabs'
    [extension-manifest-converter](https://github.com/GoogleChromeLabs/extension-manifest-converter)
@@ -83,9 +91,27 @@ main.py <extension-path>
    (up to three times) with explicit instructions to use real tool calls instead of
    describing the work in text.
 
-10. Output. When the run finishes, `output/` holds the migrated extension (`extension/`),
-    the plan (`analysis.json`), a unified diff against the original (`migration.patch`), and
-    the verification report (`test_report.json`). Per-agent logs go to `agent_logs/`.
+10. Metrics and trace capture. Before the conversation is closed, `run_migration` reads
+    `conversation.conversation_stats` (cost and token usage, per `usage_id`) and serializes
+    the event stream. These go into the result and into `conversation/metrics.json` +
+    `conversation/events.jsonl`. The remote conversation cannot use the SDK's on-disk
+    `persistence_dir`, so the trace is pulled client-side (`src/utils/persistence.py`).
+
+11. Output. When the run finishes, the output directory holds the migrated extension
+    (`extension/`), the plan (`analysis.json`), a unified diff against the original
+    (`migration.patch`), the verification report (`test_report.json`), per-agent logs
+    (`agent_log/`), and the metrics + trace (`conversation/`). `run_migration` returns a
+    `MigrationResult` summarizing all of this.
+
+## Bulk runs
+
+`src/batch.py` calls `run_migration` for many extensions through a
+`ThreadPoolExecutor(max_workers=N)`. A queue of worker slots hands each task a disjoint
+Docker port block (`port_base + slot*10`) so the VSCode/VNC sidecar ports never collide,
+and results stream to `results.jsonl` as they finish so a run is resumable (`--resume`
+skips extensions already recorded). Each migration builds a fresh LLM so per-extension
+cost/token metrics stay isolated. When the run drains, `summary.csv` and `aggregate.json`
+are written for evaluation.
 
 ## Design notes
 

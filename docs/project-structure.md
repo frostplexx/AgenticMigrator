@@ -2,9 +2,10 @@
 
 ```
 .
-├── main.py                         # Entrypoint
 ├── src/
-│   ├── manager.py                  # MigrationManager: orchestrates the migrate() flow
+│   ├── cli.py                      # Typer CLI entrypoint: `migrate` (single) and `batch` (bulk)
+│   ├── batch.py                    # Bulk runner: parallel, resumable, aggregates results
+│   ├── manager.py                  # run_migration(config, llm) -> MigrationResult
 │   ├── agents/
 │   │   ├── migrator.py             # MigratorAgent: orchestrator with the task tool
 │   │   └── subagents/
@@ -26,16 +27,24 @@
 │   │   ├── workspace_io.py         # Assemble / upload / download the container workspace
 │   │   ├── conversation_loops.py   # Activity logger + nudge loop + verify/fix loop
 │   │   ├── artifacts.py            # Download outputs + build migration.patch
+│   │   ├── persistence.py          # Capture metrics + serialize the conversation trace
 │   │   └── test_harness.py         # Installs verify deps + runs the verify skill
 │   └── utils/api_mappings.json     # MV2→MV3 call-site replacement table
 ├── third_party/
 │   └── extension-manifest-converter/   # git submodule: GoogleChromeLabs MV2→MV3 converter
-├── output/                         # Run output (created at runtime)
+├── output/                         # Single-migrate output (created at runtime)
 │   ├── extension/                  #   the migrated extension
 │   ├── analysis.json               #   migration plan from static analysis
 │   ├── migration.patch             #   unified diff, original → migrated
-│   └── test_report.json            #   verification report
-├── agent_logs/                     # Per-agent logs (created at runtime)
+│   ├── test_report.json            #   verification report
+│   ├── agent_log/                  #   per-agent activity logs
+│   └── conversation/               #   events.jsonl (trace) + metrics.json (cost/tokens)
+├── runs/                           # Bulk-migrate output (created at runtime)
+│   └── <timestamp>/
+│       ├── results.jsonl           #   one MigrationResult per extension
+│       ├── summary.csv             #   flat per-extension table
+│       ├── aggregate.json          #   success rate, total cost/tokens, mean time
+│       └── extensions/<name>/      #   per-extension output (as in output/ above)
 ├── pyproject.toml
 ├── flake.nix
 └── uv.lock
