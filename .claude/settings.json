@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "llm-guidelines@llm-guidelines": true
+  }
+}
