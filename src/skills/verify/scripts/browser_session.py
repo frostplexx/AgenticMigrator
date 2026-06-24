@@ -10,6 +10,8 @@ event-driven MV3 workers.
 import json
 import os
 import shutil
+import subprocess
+import threading
 import time
 import urllib.request
 
@@ -22,6 +24,12 @@ except ImportError:  # pragma: no cover - dependency installed by provisioning
 
 DEBUG_PORT = 9222
 LOAD_TIMEOUT_S = 20
+# Headed Chrome pops a blocking "Error Loading Extension" modal when an unpacked
+# extension is rejected (bad manifest, invalid rules.json, ...). The browser process
+# stays alive behind it, so a graceful context.close() can block forever. Bound it and
+# force-kill instead of letting verification hang until the manager's hard timeout.
+BROWSER_CLOSE_TIMEOUT_S = 10
+LAUNCH_TIMEOUT_MS = 30_000
 USER_DATA_DIR = "/tmp/verify-profile"
 # Chrome writes extension load failures (bad manifest, invalid rules.json, etc.) here.
 LOG_FILE = "/tmp/verify-chrome.log"
@@ -84,6 +92,51 @@ def capture_load_errors(report) -> int:
     return len(seen)
 
 
+def log_has_load_error() -> bool:
+    """True if Chrome's log already shows an extension load failure.
+
+    Used to bail out of the service-worker wait the moment the extension is rejected,
+    instead of polling the full ``LOAD_TIMEOUT_S`` for a worker that will never appear.
+    """
+    try:
+        with open(LOG_FILE, encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except OSError:
+        return False
+    return any(marker in content for marker in _LOAD_ERROR_MARKERS)
+
+
+def _run_with_timeout(fn, seconds: float) -> bool:
+    """Run ``fn()`` in a daemon thread; return True if it finished within ``seconds``."""
+    done = threading.Event()
+
+    def runner():
+        try:
+            fn()
+        except Exception:
+            pass
+        finally:
+            done.set()
+
+    threading.Thread(target=runner, daemon=True).start()
+    return done.wait(seconds)
+
+
+def kill_chrome() -> None:
+    """Force-kill the Chrome instance this session launched.
+
+    Scoped to our remote-debugging port so unrelated Chromium processes are left alone.
+    """
+    try:
+        subprocess.run(
+            ["pkill", "-9", "-f", f"remote-debugging-port={DEBUG_PORT}"],
+            check=False,
+            timeout=10,
+        )
+    except Exception:
+        pass
+
+
 class BrowserSession:
     """Headed Chromium with the extension loaded, wired for error capture."""
 
@@ -112,6 +165,7 @@ class BrowserSession:
             user_data_dir=USER_DATA_DIR,
             executable_path=find_chrome(),
             headless=False,
+            timeout=LAUNCH_TIMEOUT_MS,
             args=[
                 f"--remote-debugging-port={DEBUG_PORT}",
                 # Allow the local CDP WebSocket connection (Chrome blocks it otherwise).
@@ -146,13 +200,15 @@ class BrowserSession:
                 self._ws.close()
             except Exception:
                 pass
-        if self.context is not None:
-            try:
-                self.context.close()
-            except Exception:
-                pass
+        # A graceful close() blocks indefinitely when Chrome is sitting behind the
+        # "Error Loading Extension" modal, so bound it and force-kill on timeout.
+        if self.context is not None and not _run_with_timeout(
+            self.context.close, BROWSER_CLOSE_TIMEOUT_S
+        ):
+            kill_chrome()
         if self._pw_cm is not None:
-            self._pw_cm.__exit__(*exc)
+            if not _run_with_timeout(lambda: self._pw_cm.__exit__(*exc), BROWSER_CLOSE_TIMEOUT_S):
+                kill_chrome()
 
     def wire_page(self, page) -> None:
         """Capture console errors/warnings and uncaught exceptions from a page (this also
@@ -189,6 +245,10 @@ class BrowserSession:
             ]
             if sw:
                 sw_target = sw[0]
+                break
+            # If Chrome has already rejected the extension, stop waiting — the worker
+            # will never register and the reason is in the log (captured below).
+            if log_has_load_error():
                 break
             time.sleep(0.5)
 

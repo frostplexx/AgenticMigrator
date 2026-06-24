@@ -1,10 +1,12 @@
 from collections import defaultdict
 
+from .static_analyzer import CATEGORIES, group_signals_by_category
+
 
 class PromptGenerator:
     prompt: str
 
-    def __init__(self, findings: list[dict]):
+    def __init__(self, findings: list[dict], signals: list[dict] | None = None):
         self.prompt = f"""
 # Chrome Extension Migration Task
 
@@ -33,7 +35,7 @@ static analysis cannot see must still be applied using the `mv3-migration` skill
 MV2->MV3 reference), and will be caught at runtime by the harness's verification step.
 
 {_format_findings(findings)}
-
+{_format_signals(signals or [])}
 ## Workflow
 
 ### Step 1: Delegate Migration to extension-transformer
@@ -114,6 +116,36 @@ def _format_findings(findings: list[dict]) -> str:
                 f"- Line {hit['line']}: `{hit['api']}` → `{hit['replacement']}`"
                 f"  \n  `{hit['snippet']}`"
             )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# Cap the number of call sites shown per category so a minified vendor library can't flood
+# the prompt; the count still reflects the true total.
+_MAX_SITES_PER_CATEGORY = 12
+
+
+def _format_signals(signals: list[dict]) -> str:
+    if not signals:
+        return ""
+
+    grouped = group_signals_by_category(signals)
+    lines = [
+        "## Migration Signals: Non-Mechanical Work Detected\n",
+        "These need a real rewrite — the converter cannot fix them and they will fail at "
+        "load/runtime if ignored. Read the linked skill before changing each one.\n",
+    ]
+
+    for category, hits in grouped.items():
+        meta = CATEGORIES[category]
+        lines.append(f"### {meta['title']}  (skill: `{meta['skill']}`)")
+        lines.append(meta["hint"] + "\n")
+        for hit in hits[:_MAX_SITES_PER_CATEGORY]:
+            where = hit["file"] if hit["line"] == 0 else f"{hit['file']}:{hit['line']}"
+            lines.append(f"- `{where}`  \n  `{hit['snippet']}`")
+        if len(hits) > _MAX_SITES_PER_CATEGORY:
+            lines.append(f"- …and {len(hits) - _MAX_SITES_PER_CATEGORY} more")
         lines.append("")
 
     return "\n".join(lines)

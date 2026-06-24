@@ -7,6 +7,7 @@ import threading
 import time
 
 from openhands.sdk.event import ActionEvent, ObservationEvent, MessageEvent
+from openhands.sdk.event.conversation_error import ConversationErrorEvent
 
 from . import test_harness, workspace_io
 
@@ -24,8 +25,13 @@ _HEARTBEAT_INTERVAL = int(os.environ.get("HEARTBEAT_INTERVAL", "30"))
 _DELEGATION_TOOLS = {"task", "task_tool_set"}
 
 
-def make_activity_logger(agent_log_dir: str):
-    """Build a conversation callback that logs agent activity to files (tmux monitoring)."""
+def make_activity_logger(agent_log_dir: str, logger=None):
+    """Build a conversation callback that logs agent activity to files (tmux monitoring).
+
+    If ``logger`` is given, a ``ConversationErrorEvent`` (a fatal server-side failure that
+    the SDK's default visualizer silently skips) is also surfaced live at ERROR level, so a
+    crash mid-run is visible immediately instead of only as a generic wrapper at the end.
+    """
     def agent_activity_logger(event):
         agent_name = "main"
         target = None
@@ -46,6 +52,10 @@ def make_activity_logger(agent_log_dir: str):
                 f.write(f"[{timestamp}] RESULT: {event.tool_name}\n")
             elif isinstance(event, MessageEvent):
                 f.write(f"[{timestamp}] MESSAGE\n")
+            elif isinstance(event, ConversationErrorEvent):
+                f.write(f"[{timestamp}] CONVERSATION ERROR [{event.code}]: {event.detail}\n")
+                if logger is not None:
+                    logger.error(f"Remote conversation error [{event.code}]: {event.detail}")
             f.flush()
 
     return agent_activity_logger

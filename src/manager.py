@@ -122,6 +122,7 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
     )
 
     converted_dir: str | None = None
+    remote_error: str | None = None
     try:
         extension_path = os.path.abspath(config.extension_path)
         if not os.path.isdir(extension_path):
@@ -136,11 +137,18 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
         # original) is kept for the migration diff.
         converted_dir = manifest_converter.convert(extension_path, _logger)
 
-        # Produce the migration plan statically (no LLM analyzer agent) for speed.
+        # Produce the migration plan statically (no LLM analyzer agent) for speed. One pass
+        # yields both the mechanical API call-site findings and the non-mechanical signals
+        # (blocking webRequest, background DOM, remote code) that route the agent to the
+        # right non-trivial skill.
         mappings_path = os.path.join(os.path.dirname(__file__), "utils", "api_mappings.json")
-        findings = StaticAnalyzer(mappings_path).analyze(converted_dir)
+        scan = StaticAnalyzer(mappings_path).scan(converted_dir)
+        findings, signals = scan.findings, scan.signals
         result.num_findings = len(findings)
-        _logger.info(f"[{name}] Static analysis found {len(findings)} deprecated API usage(s)")
+        _logger.info(
+            f"[{name}] Static analysis found {len(findings)} deprecated API usage(s) "
+            f"and {len(signals)} non-mechanical migration signal(s)"
+        )
         analysis = build_analysis(findings, converted_dir)
 
         staging_dir = workspace_io.assemble_workspace(analysis, _logger)
@@ -174,7 +182,7 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
             conversation = Conversation(
                 agent=MigratorAgent().get_agent(llm),
                 workspace=workspace,
-                callbacks=[conversation_loops.make_activity_logger(config.agent_log_dir)],
+                callbacks=[conversation_loops.make_activity_logger(config.agent_log_dir, _logger)],
                 conversation_id=config.conversation_id,
                 delete_on_close=not config.keep_workspace,
             )
@@ -182,7 +190,7 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
             result.conversation_id = str(conversation.id)
 
             try:
-                conversation.send_message(PromptGenerator(findings).prompt)
+                conversation.send_message(PromptGenerator(findings, signals).prompt)
                 conversation_loops.run_with_heartbeat(conversation, _logger, f"migration [{name}]")
                 _logger.info(f"[{name}] Agent status: {conversation.state.execution_status}")
 
@@ -240,6 +248,11 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                 except Exception as e:
                     _logger.warning(f"[{name}] Could not capture metrics/trace: {e}")
 
+                # Pull the real cause out of the event stream before the remote
+                # conversation is closed; conversation.run() only raises a generic
+                # "Remote conversation ended with error".
+                remote_error = persistence.extract_remote_error(conversation)
+
                 artifacts.download_outputs(
                     workspace,
                     remote_output_dir=remote_output_dir,
@@ -257,9 +270,14 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                 conversation.close()
     except Exception as e:
         result.status = "error"
-        result.error = str(e)
+        # Surface the remote agent's actual error (e.g. an unreachable LLM endpoint)
+        # rather than the opaque "Remote conversation ended with error" wrapper.
+        message = f"{e}"
+        if remote_error and remote_error not in message:
+            message = f"{message} — remote agent error: {remote_error}"
+        result.error = message
         result.traceback = traceback.format_exc()
-        _logger.error(f"[{name}] Migration failed: {e}")
+        _logger.error(f"[{name}] Migration failed: {message}")
     finally:
         if converted_dir:
             shutil.rmtree(converted_dir, ignore_errors=True)

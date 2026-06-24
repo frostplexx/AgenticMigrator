@@ -11,6 +11,8 @@ agent traces available for the bulk research runs.
 import json
 import os
 
+from openhands.sdk.event.conversation_error import ConversationErrorEvent
+
 # Token fields tracked by openhands.sdk.llm.utils.metrics.TokenUsage.
 _TOKEN_FIELDS = (
     "prompt_tokens",
@@ -29,6 +31,31 @@ def _metrics_to_dict(metrics) -> dict:
     for field in _TOKEN_FIELDS:
         result[field] = getattr(usage, field, 0) if usage is not None else 0
     return result
+
+
+def extract_remote_error(conversation) -> str | None:
+    """Return the remote conversation's fatal error as ``"<code>: <detail>"``, if any.
+
+    The agent runs server-side, so a fatal failure (an unreachable LLM endpoint, an
+    out-of-context crash, ...) surfaces here only as a ``ConversationErrorEvent`` in the
+    event stream — ``conversation.run()`` itself just raises a generic "Remote conversation
+    ended with error". This digs the real cause out of the stream so callers can report
+    something actionable. Returns the last such event's detail, or ``None`` if there is none.
+
+    Best-effort: never raises (the conversation may already be torn down).
+    """
+    try:
+        events = list(conversation.state.events)
+    except Exception:
+        return None
+
+    detail: str | None = None
+    for event in events:
+        if isinstance(event, ConversationErrorEvent):
+            code = (event.code or "").strip()
+            text = (event.detail or "").strip()
+            detail = f"{code}: {text}" if code and text else (text or code or None)
+    return detail or None
 
 
 def collect_metrics(conversation) -> tuple[dict, dict[str, dict]]:

@@ -56,7 +56,11 @@ def convert(extension_path: str, logger) -> str:
             logger.info(
                 "extension-manifest-converter applied:\n" + (result.stdout or "").strip()
             )
-            _replace_dir(out_dir, converted)
+            # Move (rename) the converted tree into place rather than copying it: both dirs
+            # live under the same temp filesystem, so this is an instant rename instead of a
+            # full byte-for-byte copy of the extension.
+            os.rmdir(out_dir)
+            shutil.move(converted, out_dir)
         else:
             logger.error(
                 f"extension-manifest-converter failed (exit={result.returncode}): "

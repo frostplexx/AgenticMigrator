@@ -6,11 +6,19 @@ kept as a checked-in directory; these helpers also move files to/from the remote
 
 import json
 import os
+import shlex
 import shutil
+import tarfile
 import tempfile
+import uuid
 
 # src/ directory (this file lives in src/utils/).
 _SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Bulk transfers go through a single gzip tarball instead of one RPC per file: a workspace
+# with many small files (the skills tree, a multi-file extension) otherwise pays a network
+# round-trip per file, three times per migration. Packing once collapses that to ~3 RPCs.
+_XFER_TIMEOUT = 300
 
 
 def assemble_workspace(analysis: dict | None, logger) -> str:
@@ -40,58 +48,72 @@ def assemble_workspace(analysis: dict | None, logger) -> str:
 
 
 def upload_directory(workspace, local_dir: str, remote_dir: str, logger) -> None:
-    """Recursively upload a local directory to the remote workspace, preserving structure."""
+    """Upload a local directory to the remote workspace, preserving structure.
+
+    Packs the tree into a single gzip tarball, uploads that one file, and unpacks it
+    remotely — one RPC round-trip instead of one per file.
+    """
     if not os.path.isdir(local_dir):
         raise ValueError(f"Local input directory does not exist: {local_dir}")
 
-    for root, _dirs, files in os.walk(local_dir):
-        for file in files:
-            local_path = os.path.join(root, file)
-            relative_path = os.path.relpath(local_path, local_dir)
-            # Normalize to POSIX separators for the remote (Linux) container.
-            remote_rel = relative_path.replace(os.sep, "/")
-            destination_path = f"{remote_dir}/{remote_rel}"
+    fd, local_tar = tempfile.mkstemp(prefix="agentic-upload-", suffix=".tar.gz")
+    os.close(fd)
+    remote_tar = f"/tmp/agentic-upload-{uuid.uuid4().hex}.tar.gz"
+    try:
+        with tarfile.open(local_tar, "w:gz") as tar:
+            tar.add(local_dir, arcname=".")  # contents land directly under remote_dir
 
-            logger.info(f"Uploading {local_path} -> {destination_path}")
-            result = workspace.file_upload(
-                source_path=local_path,
-                destination_path=destination_path,
+        logger.info(f"Uploading {local_dir} -> {remote_dir} (single archive)")
+        result = workspace.file_upload(source_path=local_tar, destination_path=remote_tar)
+        if result.error is not None:
+            raise RuntimeError(f"Failed to upload archive to {remote_tar}: {result.error}")
+
+        rdir, rtar = shlex.quote(remote_dir), shlex.quote(remote_tar)
+        extract = workspace.execute_command(
+            f"mkdir -p {rdir} && tar -xzf {rtar} -C {rdir} && rm -f {rtar}",
+            timeout=_XFER_TIMEOUT,
+        )
+        if extract.exit_code != 0:
+            raise RuntimeError(
+                f"Failed to unpack upload into {remote_dir} "
+                f"(exit={extract.exit_code}): {extract.stderr}"
             )
-            if result.error is not None:
-                raise RuntimeError(
-                    f"Failed to upload {local_path} -> {destination_path}: {result.error}"
-                )
+    finally:
+        if os.path.exists(local_tar):
+            os.unlink(local_tar)
 
 
 def download_directory(workspace, remote_dir: str, local_dir: str, logger) -> None:
-    """Recursively download a remote workspace directory, preserving structure."""
-    # Enumerate every regular file under remote_dir (-print0 handles exotic filenames).
-    result = workspace.execute_command(f"find {remote_dir} -type f -print0", timeout=120)
-    if result.exit_code != 0:
-        raise RuntimeError(
-            f"Failed to list remote files (exit={result.exit_code}): {result.stderr}"
-        )
+    """Download a remote workspace directory, preserving structure.
 
-    remote_files = [p for p in (result.stdout or "").split("\0") if p]
-    if not remote_files:
+    Packs the remote tree into a single tarball, downloads that one file, and unpacks it
+    locally — one RPC round-trip instead of one per file.
+    """
+    remote_tar = f"/tmp/agentic-download-{uuid.uuid4().hex}.tar.gz"
+    rdir, rtar = shlex.quote(remote_dir), shlex.quote(remote_tar)
+    # `tar -C dir .` packs the directory contents; non-zero means the dir is missing/empty.
+    pack = workspace.execute_command(
+        f"tar -czf {rtar} -C {rdir} . 2>/dev/null", timeout=_XFER_TIMEOUT
+    )
+    if pack.exit_code != 0:
         logger.info(f"No files found under {remote_dir}; nothing to download.")
         return
 
     os.makedirs(local_dir, exist_ok=True)
-    logger.info(f"Downloading {len(remote_files)} file(s) from {remote_dir} -> {local_dir}")
-
-    for remote_path in remote_files:
-        relative_path = os.path.relpath(remote_path, remote_dir)
-        local_path = os.path.join(local_dir, relative_path)
-        logger.info(f"Downloading {remote_path} -> {local_path}")
-        download_result = workspace.file_download(
-            source_path=remote_path,
-            destination_path=local_path,
-        )
-        if download_result.error is not None:
-            logger.error(
-                f"Failed to download {remote_path} -> {local_path}: {download_result.error}"
-            )
+    fd, local_tar = tempfile.mkstemp(prefix="agentic-download-", suffix=".tar.gz")
+    os.close(fd)
+    try:
+        result = workspace.file_download(source_path=remote_tar, destination_path=local_tar)
+        if result.error is not None:
+            logger.error(f"Failed to download archive from {remote_tar}: {result.error}")
+            return
+        with tarfile.open(local_tar, "r:gz") as tar:
+            tar.extractall(local_dir, filter="data")  # filter blocks path-traversal members
+        logger.info(f"Downloaded {remote_dir} -> {local_dir} (single archive)")
+    finally:
+        if os.path.exists(local_tar):
+            os.unlink(local_tar)
+        workspace.execute_command(f"rm -f {rtar}", timeout=30)
 
 
 def remote_dir_has_files(workspace, remote_dir: str, logger) -> bool:
