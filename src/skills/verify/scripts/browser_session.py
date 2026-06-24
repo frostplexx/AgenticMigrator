@@ -29,7 +29,10 @@ LOAD_TIMEOUT_S = 20
 # stays alive behind it, so a graceful context.close() can block forever. Bound it and
 # force-kill instead of letting verification hang until the manager's hard timeout.
 BROWSER_CLOSE_TIMEOUT_S = 10
-LAUNCH_TIMEOUT_MS = 30_000
+# A healthy native Chromium is ready in ~2-3s. A broken extension makes Chrome sit behind
+# the "Error Loading Extension" modal, which blocks launch_persistent_context until this
+# timeout — so keep it tight to fail fast (the real load reason is read from the log).
+LAUNCH_TIMEOUT_MS = 12_000
 USER_DATA_DIR = "/tmp/verify-profile"
 # Chrome writes extension load failures (bad manifest, invalid rules.json, etc.) here.
 LOG_FILE = "/tmp/verify-chrome.log"

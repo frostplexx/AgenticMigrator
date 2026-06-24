@@ -22,6 +22,12 @@ from .manager import DEFAULT_PORT_BASE, MigrationResult, RunConfig, run_migratio
 from .utils.banner import show_banner
 from .utils.llm_factory import build_llm
 
+# Load .env at import time so option defaults that read environment variables (e.g.
+# --port via DOCKER_PORT_BASE) see them — Typer resolves envvar defaults during command
+# parsing, before the command body (and its _bootstrap() load_dotenv) runs. Idempotent:
+# _bootstrap() calls load_dotenv() again, and it never overrides already-set vars.
+load_dotenv()
+
 app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
@@ -95,13 +101,17 @@ def migrate(
     keep_workspace: bool = typer.Option(
         False, "--keep-workspace", help="Keep the remote Docker conversation after the run"
     ),
-    port: int = typer.Option(DEFAULT_PORT_BASE, "--port", help="Base host port for the Docker workspace"),
+    port: int = typer.Option(
+        DEFAULT_PORT_BASE, "--port", envvar="DOCKER_PORT_BASE",
+        help="Base host port for the Docker workspace (also settable via DOCKER_PORT_BASE)",
+    ),
     temperature: float = typer.Option(
         None, "--temperature", "-t", help="LLM sampling temperature (overrides LLM_TEMPERATURE)"
     ),
     refine: bool = typer.Option(
-        True, "--refine/--no-refine", envvar="REFINE",
-        help="Run the iterative quality-refinement loop after verification (--no-refine to skip)",
+        False, "--refine/--no-refine", envvar="REFINE",
+        help="Run the iterative quality-refinement loop after verification (off by default; "
+             "it is the most expensive phase — enable with --refine for higher-quality output)",
     ),
     refine_threshold: float = typer.Option(
         80.0, "--refine-threshold", envvar="REFINE_THRESHOLD",
@@ -140,13 +150,17 @@ def batch(
     resume: bool = typer.Option(False, "--resume", help="Skip extensions already in results.jsonl in OUTPUT"),
     limit: int = typer.Option(None, "--limit", help="Migrate at most N extensions"),
     from_file: str = typer.Option(None, "--from-file", help="File with one extension path per line"),
-    port: int = typer.Option(DEFAULT_PORT_BASE, "--port", help="Base host port (worker i uses port + i*10)"),
+    port: int = typer.Option(
+        DEFAULT_PORT_BASE, "--port", envvar="DOCKER_PORT_BASE",
+        help="Base host port, worker i uses port + i*10 (also settable via DOCKER_PORT_BASE)",
+    ),
     temperature: float = typer.Option(
         None, "--temperature", "-t", help="LLM sampling temperature (overrides LLM_TEMPERATURE)"
     ),
     refine: bool = typer.Option(
-        True, "--refine/--no-refine", envvar="REFINE",
-        help="Run the iterative quality-refinement loop after verification (--no-refine to skip)",
+        False, "--refine/--no-refine", envvar="REFINE",
+        help="Run the iterative quality-refinement loop after verification (off by default; "
+             "it is the most expensive phase — enable with --refine for higher-quality output)",
     ),
     refine_threshold: float = typer.Option(
         80.0, "--refine-threshold", envvar="REFINE_THRESHOLD",

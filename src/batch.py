@@ -68,7 +68,7 @@ class BatchConfig:
     limit: int | None = None
     port_base: int = DEFAULT_PORT_BASE
     temperature: float | None = None
-    refine_max_iterations: int = 2
+    refine_max_iterations: int = 0
     refine_threshold: float = 80.0
 
 

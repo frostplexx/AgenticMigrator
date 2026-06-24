@@ -1,0 +1,6 @@
+[12:41:31] ACTION: task -> extension-transformer
+  Summary: Delegate MV2 to MV3 migration to extension-transformer
+[12:44:25] RESULT: task
+[12:44:53] ACTION: task -> extension-transformer
+  Summary: Fix invalid rules.json in /workspace/out
+[12:45:10] RESULT: task

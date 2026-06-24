@@ -23,12 +23,39 @@ class MigratorAgent:
         if subagents_dir.exists():
             agent_defs = load_agents_from_dir(subagents_dir)
             for agent_def in agent_defs:
-                factory = agent_definition_to_factory(agent_def)
+                factory = self._condensing_factory(agent_def)
                 register_agent_if_absent(
                     name=agent_def.name,
                     factory_func=factory,
                     description=agent_def,
                 )
+
+    @staticmethod
+    def _condensing_factory(agent_def):
+        """Wrap the default subagent factory to attach a summarizing condenser.
+
+        The subagents (transformer, critic) do the bulk of the work and can run dozens of
+        turns. The stock ``agent_definition_to_factory`` builds them with NO condenser, so
+        every turn re-sends the full, growing history to the model — on a local LLM with no
+        prompt-cache reuse this is the dominant cost (a single transformer run reprocessed
+        ~370K prompt tokens). Bounding their history the same way the orchestrator is
+        bounded keeps each turn's prompt small. The condenser gets a per-subagent
+        ``usage_id`` so the remote server's LLMRegistry doesn't reject it as a duplicate.
+        """
+        base_factory = agent_definition_to_factory(agent_def)
+
+        def factory(llm: LLM) -> Agent:
+            agent = base_factory(llm)
+            condenser_llm = llm.model_copy(update={"usage_id": f"condenser:{agent_def.name}"})
+            return agent.model_copy(
+                update={
+                    "condenser": LLMSummarizingCondenser(
+                        llm=condenser_llm, max_size=20, keep_first=2
+                    )
+                }
+            )
+
+        return factory
 
 
     def _load_skills(self):

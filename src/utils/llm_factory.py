@@ -26,7 +26,14 @@ def build_llm(temperature: float | None = None) -> LLM:
     api_key = os.environ.get("LLM_API_KEY")
     base_url = os.environ.get("LLM_BASE_URL")
 
-    is_ollama = model is not None and model.startswith("ollama/")
+    # Both Ollama prefixes are local Ollama. The prefix decides the API endpoint litellm
+    # uses, which matters for tool calling: `ollama/` -> the legacy /api/generate completion
+    # endpoint, which does NOT support native tools (the `tools` param is dropped and the
+    # model returns tool_calls=null); `ollama_chat/` -> the /api/chat endpoint, which DOES.
+    # Use `ollama_chat/<model>` to get working native tool calling.
+    is_ollama = model is not None and (
+        model.startswith("ollama/") or model.startswith("ollama_chat/")
+    )
 
     if model is None:
         raise ValueError("LLM_MODEL environment variable is not set.")
@@ -71,6 +78,12 @@ def build_llm(temperature: float | None = None) -> LLM:
     if temperature is not None and temperature < 0:
         raise ValueError(f"Temperature must be >= 0, got {temperature}.")
 
+    # Native (API-level) tool calling vs. prompt-based XML tool calling. Native is far
+    # cheaper — XML tool calling re-sends verbose tool schemas/formatting in every turn and
+    # is prone to malformed-output retries that add whole extra turns. Enable it by default;
+    # set LLM_NATIVE_TOOL_CALLING=false for a model whose native tool calling is unreliable.
+    native_tool_calling = _bool_env("LLM_NATIVE_TOOL_CALLING", default=True)
+
     return LLM(
         usage_id="agent",
         model=model,
@@ -81,12 +94,18 @@ def build_llm(temperature: float | None = None) -> LLM:
         litellm_extra_body=extra_body,
         input_cost_per_token=input_cost,
         output_cost_per_token=output_cost,
-        # Disable native tool calling for models that don't support it properly.
-        # When False, OpenHands uses prompt-based tool calling with XML format.
-        native_tool_calling=False,
+        native_tool_calling=native_tool_calling,
     )
 
 
 def _float_env(name: str) -> float | None:
     value = os.environ.get(name)
     return float(value) if value else None
+
+
+def _bool_env(name: str, *, default: bool) -> bool:
+    """Parse a boolean env var. Accepts 1/0, true/false, yes/no, on/off (case-insensitive)."""
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")

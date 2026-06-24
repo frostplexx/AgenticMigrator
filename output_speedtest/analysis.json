@@ -1,0 +1,26 @@
+{
+  "extension_name": "Capybara Extension",
+  "source": "static-analysis",
+  "files": [
+    {
+      "path": "service_worker.js",
+      "changes": [
+        {
+          "type": "api_replacement",
+          "line": 21,
+          "api": "chrome.extension.getURL",
+          "replacement": "chrome.runtime.getURL",
+          "snippet": "var iconUrl = chrome.extension.getURL('icons/icon48.png');"
+        },
+        {
+          "type": "api_replacement",
+          "line": 25,
+          "api": "chrome.browserAction.onClicked",
+          "replacement": "chrome.action.onClicked",
+          "snippet": "chrome.browserAction.onClicked.addListener(function(tab) {"
+        }
+      ]
+    }
+  ],
+  "note": "Static analysis lists known deprecated API call sites and their MV3 replacements. Manifest changes (manifest_version, background/service_worker, action, host_permissions, CSP, web_accessible_resources) and anything not listed here must still be applied using the migration reference, and are verified at runtime by the verify skill."
+}

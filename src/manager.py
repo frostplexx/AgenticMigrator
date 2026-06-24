@@ -56,10 +56,13 @@ class RunConfig:
     conversation_id: UUID | None = None
     keep_workspace: bool = False
     quiet: bool = False
-    # Iterative quality refinement (on by default): 0 disables it. After a passing
-    # verification the critic scores the migration and the transformer improves it until the
-    # score reaches ``refine_threshold`` (0-100) or ``refine_max_iterations`` passes are used.
-    refine_max_iterations: int = 2
+    # Iterative quality refinement (OFF by default): 0 disables it. It is the most
+    # expensive optional phase — each pass delegates a full critic run plus a transformer
+    # run and re-verifies, roughly a third of total LLM cost — so it is opt-in via
+    # ``--refine``. When > 0, after a passing verification the critic scores the migration
+    # and the transformer improves it until the score reaches ``refine_threshold`` (0-100)
+    # or ``refine_max_iterations`` passes are used.
+    refine_max_iterations: int = 0
     refine_threshold: float = 80.0
 
     @property
