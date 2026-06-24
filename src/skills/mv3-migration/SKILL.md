@@ -1,142 +1,55 @@
 ---
 name: mv3-migration
 description: >-
-  Reference for migrating a Chrome extension from Manifest V2 to Manifest V3:
-  manifest.json changes, service-worker constraints, the chrome.* API replacement
-  table, and the rule never to delete functionality. Invoke this before changing
-  extension code so you apply the correct MV3 form of each manifest field and API.
+  Overview for migrating a Chrome extension from Manifest V2 to Manifest V3.
+  Routes to the appropriate sub-skill based on what needs to change. Invoke this
+  first to identify which sub-skills apply, then invoke those directly.
 ---
 
-# Chrome Extension Migration Reference (Manifest V2 -> Manifest V3)
+# Chrome Extension MV2 → MV3 Migration
 
-Use this as the source of truth for what must change when migrating a Chrome extension
-from Manifest V2 (MV2) to Manifest V3 (MV3). MV2 is deprecated and no longer loads in
-current Chrome. Only change what the extension actually uses.
+MV2 is deprecated and no longer loads in current Chrome. Only change what the
+extension actually uses. Three sub-skills cover the work at different levels of
+effort:
 
-## manifest.json
+## Sub-skills
 
-- `"manifest_version": 2` -> `"manifest_version": 3`.
-- Background:
-  - `"background": { "scripts": [...], "persistent": false }`
-    -> `"background": { "service_worker": "<single-entry>.js" }`.
-  - If MV2 listed multiple background scripts, combine them into one service worker
-    entry (e.g. via `importScripts(...)` at the top of the worker) — MV3 allows only one
-    `service_worker` entry (plus optional `"type": "module"`).
-- Actions:
-  - `"browser_action"` and `"page_action"` -> `"action"` (merge their fields:
-    `default_popup`, `default_icon`, `default_title`).
-- Permissions:
-  - Move URL match patterns (e.g. `"*://*/*"`, `"https://example.com/*"`,
-    `"<all_urls>"`) out of `"permissions"` into a new `"host_permissions"` array.
-  - Keep API permissions (e.g. `"storage"`, `"tabs"`, `"scripting"`) in `"permissions"`.
-  - If the extension injects scripts/CSS programmatically, add the `"scripting"` permission.
-- Content Security Policy:
-  - `"content_security_policy": "<string>"`
-    -> `"content_security_policy": { "extension_pages": "<string>" }`.
-  - Remote code is disallowed: remove `'unsafe-eval'` and any remote script/object sources.
-- web_accessible_resources:
-  - `"web_accessible_resources": ["a.png", "b.js"]`
-    -> `"web_accessible_resources": [{ "resources": ["a.png", "b.js"], "matches": ["<all_urls>"] }]`.
-- Remove MV2-only keys that no longer apply once converted.
+### mv3-trivial — manifest.json updates (mechanical)
+Pure manifest field renames and restructuring. No logic changes.
+- `manifest_version` bump
+- `background.scripts` → `background.service_worker`
+- `browser_action` / `page_action` → `action`
+- URL patterns out of `permissions` into `host_permissions`
+- `content_security_policy` string → object
+- `web_accessible_resources` flat array → object array
 
-## Service worker constraints (the background context in MV3)
+Invoke: **mv3-trivial**
 
-The background page is replaced by an ephemeral, event-driven service worker. It has no DOM
-and can be terminated at any time. This breaks common MV2 patterns:
+### mv3-semi-trivial — API renames & service-worker rules (requires JS edits)
+Find-and-replace across JS files plus adapting code to run in a termination-safe
+service worker with no DOM globals.
+- `chrome.extension.*` → `chrome.runtime.*`
+- `chrome.browserAction.*` → `chrome.action.*`
+- `chrome.tabs.executeScript` → `chrome.scripting.executeScript`
+- Banned globals: `window`, `document`, `localStorage`, `XHR`
+- Event listener placement rules
 
-- No `window`, `document`, `localStorage`, `XMLHttpRequest`, `alert`, or DOM APIs.
-  - Use `fetch(...)` instead of `XMLHttpRequest`.
-  - Use `chrome.storage.local`/`chrome.storage.session` instead of `localStorage` or
-    in-memory globals (the worker may be unloaded, losing state).
-- Do not rely on long-lived global variables or timers (`setTimeout`/`setInterval`).
-  - Use `chrome.alarms` for scheduled work.
-- Register all event listeners synchronously at the top level of the worker (not inside
-  async callbacks), so events that wake the worker are not missed.
-- `chrome.runtime.getBackgroundPage` and direct access to the background page's DOM/objects
-  are gone — communicate via `chrome.runtime` messaging or shared storage.
+Invoke: **mv3-semi-trivial**
 
-## API replacements
+### mv3-non-trivial — DNR & offscreen documents (architectural rewrites)
+Significant rewrites required. Invoke when the extension uses blocking
+`webRequest` listeners or when the service worker needs DOM / audio / clipboard.
+- Blocking `webRequest` → `declarativeNetRequest` (static rule JSON)
+- DOM / audio / canvas in background → offscreen documents
 
-| MV2 | MV3 |
-|-----|-----|
-| `chrome.browserAction.*` | `chrome.action.*` |
-| `chrome.pageAction.*` | `chrome.action.*` |
-| `chrome.extension.getURL(p)` | `chrome.runtime.getURL(p)` |
-| `chrome.extension.connect(...)` | `chrome.runtime.connect(...)` |
-| `chrome.extension.sendMessage(...)` / `sendRequest(...)` | `chrome.runtime.sendMessage(...)` |
-| `chrome.extension.onMessage` / `onRequest` | `chrome.runtime.onMessage` |
-| `chrome.extension.onConnect` | `chrome.runtime.onConnect` |
-| `chrome.tabs.executeScript(tabId, details)` | `chrome.scripting.executeScript({ target: { tabId }, ... })` |
-| `chrome.tabs.insertCSS(tabId, details)` | `chrome.scripting.insertCSS({ target: { tabId }, ... })` |
-| `chrome.tabs.sendRequest(...)` | `chrome.tabs.sendMessage(...)` |
-| `chrome.tabs.getAllInWindow(id, cb)` | `chrome.tabs.query({ windowId: id }, cb)` |
-| `chrome.tabs.getSelected(id, cb)` | `chrome.tabs.query({ active: true, windowId: id }, cb)` |
-| `chrome.tabs.onActiveChanged` / `onSelectionChanged` | `chrome.tabs.onActivated` |
-| `chrome.tabs.onHighlightChanged` | `chrome.tabs.onHighlighted` |
+Invoke: **mv3-non-trivial**
 
-Note: the exact set of APIs an extension uses is detected up front by static analysis and
-provided in the task instructions — treat that list as authoritative for which call sites
-to change, and use the table above for the correct replacement.
-
-## Blocking webRequest -> declarativeNetRequest (DNR)
-
-MV3 removes blocking `webRequest` (redirect/block/modify). Re-express those rules
-declaratively with `declarativeNetRequest`. Get the rule JSON shape exactly right — Chrome
-rejects the **entire extension at load time** if any rule is malformed (e.g. *"Rule with id
-1 specifies an incorrect value for the 'action.redirect' key"*).
-
-manifest.json:
-
-```json
-"permissions": ["declarativeNetRequest"],
-"declarative_net_request": {
-  "rule_resources": [
-    { "id": "ruleset_1", "enabled": true, "path": "rules.json" }
-  ]
-}
-```
-
-`rules.json` is an **array** of rule objects. Every rule needs `id` (unique int ≥ 1),
-`priority` (int ≥ 1), `action`, and `condition`:
-
-```json
-[
-  {
-    "id": 1,
-    "priority": 1,
-    "action": { "type": "redirect", "redirect": { "url": "https://example.com/" } },
-    "condition": { "urlFilter": "||tracker.example", "resourceTypes": ["main_frame"] }
-  }
-]
-```
-
-Rules for `action`:
-
-- `action.type` is one of `"block"`, `"redirect"`, `"allow"`, `"upgradeScheme"`,
-  `"modifyHeaders"`.
-- For `"redirect"`, `action.redirect` MUST be an **object** — never a bare string. Use
-  exactly one of: `{ "url": "<absolute-url>" }`, `{ "extensionPath": "/page.html" }`
-  (leading slash, points at a web-accessible resource), `{ "regexSubstitution": "..." }`
-  (with `condition.regexFilter`), or `{ "transform": { ... } }`.
-- A `redirect` action requires host permissions for the matched URLs — use the
-  `declarativeNetRequestWithHostAccess` permission (plus `host_permissions`) instead of
-  plain `declarativeNetRequest` when redirecting.
-- `condition.resourceTypes` should list the request types to match (e.g. `"main_frame"`,
-  `"sub_frame"`, `"xmlhttprequest"`, `"image"`); use `urlFilter` for plain matches or
-  `regexFilter` for regexes (not both).
-
-Non-blocking `webRequest` (observation only) can stay, but the blocking listener and the
-`"webRequestBlocking"` permission must go.
-
-## Other common changes
-
-- Replace any executable/remotely-hosted code with bundled, local code.
-- Promise-based chrome.* APIs are available in MV3; callback style still works.
-- Preserve every other file unchanged — a migration must produce a complete, loadable
-  extension, not just the edited files.
+---
 
 ## Definition of done
 
-The migrated extension in the output directory must load in Chromium with
-`"manifest_version": 3`, register its service worker without throwing, and run without
-runtime errors (verified by the `verify` skill).
+The migrated extension must load in Chromium with `"manifest_version": 3`,
+register its service worker without throwing, and run without runtime errors
+(verified by the `verify` skill). Preserve every file not listed in the task —
+a migration must produce a **complete, loadable extension**, not just the edited
+files.
