@@ -92,10 +92,11 @@ def render_result(result: MigrationResult) -> None:
     table.add_row("Status", f"[{color}]{result.status.upper()}[/{color}]")
     table.add_row("Verify", "PASSED" if result.verify_passed else f"FAILED ({len(result.verify_errors)} error(s))")
     table.add_row("API sites", str(result.num_findings))
-    if result.quality_score is not None:
+    if result.goal_status is not None:
+        score = f"{result.goal_score:.2f}" if result.goal_score is not None else "n/a"
         table.add_row(
-            "Quality",
-            f"{result.quality_score:.0f}/100 ({result.refine_iterations} refine pass(es))",
+            "Goal",
+            f"{result.goal_status} · judge {score} ({result.goal_iterations} round(s))",
         )
     table.add_row("Cost", f"${result.accumulated_cost:.4f}")
     table.add_row("Tokens", f"{total_tokens:,} (in {result.prompt_tokens:,} / out {result.completion_tokens:,})")
@@ -121,18 +122,15 @@ def migrate(
     temperature: float = typer.Option(
         None, "--temperature", "-t", help="LLM sampling temperature (overrides LLM_TEMPERATURE)"
     ),
-    refine: bool = typer.Option(
-        False, "--refine/--no-refine", envvar="REFINE",
-        help="Run the iterative quality-refinement loop after verification (off by default; "
-             "it is the most expensive phase — enable with --refine for higher-quality output)",
+    goal: bool = typer.Option(
+        True, "--goal/--no-goal", envvar="GOAL",
+        help="Run the goal-completion loop after verification: an independent judge LLM "
+             "audits the transcript for proof the migration is complete and re-prompts the "
+             "agent with what is still missing (on by default; GOAL=0 or --no-goal to skip)",
     ),
-    refine_threshold: float = typer.Option(
-        80.0, "--refine-threshold", envvar="REFINE_THRESHOLD",
-        help="Stop refining once the critic's average score reaches this (0-100)",
-    ),
-    refine_iterations: int = typer.Option(
-        2, "--refine-iterations", envvar="REFINE_MAX_ITERATIONS",
-        help="Max critique/improvement passes",
+    goal_iterations: int = typer.Option(
+        3, "--goal-iterations", envvar="GOAL_MAX_ITERATIONS",
+        help="Max judge audit rounds before the goal loop gives up",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose (DEBUG) logging"),
 ) -> None:
@@ -147,8 +145,7 @@ def migrate(
         conversation_id=conversation_id_for(extension),
         keep_workspace=keep_workspace,
         quiet=False,
-        refine_max_iterations=refine_iterations if refine else 0,
-        refine_threshold=refine_threshold,
+        goal_max_iterations=goal_iterations if goal else 0,
     )
     result = run_migration(config, llm)
     render_result(result)
@@ -170,18 +167,15 @@ def batch(
     temperature: float = typer.Option(
         None, "--temperature", "-t", help="LLM sampling temperature (overrides LLM_TEMPERATURE)"
     ),
-    refine: bool = typer.Option(
-        False, "--refine/--no-refine", envvar="REFINE",
-        help="Run the iterative quality-refinement loop after verification (off by default; "
-             "it is the most expensive phase — enable with --refine for higher-quality output)",
+    goal: bool = typer.Option(
+        True, "--goal/--no-goal", envvar="GOAL",
+        help="Run the goal-completion loop after verification: an independent judge LLM "
+             "audits the transcript for proof the migration is complete and re-prompts the "
+             "agent with what is still missing (on by default; GOAL=0 or --no-goal to skip)",
     ),
-    refine_threshold: float = typer.Option(
-        80.0, "--refine-threshold", envvar="REFINE_THRESHOLD",
-        help="Stop refining once the critic's average score reaches this (0-100)",
-    ),
-    refine_iterations: int = typer.Option(
-        2, "--refine-iterations", envvar="REFINE_MAX_ITERATIONS",
-        help="Max critique/improvement passes per extension",
+    goal_iterations: int = typer.Option(
+        3, "--goal-iterations", envvar="GOAL_MAX_ITERATIONS",
+        help="Max judge audit rounds before the goal loop gives up, per extension",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose (DEBUG) logging"),
 ) -> None:
@@ -207,8 +201,7 @@ def batch(
         limit=limit,
         port_base=port,
         temperature=temperature,
-        refine_max_iterations=refine_iterations if refine else 0,
-        refine_threshold=refine_threshold,
+        goal_max_iterations=goal_iterations if goal else 0,
     )
     summary = run_batch(cfg, console)
     raise typer.Exit(0 if summary.get("errors", 0) == 0 and summary.get("total", 0) > 0 else 1)

@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from uuid import UUID
 
 from openhands.sdk import LLM, Conversation, RemoteConversation, get_logger
+from openhands.sdk.conversation.goal import run_goal
 
 from .agents.migrator import MigratorAgent
 from .utils import (
@@ -32,7 +33,8 @@ from .utils import (
     test_harness,
     workspace_io,
 )
-from .utils.docker import createDockerWorkspace
+from .utils.visualizer import MigrationVisualizer
+from .utils.docker import createDockerWorkspace, to_client_reachable_url
 from .utils.prompt_generator import PromptGenerator
 from .utils.static_analyzer import StaticAnalyzer, build_analysis
 
@@ -40,6 +42,20 @@ _logger = get_logger(__name__)
 
 # Default Docker host port base. The server also exposes VSCode at +1 and VNC at +2.
 DEFAULT_PORT_BASE = 8081
+
+# Objective the goal-completion loop audits against. Phrased as a *finishing* objective
+# (the conversation already contains a completed, verified migration when this runs) so the
+# agent confirms/finishes rather than restarting from scratch. The judge LLM only marks it
+# complete on transcript evidence — including the harness's own runtime-error reports, which
+# are already part of the conversation history.
+_GOAL_OBJECTIVE = (
+    "Ensure the Chrome extension migration is fully complete. The migrated MV3 extension "
+    "in /workspace/out must be self-contained (manifest_version 3, every original file from "
+    "/workspace/extension present), load and run in Chrome with no load-time or runtime "
+    "errors, and preserve the original functionality with nothing stubbed out or removed. "
+    "If anything is missing or incomplete, finish it by delegating to extension-transformer; "
+    "otherwise confirm it is done."
+)
 
 
 @dataclass(frozen=True)
@@ -56,14 +72,12 @@ class RunConfig:
     conversation_id: UUID | None = None
     keep_workspace: bool = False
     quiet: bool = False
-    # Iterative quality refinement (OFF by default): 0 disables it. It is the most
-    # expensive optional phase — each pass delegates a full critic run plus a transformer
-    # run and re-verifies, roughly a third of total LLM cost — so it is opt-in via
-    # ``--refine``. When > 0, after a passing verification the critic scores the migration
-    # and the transformer improves it until the score reaches ``refine_threshold`` (0-100)
-    # or ``refine_max_iterations`` passes are used.
-    refine_max_iterations: int = 0
-    refine_threshold: float = 80.0
+    # Goal completion loop (ON by default; 0 disables it via --no-goal / GOAL=0). After
+    # verification, an independent judge LLM audits the conversation transcript for proof the
+    # overall migration objective is *provably* complete; while it is not, the orchestrator is
+    # re-prompted with what is still ``missing`` and runs again, up to ``goal_max_iterations``.
+    # This replaces the older critic-based refinement pass as the quality gate.
+    goal_max_iterations: int = 3
 
     @property
     def migrated_dir(self) -> str:
@@ -90,8 +104,9 @@ class MigrationResult:
     num_findings: int = 0
     nudge_attempts: int = 0
     test_attempts: int = 0
-    quality_score: float | None = None
-    refine_iterations: int = 0
+    goal_status: str | None = None  # "complete" | "capped" (None when the loop is off)
+    goal_score: float | None = None  # judge's final completion probability (0.0–1.0)
+    goal_iterations: int = 0  # judge audit rounds performed
     accumulated_cost: float = 0.0
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -160,7 +175,6 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
             remote_root = workspace.working_dir.rstrip("/")
             remote_output_dir = f"{remote_root}/out"
             remote_report_path = f"{remote_root}/test_report.json"
-            remote_critique_path = f"{remote_root}/critique.json"
 
             try:
                 workspace_io.upload_directory(workspace, staging_dir, remote_root, _logger)
@@ -188,6 +202,10 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                 callbacks=[conversation_loops.make_activity_logger(config.agent_log_dir, _logger)],
                 conversation_id=config.conversation_id,
                 delete_on_close=not config.keep_workspace,
+                # Compact orchestrator view for an interactive `migrate`; under --quiet
+                # (e.g. parallel batch workers) stay silent and rely on the per-agent log
+                # files instead of interleaving Rich output across workers.
+                visualizer=None if config.quiet else MigrationVisualizer(),
             )
             assert isinstance(conversation, RemoteConversation)
             result.conversation_id = str(conversation.id)
@@ -208,31 +226,51 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                 result.verify_errors = report.get("errors", [])
                 result.status = "success" if passed else "verify_failed"
 
-                # Iterative refinement (quality pass). Only refine a migration that already
-                # verifies — there is no point polishing a broken one.
-                if config.refine_max_iterations > 0 and passed:
-                    score, refine_iters = conversation_loops.run_refine_loop(
-                        conversation,
-                        workspace,
-                        remote_output_dir,
-                        remote_critique_path,
-                        config.refine_threshold,
-                        config.refine_max_iterations,
-                        _logger,
+                # Goal completion loop (replaces the old critic-refinement pass). An
+                # independent judge LLM audits the conversation transcript for proof the
+                # overall objective is provably complete; while it is not, the orchestrator is
+                # re-prompted with what is still ``missing`` and runs again, up to the cap.
+                if config.goal_max_iterations > 0:
+                    # The judge runs CLIENT-SIDE (run_goal drives it in this host process),
+                    # unlike the agent which runs inside the Docker container. The agent's
+                    # base_url points at host.docker.internal (so the container can reach the
+                    # host's Ollama) — a name the host itself can't resolve — so rewrite it
+                    # back to localhost for the judge. A distinct usage_id also keeps its cost
+                    # separate and avoids an LLMRegistry duplicate.
+                    judge_llm = llm.model_copy(
+                        update={
+                            "usage_id": "goal-judge",
+                            "base_url": to_client_reachable_url(llm.base_url),
+                        }
                     )
-                    result.quality_score = score
-                    result.refine_iterations = refine_iters
-                    # Refinement edited files; re-verify so we never report a refined-but-
-                    # broken extension. (Honest signal: a regression flips it to FAILED.)
-                    if refine_iters > 0:
-                        passed, report = test_harness.run_verify(
-                            workspace, remote_output_dir, remote_report_path, _logger
+                    try:
+                        outcome = run_goal(
+                            conversation,
+                            _GOAL_OBJECTIVE,
+                            judge_llm,
+                            max_iterations=config.goal_max_iterations,
                         )
-                        result.verify_passed = passed
-                        result.verify_errors = report.get("errors", [])
-                        result.status = "success" if passed else "verify_failed"
-                        if not passed:
-                            _logger.warning(f"[{name}] Refinement regressed verification.")
+                        result.goal_status = outcome.status
+                        result.goal_score = outcome.verdict.score
+                        result.goal_iterations = outcome.iterations
+                        missing = f"; missing: {outcome.verdict.missing}" if outcome.verdict.missing else ""
+                        _logger.info(
+                            f"[{name}] Goal loop: {outcome.status} after {outcome.iterations} "
+                            f"round(s), judge score {outcome.verdict.score:.2f}{missing}"
+                        )
+                    except Exception as e:
+                        # A judge/transport failure must not sink an otherwise-good migration.
+                        _logger.warning(f"[{name}] Goal loop failed: {e}")
+                    # The goal loop re-prompts the agent, which may edit files; re-verify so a
+                    # goal-driven change can never leave us reporting a broken extension.
+                    passed, report = test_harness.run_verify(
+                        workspace, remote_output_dir, remote_report_path, _logger
+                    )
+                    result.verify_passed = passed
+                    result.verify_errors = report.get("errors", [])
+                    result.status = "success" if passed else "verify_failed"
+                    if not passed:
+                        _logger.warning(f"[{name}] Goal loop regressed verification.")
             finally:
                 # Capture metrics + the conversation trace before the remote conversation
                 # is torn down, then download the artifacts.
@@ -265,9 +303,6 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                     remote_report_path=remote_report_path,
                     extension_path=extension_path,
                     logger=_logger,
-                    remote_critique_path=remote_critique_path
-                    if config.refine_max_iterations > 0
-                    else None,
                 )
                 result.migrated_dir = config.migrated_dir
                 conversation.close()
