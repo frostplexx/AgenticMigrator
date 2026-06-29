@@ -25,6 +25,22 @@ _HEARTBEAT_INTERVAL = int(os.environ.get("HEARTBEAT_INTERVAL", "30"))
 _DELEGATION_TOOLS = {"task", "task_tool_set"}
 
 
+def _token_summary(conversation) -> str:
+    """Return a compact ``in N/out N · $cost`` token tally, or "" if unavailable.
+
+    Best-effort: the heartbeat must never crash on a stats hiccup mid-run.
+    """
+    try:
+        snap = conversation.conversation_stats.get_combined_metrics().get_snapshot()
+        cost = getattr(snap, "accumulated_cost", 0.0) or 0.0
+        usage = getattr(snap, "accumulated_token_usage", None)
+        if usage is None:
+            return f"${cost:.4f}"
+        return f"in {usage.prompt_tokens:,}/out {usage.completion_tokens:,} · ${cost:.4f}"
+    except Exception:
+        return ""
+
+
 def make_activity_logger(agent_log_dir: str, logger=None):
     """Build a conversation callback that logs agent activity to files (tmux monitoring).
 
@@ -78,7 +94,11 @@ def run_with_heartbeat(conversation, logger, label: str, interval: int = _HEARTB
     def beat():
         while not stop.wait(interval):
             elapsed = int(time.monotonic() - start)
-            logger.info(f"… {label} still running: {elapsed // 60}m{elapsed % 60:02d}s elapsed")
+            tokens = _token_summary(conversation)
+            suffix = f" · {tokens}" if tokens else ""
+            logger.info(
+                f"… {label} still running: {elapsed // 60}m{elapsed % 60:02d}s elapsed{suffix}"
+            )
 
     ticker = threading.Thread(target=beat, name=f"heartbeat-{label}", daemon=True)
     ticker.start()
