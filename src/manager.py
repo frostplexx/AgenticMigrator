@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from uuid import UUID
 
 from openhands.sdk import LLM, Conversation, RemoteConversation, get_logger
-from openhands.sdk.conversation.goal import run_goal
+from openhands.sdk.conversation.goal import judge_goal, run_goal
 
 from .agents.migrator import MigratorAgent
 from .utils import (
@@ -244,33 +244,50 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                         }
                     )
                     try:
-                        outcome = run_goal(
-                            conversation,
-                            _GOAL_OBJECTIVE,
-                            judge_llm,
-                            max_iterations=config.goal_max_iterations,
-                        )
-                        result.goal_status = outcome.status
-                        result.goal_score = outcome.verdict.score
-                        result.goal_iterations = outcome.iterations
-                        missing = f"; missing: {outcome.verdict.missing}" if outcome.verdict.missing else ""
-                        _logger.info(
-                            f"[{name}] Goal loop: {outcome.status} after {outcome.iterations} "
-                            f"round(s), judge score {outcome.verdict.score:.2f}{missing}"
-                        )
+                        # Judge the existing transcript FIRST. A migration that already passed
+                        # verification is usually complete, and run_goal would otherwise
+                        # re-send the objective and run a full (expensive) agent turn before
+                        # the judge ever looks. When the cheap client-side audit already says
+                        # complete, take the verdict and skip both the agent turn and the
+                        # extra re-verify.
+                        verdict = judge_goal(judge_llm, _GOAL_OBJECTIVE, list(conversation.state.events))
+                        if verdict.complete:
+                            result.goal_status = "complete"
+                            result.goal_score = verdict.score
+                            result.goal_iterations = 1
+                            _logger.info(
+                                f"[{name}] Goal already complete (judge score "
+                                f"{verdict.score:.2f}); skipping goal loop."
+                            )
+                        else:
+                            outcome = run_goal(
+                                conversation,
+                                _GOAL_OBJECTIVE,
+                                judge_llm,
+                                max_iterations=config.goal_max_iterations,
+                            )
+                            result.goal_status = outcome.status
+                            result.goal_score = outcome.verdict.score
+                            result.goal_iterations = outcome.iterations
+                            missing = f"; missing: {outcome.verdict.missing}" if outcome.verdict.missing else ""
+                            _logger.info(
+                                f"[{name}] Goal loop: {outcome.status} after {outcome.iterations} "
+                                f"round(s), judge score {outcome.verdict.score:.2f}{missing}"
+                            )
+                            # The loop re-prompted the agent, which may edit files; re-verify
+                            # so a goal-driven change can never leave us reporting a broken
+                            # extension. (Skipped above when nothing was re-run.)
+                            passed, report = test_harness.run_verify(
+                                workspace, remote_output_dir, remote_report_path, _logger
+                            )
+                            result.verify_passed = passed
+                            result.verify_errors = report.get("errors", [])
+                            result.status = "success" if passed else "verify_failed"
+                            if not passed:
+                                _logger.warning(f"[{name}] Goal loop regressed verification.")
                     except Exception as e:
                         # A judge/transport failure must not sink an otherwise-good migration.
                         _logger.warning(f"[{name}] Goal loop failed: {e}")
-                    # The goal loop re-prompts the agent, which may edit files; re-verify so a
-                    # goal-driven change can never leave us reporting a broken extension.
-                    passed, report = test_harness.run_verify(
-                        workspace, remote_output_dir, remote_report_path, _logger
-                    )
-                    result.verify_passed = passed
-                    result.verify_errors = report.get("errors", [])
-                    result.status = "success" if passed else "verify_failed"
-                    if not passed:
-                        _logger.warning(f"[{name}] Goal loop regressed verification.")
             finally:
                 # Capture metrics + the conversation trace before the remote conversation
                 # is torn down, then download the artifacts.
