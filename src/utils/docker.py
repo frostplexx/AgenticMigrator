@@ -1,9 +1,13 @@
 
+import contextlib
+import io
 import os
 import time
 import platform
 import httpx
 from openhands.workspace import DockerWorkspace
+
+from . import ui
 from openhands import workspace
 from openhands.sdk import (
     LLM,
@@ -27,9 +31,22 @@ def _transform_localhost_url(url: str | None) -> str | None:
     if not url or 'localhost' not in url:
         return url
     transformed_url = url.replace('localhost', 'host.docker.internal')
-    print(f"ℹ️  Transformed localhost URL for Docker container access:")
-    print(f"   {url} → {transformed_url}")
+    ui.note(f"Transformed localhost URL for container access: {url} → {transformed_url}")
     return transformed_url
+
+
+def to_client_reachable_url(url: str | None) -> str | None:
+    """Inverse of the container transform, for callers that run CLIENT-SIDE (on the host).
+
+    The agent runs inside the container and reaches the host's Ollama via
+    ``host.docker.internal``. A host-side caller — e.g. the goal-completion judge, which
+    ``run_goal`` drives in this process — cannot resolve that name, so rewrite it back to
+    ``localhost``. A no-op for any other URL (already-localhost, or a genuinely remote host
+    reachable from both sides).
+    """
+    if not url or 'host.docker.internal' not in url:
+        return url
+    return url.replace('host.docker.internal', 'localhost')
 
 
 
@@ -62,13 +79,13 @@ def _print_vscode_host(workspace: DockerWorkspace):
             else str(workspace.working_dir)
         )
         vscode_url = f"http://localhost:{vscode_port}/?folder={folder}"
-    print(f"ℹ️  VSCode Server URL: {vscode_url}")
+    ui.note(f"VSCode: {vscode_url}")
 
 
 def _print_vnc_host(workspace: DockerWorkspace):
     """Print the VNC Server URL"""
     vnc_port = (workspace.host_port or 8010) + 2
-    print(f"ℹ️  VNC Server URL: http://localhost:{vnc_port}/vnc.html?autoconnect=1&resize=remote")
+    ui.note(f"VNC: http://localhost:{vnc_port}/vnc.html?autoconnect=1&resize=remote")
 
 
 
@@ -87,16 +104,26 @@ def createDockerWorkspace(port: int, quiet: bool = False) -> DockerWorkspace:
     # explicit "OH_ENABLE_VNC=false" from the user is respected.
     os.environ.setdefault("OH_ENABLE_VNC", "true")
 
-    ws = DockerWorkspace(
-        server_image=server_image,
-        platform=_detect_platform(),
-        host_port=port,
-        extra_ports=True,
-        detach_logs=False,
-        forward_env=["DEBUG", "OH_ENABLE_VNC"]  # Forward VNC enable flag to container
-    )
+    def _start() -> DockerWorkspace:
+        # The DockerWorkspace constructor blocks polling `docker inspect` for readiness and
+        # echoes each command's stdout (the repeated "true", the full `docker version` dump).
+        # Suppress that raw stdout so the only thing the user sees is the spinner/log line.
+        with contextlib.redirect_stdout(io.StringIO()):
+            return DockerWorkspace(
+                server_image=server_image,
+                platform=_detect_platform(),
+                host_port=port,
+                extra_ports=True,
+                detach_logs=False,
+                forward_env=["DEBUG", "OH_ENABLE_VNC"],  # Forward VNC enable flag to container
+            )
 
-    if not quiet:
+    if quiet:
+        ws = _start()
+    else:
+        with ui.spinner("Starting agent container…"):
+            ws = _start()
+        ui.ok("Agent container ready")
         _print_vscode_host(ws)
         _print_vnc_host(ws)
 

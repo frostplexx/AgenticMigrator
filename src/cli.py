@@ -14,13 +14,14 @@ import uuid
 
 import typer
 from dotenv import load_dotenv
-from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 
 from .manager import DEFAULT_PORT_BASE, MigrationResult, RunConfig, run_migration
 from .utils.banner import show_banner
 from .utils.llm_factory import build_llm
+from .utils.ui import console
 
 # Load .env at import time so option defaults that read environment variables (e.g.
 # --port via DOCKER_PORT_BASE) see them — Typer resolves envvar defaults during command
@@ -33,7 +34,6 @@ app = typer.Typer(
     add_completion=False,
     help="Migrate Chrome extensions from Manifest V2 to V3 with an LLM agent.",
 )
-console = Console()
 
 # Stable namespace so a given extension path always maps to the same conversation id
 # (useful for correlating reruns / resumed batches).
@@ -55,7 +55,20 @@ def _bootstrap(verbose: bool, *, banner: bool = True) -> None:
         raise typer.Exit(2)
 
     # Set logging once here (not per-run) so concurrent batch workers don't race on it.
-    logging.getLogger("openhands").setLevel(logging.DEBUG if verbose else logging.INFO)
+    # The SDK's "openhands" logger is very chatty at INFO (every docker command, the
+    # container readiness polling, the full `docker version` dump, …); keep it at WARNING
+    # unless --verbose so normal runs stay readable. The project's own ``src.*`` loggers
+    # keep emitting at INFO via the root handler, so real progress lines still show.
+    logging.getLogger("openhands").setLevel(logging.DEBUG if verbose else logging.WARNING)
+
+    # Unify the look of the remaining log lines with the rest of the UI: in a normal run
+    # drop the timestamp / module:line gutter so progress reads as clean prose; keep the
+    # full diagnostic gutter under --verbose where it is actually useful.
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, RichHandler):
+            handler._log_render.show_time = verbose
+            handler._log_render.show_path = verbose
+            handler._log_render.show_level = verbose
     # Keep VNC opt-out honored; enabled by default in the docker factory.
     if banner:
         show_banner(model=os.environ["LLM_MODEL"])
