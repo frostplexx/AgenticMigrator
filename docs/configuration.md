@@ -13,9 +13,13 @@ Copy `.env.example` to `.env` and set the variables below.
 | `LLM_OUTPUT_COST_PER_TOKEN` | Optional, for cost tracking. |
 | `LLM_NUM_CTX` | Ollama only. Context window size, default 32768. |
 | `LLM_KEEP_ALIVE` | Ollama only. How long to keep the model loaded, default `30m`. |
-| `REFINE` | Iterative quality-refinement loop. On by default; `REFINE=0` or `--no-refine` to skip. |
-| `REFINE_THRESHOLD` | Stop refining once the critic's average score reaches this (0-100). Default 80. `--refine-threshold`. |
-| `REFINE_MAX_ITERATIONS` | Max critique/improvement passes. Default 2. `--refine-iterations`. |
+| `GOAL` | Goal-completion loop. On by default; `GOAL=0` or `--no-goal` to skip. |
+| `GOAL_MAX_ITERATIONS` | Max judge audit rounds before the goal loop gives up. Default 3. `--goal-iterations`. |
+| `CRITIC_API_KEY` | Enables the per-run `APIBasedCritic` on subagents. Unset = disabled (default). |
+| `CRITIC_SERVER_URL` | Critic model endpoint. Default the all-hands llm-proxy. |
+| `CRITIC_MODEL_NAME` | Critic model name. Default `critic`. |
+| `CRITIC_SUCCESS_THRESHOLD` | Min critic score to let a run finish (else refine). Default 0.6. |
+| `CRITIC_MAX_ITERATIONS` | Max mid-run refinement passes per run. Default 3. |
 
 ## Providers
 
@@ -35,25 +39,40 @@ agentictester batch ./corpus --workers 4 --temperature 0.7
 The CLI value wins over `LLM_TEMPERATURE`; if neither is set the provider default is used.
 The temperature in effect for a bulk run is recorded in `runs/<timestamp>/run_config.json`.
 
-## Iterative refinement
+## Goal completion loop
 
-Verification only checks that the extension *works*. On by default, a second,
-quality-focused loop runs after a passing verification: the `extension-critic` agent scores
-the migration 0–100 across correctness, completeness, code quality, and MV3 best practices
-and writes `critique.json`; if the average is below `--refine-threshold`, the
-`extension-transformer` agent addresses the critique and the migration is re-scored, up to
-`--refine-iterations` times. The output is re-verified afterwards so a refinement that
+Verification only checks that the extension *works*. On by default, a stricter quality gate
+runs after verification: an independent judge LLM (the OpenHands SDK's `run_goal`) audits the
+conversation transcript for authoritative evidence that the migration objective is *provably*
+complete and returns a verdict `{score, complete, missing}`. While the judge is not satisfied
+and the iteration budget remains, the orchestrator is re-prompted with what is still
+`missing` and runs again. The output is re-verified afterwards so a goal-driven change that
 regresses correctness is reported honestly.
 
 ```bash
-agentictester migrate ./ext --refine-threshold 85 --refine-iterations 3
-agentictester batch ./corpus --workers 4 --no-refine   # skip it to save cost
+agentictester migrate ./ext --goal-iterations 5
+agentictester batch ./corpus --workers 4 --no-goal   # skip it to save cost
 ```
 
-The final `quality_score` and the number of refinement passes are recorded per extension
-(in `MigrationResult`, `summary.csv`, and `results.jsonl`), and the batch `aggregate.json`
-reports `mean_quality_score`. Refinement adds LLM cost, so pass `--no-refine` (or `REFINE=0`)
-to turn it off.
+The judge's final `goal_status` (`complete`/`capped`), `goal_score` (0.0–1.0), and
+`goal_iterations` are recorded per extension (in `MigrationResult`, `summary.csv`, and
+`results.jsonl`), and the batch `aggregate.json` reports `goal_complete` and `mean_goal_score`.
+The judge runs under its own `goal-judge` usage_id so its cost is tracked separately. The loop
+adds LLM cost, so turn it off with `--no-goal` (or `GOAL=0`) if you need to.
+
+## Per-run critic (optional)
+
+The goal loop governs the *overall* objective; a [Critic](https://docs.openhands.dev/sdk/agent-features/critic)
+governs each individual `run()`. When `CRITIC_API_KEY` is set, an `APIBasedCritic` is attached
+to the work subagents (`extension-transformer`): it scores each run and, via the SDK's
+iterative refinement, makes the subagent improve its work mid-run before the run is allowed to
+finish. The two compose — the critic improves each run, the goal loop decides whether to
+re-prompt at all.
+
+It is disabled unless `CRITIC_API_KEY` is set, because `APIBasedCritic` calls an external
+critic model (the all-hands llm-proxy by default); this keeps the local-Ollama path working
+with no cloud dependency. Tune it with `CRITIC_SERVER_URL`, `CRITIC_MODEL_NAME`,
+`CRITIC_SUCCESS_THRESHOLD`, and `CRITIC_MAX_ITERATIONS` (see the table above).
 
 ## Keeping requests inside the context window
 

@@ -24,18 +24,17 @@ agentictester migrate <extension-path>
               │
               ▼
         MigratorAgent (orchestrator)
-              ├── Delegates to extension-transformer
-              │     Reads /workspace/analysis.json and the source files,
-              │     writes the migrated extension to /workspace/out/
-              └── Delegates to extension-critic  (refinement; --no-refine to skip)
-                    Scores the migration; the critique goes to /workspace/critique.json
+              └── Delegates to extension-transformer
+                    Reads /workspace/analysis.json and the source files,
+                    writes the migrated extension to /workspace/out/
 
         (The orchestrator does NOT verify — the harness owns verification, below.)
               │
               ▼
         run_migration runs verify; on failure it feeds the errors back (up to 3 times).
-        Once it verifies, run_migration runs the refinement loop (critique → improve →
-        re-score until the threshold or iteration budget; --no-refine skips), re-verifies. It
+        Once it verifies, run_migration runs the goal-completion loop (a judge LLM audits the
+        transcript and re-prompts until the objective is provably done; on by default,
+        --no-goal to skip), re-verifies. It
         then captures metrics + the conversation trace and downloads /workspace/out/
         and analysis.json to the run's output directory (the verification result is kept in
         the MigrationResult/metrics, not written as a separate report file)
@@ -97,18 +96,17 @@ agentictester migrate <extension-path>
    (up to three times) with explicit instructions to use real tool calls instead of
    describing the work in text.
 
-10. Iterative refinement (on by default; `--no-refine` to skip). Verification only proves
-    the extension works, not that the migration is good. When refinement is enabled and
-    verification passed, `run_refine_loop` (`src/utils/conversation_loops.py`) delegates to
-    `extension-critic`, which scores the migration 0–100 across correctness, completeness,
-    code quality, and MV3 best practices and writes `critique.json`. If the average is below
-    the threshold, the critique is fed back to `extension-transformer`, and the migration is
-    re-scored — up to the iteration budget. The output is re-verified afterwards, so a
-    refinement that breaks correctness is reported honestly rather than hidden. The final
-    score and pass count land in the `MigrationResult`. This is the OpenHands
-    [iterative-refinement](https://docs.openhands.dev/sdk/guides/iterative-refinement)
-    pattern (a separate critic scoring the worker's output in a loop), gated behind the
-    objective verification step.
+10. Goal completion loop (on by default; `--no-goal` to skip). Verification only proves the
+    extension works, not that the overall objective is provably complete. When enabled,
+    `run_migration` drives the conversation with the OpenHands SDK's `run_goal`: an
+    independent judge LLM (its own `goal-judge` usage_id) audits the conversation transcript
+    and returns a verdict `{score, complete, missing}`. While the judge is not satisfied and
+    the iteration budget remains, the orchestrator is re-prompted with what is still
+    `missing` and runs again. The output is re-verified afterwards, so a goal-driven change
+    that breaks correctness is reported honestly rather than hidden. The final
+    `goal_status`/`goal_score`/`goal_iterations` land in the `MigrationResult`. This is the
+    OpenHands [goal-completion-loop](https://docs.openhands.dev/sdk/guides/goal-completion-loop)
+    pattern, gated behind the deterministic verification step.
 
 11. Metrics and trace capture. Before the conversation is closed, `run_migration` reads
     `conversation.conversation_stats` (cost and token usage, per `usage_id`) and serializes
@@ -118,8 +116,8 @@ agentictester migrate <extension-path>
 
 12. Output. When the run finishes, the output directory holds the migrated extension
     (`extension/`), the plan (`analysis.json`), a unified diff against the original
-    (`migration.patch`), the quality critique (`critique.json`, when refinement ran),
-    per-agent logs (`agent_log/`), and the metrics + trace (`conversation/`). The
+    (`migration.patch`), per-agent logs (`agent_log/`), and the metrics + trace
+    (`conversation/`). The
     verification result is summarized to the console and captured in the `MigrationResult`
     (and `results.jsonl`/`summary.csv` for batches), not saved as a separate report file.
     `run_migration` returns a `MigrationResult` summarizing all of this.

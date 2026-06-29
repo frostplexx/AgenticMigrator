@@ -14,13 +14,14 @@ import uuid
 
 import typer
 from dotenv import load_dotenv
-from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 
 from .manager import DEFAULT_PORT_BASE, MigrationResult, RunConfig, run_migration
 from .utils.banner import show_banner
 from .utils.llm_factory import build_llm
+from .utils.ui import console
 
 # Load .env at import time so option defaults that read environment variables (e.g.
 # --port via DOCKER_PORT_BASE) see them — Typer resolves envvar defaults during command
@@ -33,7 +34,6 @@ app = typer.Typer(
     add_completion=False,
     help="Migrate Chrome extensions from Manifest V2 to V3 with an LLM agent.",
 )
-console = Console()
 
 # Stable namespace so a given extension path always maps to the same conversation id
 # (useful for correlating reruns / resumed batches).
@@ -55,7 +55,20 @@ def _bootstrap(verbose: bool, *, banner: bool = True) -> None:
         raise typer.Exit(2)
 
     # Set logging once here (not per-run) so concurrent batch workers don't race on it.
-    logging.getLogger("openhands").setLevel(logging.DEBUG if verbose else logging.INFO)
+    # The SDK's "openhands" logger is very chatty at INFO (every docker command, the
+    # container readiness polling, the full `docker version` dump, …); keep it at WARNING
+    # unless --verbose so normal runs stay readable. The project's own ``src.*`` loggers
+    # keep emitting at INFO via the root handler, so real progress lines still show.
+    logging.getLogger("openhands").setLevel(logging.DEBUG if verbose else logging.WARNING)
+
+    # Unify the look of the remaining log lines with the rest of the UI: in a normal run
+    # drop the timestamp / module:line gutter so progress reads as clean prose; keep the
+    # full diagnostic gutter under --verbose where it is actually useful.
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, RichHandler):
+            handler._log_render.show_time = verbose
+            handler._log_render.show_path = verbose
+            handler._log_render.show_level = verbose
     # Keep VNC opt-out honored; enabled by default in the docker factory.
     if banner:
         show_banner(model=os.environ["LLM_MODEL"])
@@ -79,10 +92,11 @@ def render_result(result: MigrationResult) -> None:
     table.add_row("Status", f"[{color}]{result.status.upper()}[/{color}]")
     table.add_row("Verify", "PASSED" if result.verify_passed else f"FAILED ({len(result.verify_errors)} error(s))")
     table.add_row("API sites", str(result.num_findings))
-    if result.quality_score is not None:
+    if result.goal_status is not None:
+        score = f"{result.goal_score:.2f}" if result.goal_score is not None else "n/a"
         table.add_row(
-            "Quality",
-            f"{result.quality_score:.0f}/100 ({result.refine_iterations} refine pass(es))",
+            "Goal",
+            f"{result.goal_status} · judge {score} ({result.goal_iterations} round(s))",
         )
     table.add_row("Cost", f"${result.accumulated_cost:.4f}")
     table.add_row("Tokens", f"{total_tokens:,} (in {result.prompt_tokens:,} / out {result.completion_tokens:,})")
@@ -108,18 +122,15 @@ def migrate(
     temperature: float = typer.Option(
         None, "--temperature", "-t", help="LLM sampling temperature (overrides LLM_TEMPERATURE)"
     ),
-    refine: bool = typer.Option(
-        False, "--refine/--no-refine", envvar="REFINE",
-        help="Run the iterative quality-refinement loop after verification (off by default; "
-             "it is the most expensive phase — enable with --refine for higher-quality output)",
+    goal: bool = typer.Option(
+        True, "--goal/--no-goal", envvar="GOAL",
+        help="Run the goal-completion loop after verification: an independent judge LLM "
+             "audits the transcript for proof the migration is complete and re-prompts the "
+             "agent with what is still missing (on by default; GOAL=0 or --no-goal to skip)",
     ),
-    refine_threshold: float = typer.Option(
-        80.0, "--refine-threshold", envvar="REFINE_THRESHOLD",
-        help="Stop refining once the critic's average score reaches this (0-100)",
-    ),
-    refine_iterations: int = typer.Option(
-        2, "--refine-iterations", envvar="REFINE_MAX_ITERATIONS",
-        help="Max critique/improvement passes",
+    goal_iterations: int = typer.Option(
+        3, "--goal-iterations", envvar="GOAL_MAX_ITERATIONS",
+        help="Max judge audit rounds before the goal loop gives up",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose (DEBUG) logging"),
 ) -> None:
@@ -134,8 +145,7 @@ def migrate(
         conversation_id=conversation_id_for(extension),
         keep_workspace=keep_workspace,
         quiet=False,
-        refine_max_iterations=refine_iterations if refine else 0,
-        refine_threshold=refine_threshold,
+        goal_max_iterations=goal_iterations if goal else 0,
     )
     result = run_migration(config, llm)
     render_result(result)
@@ -157,18 +167,15 @@ def batch(
     temperature: float = typer.Option(
         None, "--temperature", "-t", help="LLM sampling temperature (overrides LLM_TEMPERATURE)"
     ),
-    refine: bool = typer.Option(
-        False, "--refine/--no-refine", envvar="REFINE",
-        help="Run the iterative quality-refinement loop after verification (off by default; "
-             "it is the most expensive phase — enable with --refine for higher-quality output)",
+    goal: bool = typer.Option(
+        True, "--goal/--no-goal", envvar="GOAL",
+        help="Run the goal-completion loop after verification: an independent judge LLM "
+             "audits the transcript for proof the migration is complete and re-prompts the "
+             "agent with what is still missing (on by default; GOAL=0 or --no-goal to skip)",
     ),
-    refine_threshold: float = typer.Option(
-        80.0, "--refine-threshold", envvar="REFINE_THRESHOLD",
-        help="Stop refining once the critic's average score reaches this (0-100)",
-    ),
-    refine_iterations: int = typer.Option(
-        2, "--refine-iterations", envvar="REFINE_MAX_ITERATIONS",
-        help="Max critique/improvement passes per extension",
+    goal_iterations: int = typer.Option(
+        3, "--goal-iterations", envvar="GOAL_MAX_ITERATIONS",
+        help="Max judge audit rounds before the goal loop gives up, per extension",
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose (DEBUG) logging"),
 ) -> None:
@@ -194,8 +201,7 @@ def batch(
         limit=limit,
         port_base=port,
         temperature=temperature,
-        refine_max_iterations=refine_iterations if refine else 0,
-        refine_threshold=refine_threshold,
+        goal_max_iterations=goal_iterations if goal else 0,
     )
     summary = run_batch(cfg, console)
     raise typer.Exit(0 if summary.get("errors", 0) == 0 and summary.get("total", 0) > 0 else 1)

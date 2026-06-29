@@ -67,7 +67,11 @@ CATEGORIES: dict[str, dict] = {
         "hint": (
             "MV3 removes blocking webRequest. Re-express these block/redirect/modify rules "
             "declaratively in a rules.json (see the mv3-non-trivial skill) and drop the "
-            '"webRequestBlocking" permission.'
+            '"webRequestBlocking" permission. The manifest\'s '
+            '"declarative_net_request": {"rule_resources": [...]} entry requires ALL THREE '
+            'keys per ruleset — id, enabled, AND path — e.g. '
+            '{"id": "ruleset_1", "enabled": true, "path": "rules.json"}; omitting any one '
+            "fails extension load."
         ),
     },
     "background_dom": {

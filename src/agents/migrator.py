@@ -7,6 +7,8 @@ from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.terminal import TerminalTool
 from openhands.tools.task import TaskToolSet
 
+from ..utils.critic_factory import build_critic
+
 # Skills are stored in src/skills and assembled into the container workspace at runtime.
 # We also load them locally here to attach to the agent's context (project skills are not
 # auto-loaded into a remote conversation). The MV2->MV3 migration knowledge lives in the
@@ -18,6 +20,10 @@ class MigratorAgent:
     """Main Migration agents that then spawns other agents to do the actual migration work"""
 
     def __init__(self):
+        # Optional per-run critic (None unless CRITIC_API_KEY is set). Built once and shared
+        # by every subagent factory below.
+        self._critic = build_critic()
+
         # Register subagents from the subagents directory
         subagents_dir = Path(__file__).parent / "subagents"
         if subagents_dir.exists():
@@ -30,30 +36,43 @@ class MigratorAgent:
                     description=agent_def,
                 )
 
-    @staticmethod
-    def _condensing_factory(agent_def):
-        """Wrap the default subagent factory to attach a summarizing condenser.
+    def _condensing_factory(self, agent_def):
+        """Wrap the default subagent factory to attach a summarizing condenser (and, when
+        enabled, a per-run critic).
 
-        The subagents (transformer, critic) do the bulk of the work and can run dozens of
-        turns. The stock ``agent_definition_to_factory`` builds them with NO condenser, so
-        every turn re-sends the full, growing history to the model — on a local LLM with no
-        prompt-cache reuse this is the dominant cost (a single transformer run reprocessed
-        ~370K prompt tokens). Bounding their history the same way the orchestrator is
-        bounded keeps each turn's prompt small. The condenser gets a per-subagent
-        ``usage_id`` so the remote server's LLMRegistry doesn't reject it as a duplicate.
+        The subagents do the bulk of the work and can run dozens of turns. The stock
+        ``agent_definition_to_factory`` builds them with NO condenser, so every turn re-sends
+        the full, growing history to the model — on a local LLM with no prompt-cache reuse
+        this is the dominant cost (a single transformer run reprocessed ~370K prompt tokens).
+        Bounding their history the same way the orchestrator is bounded keeps each turn's
+        prompt small. The condenser gets a per-subagent ``usage_id`` so the remote server's
+        LLMRegistry doesn't reject it as a duplicate.
+
+        When ``CRITIC_API_KEY`` is set, the same critic is attached to each subagent so its
+        ``run()`` is refined mid-run before it is allowed to finish — the per-run quality
+        layer that composes under the outer goal-completion loop.
         """
         base_factory = agent_definition_to_factory(agent_def)
+        critic = self._critic
 
         def factory(llm: LLM) -> Agent:
             agent = base_factory(llm)
             condenser_llm = llm.model_copy(update={"usage_id": f"condenser:{agent_def.name}"})
-            return agent.model_copy(
-                update={
-                    "condenser": LLMSummarizingCondenser(
-                        llm=condenser_llm, max_size=20, keep_first=2
-                    )
-                }
-            )
+            update: dict = {
+                "condenser": LLMSummarizingCondenser(
+                    llm=condenser_llm, max_size=20, keep_first=2
+                ),
+                # Let subagents run a batch of independent tool calls concurrently instead of
+                # one at a time. The win is read-heavy analysis: when the model emits several
+                # file_editor views / terminal reads in one response they execute in parallel.
+                # The orchestrator stays sequential (default 1): its job is delegate-then-wait,
+                # with nothing independent to overlap. Kept modest (4) — writes to the same
+                # file would race at higher fan-out.
+                "tool_concurrency_limit": 4,
+            }
+            if critic is not None:
+                update["critic"] = critic
+            return agent.model_copy(update=update)
 
         return factory
 
