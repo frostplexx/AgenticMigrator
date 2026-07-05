@@ -20,6 +20,7 @@ Copy `.env.example` to `.env` and set the variables below.
 | `CRITIC_MODEL_NAME` | Critic model name. Default `critic`. |
 | `CRITIC_SUCCESS_THRESHOLD` | Min critic score to let a run finish (else refine). Default 0.6. |
 | `CRITIC_MAX_ITERATIONS` | Max mid-run refinement passes per run. Default 3. |
+| `AGENT_SERVER_IMAGE` | Override the agent-server Docker image. Default: a pin matching the installed openhands-sdk (mismatched versions break event parsing). |
 
 ## Providers
 

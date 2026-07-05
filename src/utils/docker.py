@@ -50,13 +50,24 @@ def to_client_reachable_url(url: str | None) -> str | None:
 
 
 
+# The agent-server image must match the installed openhands-sdk version: the client
+# validates every websocket event against its own Event schema (extra fields forbidden),
+# so a newer server breaks the conversation loop with ws ValidationErrors. ghcr.io only
+# publishes short-sha tags, so pin the commit of the SDK release from pyproject
+# (v1.29.3 -> c3441f8) and bump both together.
+_PINNED_SERVER_IMAGE = "ghcr.io/openhands/agent-server:c3441f8-python"
+
+
 def _get_server_image():
-    """Get the server image tag, using PR-specific image in CI."""
+    """Get the server image tag: env override > PR-specific image in CI > SDK-matched pin."""
+    override = os.getenv("AGENT_SERVER_IMAGE")
+    if override:
+        return override
     arch = "arm64" if "arm64" in _detect_platform() else "amd64"
     github_sha = os.getenv("GITHUB_SHA")
     if github_sha:
         return f"ghcr.io/openhands/agent-server:{github_sha[:7]}-python-{arch}"
-    return "ghcr.io/openhands/agent-server:latest-python"
+    return _PINNED_SERVER_IMAGE
 
 
 def _print_vscode_host(workspace: DockerWorkspace):
