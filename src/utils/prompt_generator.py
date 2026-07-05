@@ -6,7 +6,12 @@ from .static_analyzer import CATEGORIES, group_signals_by_category
 class PromptGenerator:
     prompt: str
 
-    def __init__(self, findings: list[dict], signals: list[dict] | None = None):
+    def __init__(
+        self,
+        findings: list[dict],
+        signals: list[dict] | None = None,
+        memory_section: str = "",
+    ):
         self.prompt = f"""
 # Chrome Extension Migration Task
 
@@ -36,6 +41,7 @@ MV2->MV3 reference), and will be caught at runtime by the harness's verification
 
 {_format_findings(findings)}
 {_format_signals(signals or [])}
+{memory_section}
 ## Workflow
 
 ### Step 1: Delegate Migration to extension-transformer

@@ -3,11 +3,39 @@
 import difflib
 import json
 import os
+import shutil
 
 from . import workspace_io
 
 # Files that live in the output root but are not part of the extension diff.
 _PATCH_EXCLUDE = {"analysis.json", "migration.patch", "critique.json"}
+
+# Artifact files this pipeline owns inside an output dir (besides the extension/ and
+# conversation/ trees). Only these are ever cleared on a rerun — anything else in the
+# directory belongs to the user.
+_OWNED_FILES = ("analysis.json", "migration.patch", "critique.json", "memory.md")
+
+
+def clear_stale_outputs(output_root: str, migrated_dir: str, conversation_dir: str, logger) -> None:
+    """Fresh-run invariant: an output dir never mixes artifacts from two runs.
+
+    Reruns point at the same output dir (the default ``output/``, or a batch ``--resume``
+    retry), and the extension download untars *over* whatever is already there — so
+    without this, a rerun could blend old and new files into a Franken-extension, or an
+    early failure could leave last run's output masquerading as this run's. Clearing only
+    the artifacts the pipeline owns keeps user files in the same directory untouched.
+    """
+    for stale_dir in (migrated_dir, conversation_dir):
+        if os.path.isdir(stale_dir):
+            shutil.rmtree(stale_dir, ignore_errors=True)
+            logger.info(f"Cleared stale artifacts from previous run: {stale_dir}")
+    for name in _OWNED_FILES:
+        path = os.path.join(output_root, name)
+        if os.path.isfile(path):
+            try:
+                os.unlink(path)
+            except OSError as e:
+                logger.warning(f"Could not clear stale artifact {path}: {e}")
 
 
 def download_outputs(

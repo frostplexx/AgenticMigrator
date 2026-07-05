@@ -116,8 +116,7 @@ agentictester migrate <extension-path>
 
 12. Output. When the run finishes, the output directory holds the migrated extension
     (`extension/`), the plan (`analysis.json`), a unified diff against the original
-    (`migration.patch`), per-agent logs (`agent_log/`), and the metrics + trace
-    (`conversation/`). The
+    (`migration.patch`), and the metrics + trace (`conversation/`). The
     verification result is summarized to the console and captured in the `MigrationResult`
     (and `results.jsonl`/`summary.csv` for batches), not saved as a separate report file.
     `run_migration` returns a `MigrationResult` summarizing all of this.

@@ -61,7 +61,6 @@ A single `migrate` writes into the `--output` directory (default `output/`):
 - `extension/` — the migrated extension
 - `analysis.json` — the migration plan from static analysis
 - `migration.patch` — a unified diff from the original extension to the migrated one
-- `agent_log/` — per-agent activity logs
 - `conversation/` — `events.jsonl` (the full agent trace) and `metrics.json` (cost and
   token usage, broken down per `usage_id`)
 

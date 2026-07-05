@@ -28,11 +28,14 @@ from .agents.migrator import MigratorAgent
 from .utils import (
     artifacts,
     conversation_loops,
+    invariants,
     manifest_converter,
+    memory,
     persistence,
     test_harness,
     workspace_io,
 )
+from .utils.memory import MemoryConfig
 from .utils.visualizer import MigrationVisualizer
 from .utils.docker import createDockerWorkspace, to_client_reachable_url
 from .utils.prompt_generator import PromptGenerator
@@ -78,14 +81,14 @@ class RunConfig:
     # re-prompted with what is still ``missing`` and runs again, up to ``goal_max_iterations``.
     # This replaces the older critic-based refinement pass as the quality gate.
     goal_max_iterations: int = 3
+    # Cross-run memory (OFF by default; env-driven — MEMORY=1, MEMORY_READONLY=1, etc.).
+    # ``default_factory`` reads the env at RunConfig construction, so both the single-run
+    # CLI and batch workers pick it up without plumbing.
+    memory: MemoryConfig = field(default_factory=MemoryConfig.from_env)
 
     @property
     def migrated_dir(self) -> str:
         return os.path.join(self.output_dir, "extension")
-
-    @property
-    def agent_log_dir(self) -> str:
-        return os.path.join(self.output_dir, "agent_log")
 
     @property
     def conversation_dir(self) -> str:
@@ -143,11 +146,18 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
     remote_error: str | None = None
     try:
         extension_path = os.path.abspath(config.extension_path)
-        if not os.path.isdir(extension_path):
-            raise ValueError(f"Extension path is not a directory: {extension_path}")
+        # Input invariant: fail fast with the concrete reason instead of a confusing
+        # downstream failure (empty container upload, unloadable extension, …).
+        input_violations = invariants.check_extension_input(extension_path)
+        if input_violations:
+            raise ValueError(f"Invalid extension input: {'; '.join(input_violations)}")
 
         os.makedirs(config.output_dir, exist_ok=True)
-        os.makedirs(config.agent_log_dir, exist_ok=True)
+        # Fresh-run invariant: never blend this run's artifacts with a previous run's
+        # (the extension download untars over whatever already sits in migrated_dir).
+        artifacts.clear_stale_outputs(
+            config.output_dir, config.migrated_dir, config.conversation_dir, _logger
+        )
 
         # Host-side pre-pass: run the extension through extension-manifest-converter so the
         # deterministic MV2->MV3 changes are applied before upload; the LLM finishes the
@@ -169,7 +179,11 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
         )
         analysis = build_analysis(findings, converted_dir)
 
-        staging_dir = workspace_io.assemble_workspace(analysis, _logger)
+        # Cross-run memory: staged into the workspace as /workspace/MEMORY.md when enabled
+        # (None otherwise, keeping the workspace byte-identical to a memory-less run).
+        memory_text = memory.load(config.memory, _logger)
+
+        staging_dir = workspace_io.assemble_workspace(analysis, _logger, memory_text=memory_text)
 
         with createDockerWorkspace(config.docker_port_base, quiet=config.quiet) as workspace:
             remote_root = workspace.working_dir.rstrip("/")
@@ -186,12 +200,14 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                 workspace, converted_dir, f"{remote_root}/extension", _logger
             )
 
-            # Pre-create the output dir so the agent can write to it without mkdir.
+            # Pre-create the output dir so the agent can write to it without mkdir. A
+            # failure here means the workspace itself is broken — fail fast with the real
+            # cause instead of burning nudge/verify rounds against a dir that can't exist.
             mkdir_result = workspace.execute_command(f"mkdir -p {remote_output_dir}", timeout=30)
             if mkdir_result.exit_code != 0:
-                _logger.error(
-                    f"[{name}] Failed to create remote output dir {remote_output_dir} "
-                    f"(exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
+                raise RuntimeError(
+                    f"Workspace is broken: could not create remote output dir "
+                    f"{remote_output_dir} (exit={mkdir_result.exit_code}): {mkdir_result.stderr}"
                 )
 
             test_harness.install_verify_deps(workspace, _logger)
@@ -199,19 +215,26 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
             conversation = Conversation(
                 agent=MigratorAgent().get_agent(llm),
                 workspace=workspace,
-                callbacks=[conversation_loops.make_activity_logger(config.agent_log_dir, _logger)],
+                callbacks=[conversation_loops.make_error_logger(_logger)],
                 conversation_id=config.conversation_id,
                 delete_on_close=not config.keep_workspace,
                 # Compact orchestrator view for an interactive `migrate`; under --quiet
-                # (e.g. parallel batch workers) stay silent and rely on the per-agent log
-                # files instead of interleaving Rich output across workers.
+                # (e.g. parallel batch workers) stay silent to avoid interleaving Rich
+                # output across workers — the error callback still surfaces fatal crashes.
                 visualizer=None if config.quiet else MigrationVisualizer(),
             )
             assert isinstance(conversation, RemoteConversation)
             result.conversation_id = str(conversation.id)
 
             try:
-                conversation.send_message(PromptGenerator(findings, signals).prompt)
+                memory_section = (
+                    memory.prompt_section(config.memory, memory_text)
+                    if memory_text is not None
+                    else ""
+                )
+                conversation.send_message(
+                    PromptGenerator(findings, signals, memory_section=memory_section).prompt
+                )
                 conversation_loops.run_with_heartbeat(conversation, _logger, f"migration [{name}]")
                 _logger.info(f"[{name}] Agent status: {conversation.state.execution_status}")
 
@@ -322,7 +345,36 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
                     logger=_logger,
                 )
                 result.migrated_dir = config.migrated_dir
-                conversation.close()
+
+                # Collect the (possibly agent-updated) memory back to the host. A failure
+                # here must not sink the migration; the budget/read-only rules are
+                # enforced inside collect_update.
+                try:
+                    memory.collect_update(config.memory, workspace, remote_root, _logger)
+                    memory.snapshot(config.memory, config.output_dir, _logger)
+                except Exception as e:
+                    _logger.warning(f"[{name}] Memory collection failed: {e}")
+
+                # A close() hiccup after a completed migration must not flip an
+                # otherwise-good result to "error" via the outer except — the container
+                # is torn down by the workspace context manager regardless.
+                try:
+                    conversation.close()
+                except Exception as e:
+                    _logger.warning(f"[{name}] Could not close conversation cleanly: {e}")
+
+        # Output invariant: a "success" must be backed by a complete local MV3 artifact.
+        # Remote verification passing means nothing if the download failed or produced a
+        # broken tree — report that as an error instead of handing the user a dud.
+        if result.status == "success":
+            output_violations = invariants.check_migrated_output(config.migrated_dir)
+            if output_violations:
+                result.status = "error"
+                result.error = (
+                    "verification passed in the container but the downloaded output is "
+                    f"invalid: {'; '.join(output_violations)}"
+                )
+                _logger.error(f"[{name}] {result.error}")
     except Exception as e:
         result.status = "error"
         # Surface the remote agent's actual error (e.g. an unreachable LLM endpoint)
@@ -338,4 +390,7 @@ def run_migration(config: RunConfig, llm: LLM) -> MigrationResult:
             shutil.rmtree(converted_dir, ignore_errors=True)
         result.wall_time_s = round(time.monotonic() - start, 2)
 
+    # Make the result self-consistent (status ∈ valid set, success ⇒ verify_passed,
+    # error ⇒ message) before anyone serializes it; repairs downgrade, never upgrade.
+    invariants.reconcile_result(result, _logger)
     return result

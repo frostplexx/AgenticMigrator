@@ -1,11 +1,10 @@
-"""Drive the agent conversation: activity logging, the output nudge loop, and the
+"""Drive the agent conversation: error surfacing, the output nudge loop, and the
 verify -> fix loop. (The quality pass is the goal-completion loop in ``manager``.)"""
 
 import os
 import threading
 import time
 
-from openhands.sdk.event import ActionEvent, ObservationEvent, MessageEvent
 from openhands.sdk.event.conversation_error import ConversationErrorEvent
 
 from . import test_harness, workspace_io
@@ -19,9 +18,6 @@ _MAX_TEST_ATTEMPTS = 3
 # frozen (it can be many minutes on a slow/local model). Override with HEARTBEAT_INTERVAL=0
 # to disable.
 _HEARTBEAT_INTERVAL = int(os.environ.get("HEARTBEAT_INTERVAL", "30"))
-
-# The orchestrator delegates to subagents through the `task` tool (TaskTool.name == "task").
-_DELEGATION_TOOLS = {"task", "task_tool_set"}
 
 
 def _token_summary(conversation) -> str:
@@ -40,40 +36,19 @@ def _token_summary(conversation) -> str:
         return ""
 
 
-def make_activity_logger(agent_log_dir: str, logger=None):
-    """Build a conversation callback that logs agent activity to files (tmux monitoring).
+def make_error_logger(logger):
+    """Build a conversation callback that surfaces ``ConversationErrorEvent`` at ERROR level.
 
-    If ``logger`` is given, a ``ConversationErrorEvent`` (a fatal server-side failure that
-    the SDK's default visualizer silently skips) is also surfaced live at ERROR level, so a
-    crash mid-run is visible immediately instead of only as a generic wrapper at the end.
+    The SDK's default visualizer silently skips these fatal server-side failures, and under
+    ``--quiet`` (batch workers) there is no visualizer at all — this callback is then the
+    only live signal that the run crashed, instead of a generic wrapper error at the end.
+    The full event trace is persisted separately to ``conversation/events.jsonl``.
     """
-    def agent_activity_logger(event):
-        agent_name = "main"
-        target = None
-        if isinstance(event, (ActionEvent, ObservationEvent)):
-            if getattr(event, "tool_name", None) in _DELEGATION_TOOLS:
-                agent_name = "delegation"
-                target = getattr(getattr(event, "action", None), "subagent_type", None)
+    def error_logger(event):
+        if isinstance(event, ConversationErrorEvent):
+            logger.error(f"Remote conversation error [{event.code}]: {event.detail}")
 
-        log_file = os.path.join(agent_log_dir, f"{agent_name}.log")
-        timestamp = time.strftime("%H:%M:%S")
-        with open(log_file, "a") as f:
-            if isinstance(event, ActionEvent):
-                label = event.tool_name + (f" -> {target}" if target else "")
-                f.write(f"[{timestamp}] ACTION: {label}\n")
-                if getattr(event, "summary", None):
-                    f.write(f"  Summary: {event.summary}\n")
-            elif isinstance(event, ObservationEvent):
-                f.write(f"[{timestamp}] RESULT: {event.tool_name}\n")
-            elif isinstance(event, MessageEvent):
-                f.write(f"[{timestamp}] MESSAGE\n")
-            elif isinstance(event, ConversationErrorEvent):
-                f.write(f"[{timestamp}] CONVERSATION ERROR [{event.code}]: {event.detail}\n")
-                if logger is not None:
-                    logger.error(f"Remote conversation error [{event.code}]: {event.detail}")
-            f.flush()
-
-    return agent_activity_logger
+    return error_logger
 
 
 def run_with_heartbeat(conversation, logger, label: str, interval: int = _HEARTBEAT_INTERVAL) -> None:
@@ -190,29 +165,44 @@ def run_test_fix_loop(
             f"Migrated extension failed verification "
             f"(attempt {attempt}/{_MAX_TEST_ATTEMPTS}). Asking agent to fix."
         )
-        conversation.send_message(
-            f"""
-            The migrated extension in `{remote_output_dir}` was loaded into
-            Chromium and FAILED verification. The following errors were
-            captured at runtime:
-
-            {error_text}
-
-            Delegate to `extension-transformer` to fix the migrated files in
-            `{remote_output_dir}` so these errors are resolved. Common causes:
-            a service worker referencing APIs unavailable in MV3 (DOM/`window`,
-            `XMLHttpRequest`), leftover MV2 API calls, an invalid `manifest.json`,
-            or an invalid `declarativeNetRequest` `rules.json` (an `extension.load`
-            error means Chrome rejected the extension at load time — fix the exact
-            key it names).
-
-            Apply the fixes and then stop. Do NOT run the verify script yourself —
-            the harness re-verifies automatically and will send you any remaining
-            errors. Just make the fixes.
-            """
-        )
-        run_with_heartbeat(conversation, logger, f"fix attempt {attempt}")
-        logger.info(f"Agent status after fix attempt {attempt}: {conversation.state.execution_status}")
+        try:
+            _send_fix_request(conversation, remote_output_dir, error_text, logger, attempt)
+        except Exception as e:
+            # The agent/conversation died mid-fix (server crash, unreachable LLM, …).
+            # The verification result we already hold is still real — return it as a
+            # verify failure instead of letting the crash erase it into a generic error.
+            logger.error(
+                f"Agent crashed during fix attempt {attempt}: {e}; "
+                f"keeping the last verification result."
+            )
+            return passed, report, attempt
 
     return passed, report, _MAX_TEST_ATTEMPTS
+
+
+def _send_fix_request(conversation, remote_output_dir: str, error_text: str, logger, attempt: int) -> None:
+    """Send the verification errors to the agent and run it until it stops."""
+    conversation.send_message(
+        f"""
+        The migrated extension in `{remote_output_dir}` was loaded into
+        Chromium and FAILED verification. The following errors were
+        captured at runtime:
+
+        {error_text}
+
+        Delegate to `extension-transformer` to fix the migrated files in
+        `{remote_output_dir}` so these errors are resolved. Common causes:
+        a service worker referencing APIs unavailable in MV3 (DOM/`window`,
+        `XMLHttpRequest`), leftover MV2 API calls, an invalid `manifest.json`,
+        or an invalid `declarativeNetRequest` `rules.json` (an `extension.load`
+        error means Chrome rejected the extension at load time — fix the exact
+        key it names).
+
+        Apply the fixes and then stop. Do NOT run the verify script yourself —
+        the harness re-verifies automatically and will send you any remaining
+        errors. Just make the fixes.
+        """
+    )
+    run_with_heartbeat(conversation, logger, f"fix attempt {attempt}")
+    logger.info(f"Agent status after fix attempt {attempt}: {conversation.state.execution_status}")
 

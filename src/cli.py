@@ -19,6 +19,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .manager import DEFAULT_PORT_BASE, MigrationResult, RunConfig, run_migration
+from .utils import memory
 from .utils.banner import show_banner
 from .utils.llm_factory import build_llm
 from .utils.ui import console
@@ -148,6 +149,7 @@ def migrate(
         goal_max_iterations=goal_iterations if goal else 0,
     )
     result = run_migration(config, llm)
+    memory.commit_if_configured(config.memory, logging.getLogger(__name__))
     render_result(result)
     raise typer.Exit(0 if result.status == "success" else 1)
 

@@ -21,13 +21,19 @@ _SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _XFER_TIMEOUT = 300
 
 
-def assemble_workspace(analysis: dict | None, logger) -> str:
+def assemble_workspace(analysis: dict | None, logger, memory_text: str | None = None) -> str:
     """Assemble the container workspace contents in a temp staging dir.
 
-    Combines the skills (``src/skills``) and the statically produced migration plan into
-    the layout uploaded to ``/workspace``. Returns the staging dir; the caller removes it.
+    Combines the skills (``src/skills``), the statically produced migration plan, and
+    (when the memory feature is on) the cross-run memory file into the layout uploaded
+    to ``/workspace``. Returns the staging dir; the caller removes it.
     """
     staging = tempfile.mkdtemp(prefix="agentic-workspace-")
+
+    # Cross-run memory -> /workspace/MEMORY.md (only when the feature is enabled).
+    if memory_text is not None:
+        with open(os.path.join(staging, "MEMORY.md"), "w", encoding="utf-8") as f:
+            f.write(memory_text)
 
     # src/skills/* -> /workspace/.openhands/skills/* (skipping pycache/dotfiles)
     skills_src = os.path.join(_SRC_DIR, "skills")

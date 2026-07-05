@@ -18,10 +18,12 @@ Design notes:
 
 import csv
 import json
+import logging
 import os
 import socket
 import threading
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
@@ -36,6 +38,7 @@ from rich.progress import (
 )
 
 from .manager import DEFAULT_PORT_BASE, MigrationResult, RunConfig, run_migration
+from .utils import memory
 from .utils.llm_factory import build_llm
 
 _CSV_FIELDS = [
@@ -90,6 +93,23 @@ def discover_extensions(config: BatchConfig) -> list[str]:
 
     if config.limit is not None:
         paths = paths[: config.limit]
+
+    # Uniqueness invariant: results.jsonl keys runs by basename and each run writes to
+    # extensions/<basename>/, so two paths sharing a basename would silently overwrite
+    # each other's output and poison --resume. Refuse up front with the offenders named.
+    by_name: dict[str, str] = {}
+    duplicates: list[str] = []
+    for p in paths:
+        base = os.path.basename(p.rstrip("/")) or p
+        if base in by_name:
+            duplicates.append(f"{base!r}: {by_name[base]} and {p}")
+        else:
+            by_name[base] = p
+    if duplicates:
+        raise ValueError(
+            "Duplicate extension names in the batch (outputs would collide): "
+            + "; ".join(duplicates)
+        )
     return paths
 
 
@@ -159,13 +179,28 @@ def _already_done(results_path: str) -> set[str]:
 
 
 def _write_summary(results_path: str, output_root: str) -> dict:
-    """Read results.jsonl and write summary.csv + aggregate.json. Returns the aggregate."""
+    """Read results.jsonl and write summary.csv + aggregate.json. Returns the aggregate.
+
+    Tolerates broken state in results.jsonl: a run killed mid-append leaves a truncated
+    final line, and hand-edited files happen. Malformed lines are skipped (and counted in
+    the aggregate) instead of sinking the summary of every valid result around them.
+    """
     results: list[dict] = []
+    malformed = 0
     with open(results_path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
-            if line:
-                results.append(json.loads(line))
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                malformed += 1
+                continue
+            if isinstance(row, dict) and row.get("extension_name"):
+                results.append(row)
+            else:
+                malformed += 1
 
     csv_path = os.path.join(output_root, "summary.csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as fh:
@@ -175,9 +210,9 @@ def _write_summary(results_path: str, output_root: str) -> dict:
             writer.writerow(row)
 
     total = len(results)
-    successes = sum(1 for r in results if r["status"] == "success")
-    verify_failed = sum(1 for r in results if r["status"] == "verify_failed")
-    errors = sum(1 for r in results if r["status"] == "error")
+    successes = sum(1 for r in results if r.get("status") == "success")
+    verify_failed = sum(1 for r in results if r.get("status") == "verify_failed")
+    errors = sum(1 for r in results if r.get("status") == "error")
     scored = [r["goal_score"] for r in results if r.get("goal_score") is not None]
     goal_complete = sum(1 for r in results if r.get("goal_status") == "complete")
     aggregate = {
@@ -195,6 +230,7 @@ def _write_summary(results_path: str, output_root: str) -> dict:
         else 0.0,
         "goal_complete": goal_complete if scored else None,
         "mean_goal_score": round(sum(scored) / len(scored), 3) if scored else None,
+        "malformed_result_lines": malformed,
     }
     with open(os.path.join(output_root, "aggregate.json"), "w", encoding="utf-8") as fh:
         json.dump(aggregate, fh, indent=2)
@@ -247,14 +283,16 @@ def run_batch(config: BatchConfig, console: Console) -> dict:
     running = {"cost": 0.0, "success": 0, "verify_failed": 0, "error": 0}
 
     def worker(ext_path: str) -> MigrationResult:
-        port_base = ports.acquire()
+        name = os.path.basename(ext_path.rstrip("/")) or "extension"
+        output_dir = os.path.join(output_root, "extensions", name)
+        port_base: int | None = None
         try:
-            name = os.path.basename(ext_path.rstrip("/"))
+            port_base = ports.acquire()
             from .cli import conversation_id_for  # local import avoids a cycle at import time
 
             cfg = RunConfig(
                 extension_path=ext_path,
-                output_dir=os.path.join(output_root, "extensions", name),
+                output_dir=output_dir,
                 docker_port_base=port_base,
                 conversation_id=conversation_id_for(ext_path),
                 quiet=True,
@@ -262,8 +300,20 @@ def run_batch(config: BatchConfig, console: Console) -> dict:
             )
             # Fresh LLM per run so llm.metrics stay isolated per extension.
             return run_migration(cfg, build_llm(temperature=config.temperature))
+        except Exception as e:
+            # Worker invariant: never raise. run_migration doesn't, but the setup around
+            # it can (port exhaustion, a bad LLM config) — and a raise here would kill
+            # the whole batch at future.result(), taking every pending extension with it.
+            return MigrationResult(
+                extension_name=name,
+                output_dir=output_dir,
+                status="error",
+                error=str(e),
+                traceback=traceback.format_exc(),
+            )
         finally:
-            ports.release(port_base)
+            if port_base is not None:
+                ports.release(port_base)
 
     progress = Progress(
         SpinnerColumn(),
@@ -273,30 +323,50 @@ def run_batch(config: BatchConfig, console: Console) -> dict:
         TimeElapsedColumn(),
         console=console,
     )
-    with progress:
-        task_id = progress.add_task("migrating", total=len(pending))
-        with ThreadPoolExecutor(max_workers=config.workers) as executor:
-            futures = {executor.submit(worker, p): p for p in pending}
-            for future in as_completed(futures):
-                result = future.result()  # worker → run_migration never raises
-                with write_lock:
-                    results_fh.write(json.dumps(result.to_dict()) + "\n")
-                    results_fh.flush()
-                    running["cost"] += result.accumulated_cost
-                    running[result.status if result.status in running else "error"] += 1
-                progress.update(
-                    task_id,
-                    advance=1,
-                    description=(
-                        f"✓{running['success']} "
-                        f"~{running['verify_failed']} "
-                        f"✗{running['error']} "
-                        f"${running['cost']:.2f}"
-                    ),
-                )
-    results_fh.close()
+    try:
+        with results_fh, progress:
+            task_id = progress.add_task("migrating", total=len(pending))
+            with ThreadPoolExecutor(max_workers=config.workers) as executor:
+                futures = {executor.submit(worker, p): p for p in pending}
+                try:
+                    for future in as_completed(futures):
+                        result = future.result()  # worker never raises (guaranteed above)
+                        with write_lock:
+                            results_fh.write(json.dumps(result.to_dict()) + "\n")
+                            results_fh.flush()
+                            running["cost"] += result.accumulated_cost
+                            running[result.status if result.status in running else "error"] += 1
+                        progress.update(
+                            task_id,
+                            advance=1,
+                            description=(
+                                f"✓{running['success']} "
+                                f"~{running['verify_failed']} "
+                                f"✗{running['error']} "
+                                f"${running['cost']:.2f}"
+                            ),
+                        )
+                except BaseException:
+                    # Interrupted/crashed mid-run: drop the queued extensions (they stay
+                    # pending for --resume) but let in-flight migrations finish so their
+                    # containers tear down cleanly instead of leaking.
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    raise
+    except BaseException:
+        # Leave a consistent run directory behind even on an interrupt: summarize what
+        # completed (best-effort) so summary.csv/aggregate.json match results.jsonl and
+        # the run can be picked up with --resume.
+        try:
+            _write_summary(results_path, output_root)
+        except Exception:
+            pass
+        raise
 
     aggregate = _write_summary(results_path, output_root)
+
+    # One commit for the whole batch (not one per extension) when MEMORY_GIT_COMMIT=1.
+    memory.commit_if_configured(memory.MemoryConfig.from_env(), logging.getLogger(__name__))
+
     console.print(
         f"[bold]Done.[/bold] {aggregate['success']}/{aggregate['total']} succeeded · "
         f"${aggregate['total_cost']:.2f} · summary: {os.path.join(output_root, 'summary.csv')}"

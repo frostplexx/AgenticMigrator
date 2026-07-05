@@ -13,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 
+from . import invariants
+
 # repo_root/third_party/extension-manifest-converter (this file is src/utils/…).
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _CONVERTER_DIR = os.path.join(_REPO_ROOT, "third_party", "extension-manifest-converter")
@@ -52,7 +54,15 @@ def convert(extension_path: str, logger) -> str:
         )
         converted = src_copy + "_delete"
 
-        if result.returncode == 0 and os.path.isdir(converted):
+        # Converter-output invariant: exit code 0 is not proof the output is usable — the
+        # converter can still emit a mangled or truncated manifest. Anything structurally
+        # broken falls back to the original extension (the known-good state); the LLM +
+        # verify loop then handle the conversion the pre-pass would have done.
+        violations = (
+            invariants.check_extension_input(converted) if result.returncode == 0 else []
+        )
+
+        if result.returncode == 0 and not violations:
             logger.info(
                 "extension-manifest-converter applied:\n" + (result.stdout or "").strip()
             )
@@ -61,6 +71,12 @@ def convert(extension_path: str, logger) -> str:
             # full byte-for-byte copy of the extension.
             os.rmdir(out_dir)
             shutil.move(converted, out_dir)
+        elif violations:
+            logger.error(
+                f"extension-manifest-converter produced a broken extension "
+                f"({'; '.join(violations)}); uploading the original unconverted."
+            )
+            _replace_dir(out_dir, extension_path)
         else:
             logger.error(
                 f"extension-manifest-converter failed (exit={result.returncode}): "

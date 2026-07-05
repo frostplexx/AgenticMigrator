@@ -2,8 +2,8 @@
 
 The SDK's ``DefaultConversationVisualizer`` renders every event as a full Rich panel.
 For this project that is noisy and, worse, it *silently skips* ``ConversationErrorEvent``
-(a fatal server-side failure) — the same blind spot the activity logger works around in
-``conversation_loops.make_activity_logger``.
+(a fatal server-side failure) — the same blind spot the error callback works around in
+``conversation_loops.make_error_logger``.
 
 ``MigrationVisualizer`` is tuned to what the orchestrator actually does: it delegates to
 subagents through the ``task`` tool and otherwise pokes at the workspace with
@@ -25,8 +25,7 @@ from openhands.sdk.conversation.visualizer import ConversationVisualizerBase
 
 from . import ui
 
-# The orchestrator delegates through the `task` tool; mirror conversation_loops so the two
-# stay in sync on what counts as a delegation.
+# The orchestrator delegates to subagents through the `task` tool (TaskTool.name == "task").
 _DELEGATION_TOOLS = {"task", "task_tool_set"}
 
 

@@ -21,6 +21,11 @@ Copy `.env.example` to `.env` and set the variables below.
 | `CRITIC_SUCCESS_THRESHOLD` | Min critic score to let a run finish (else refine). Default 0.6. |
 | `CRITIC_MAX_ITERATIONS` | Max mid-run refinement passes per run. Default 3. |
 | `AGENT_SERVER_IMAGE` | Override the agent-server Docker image. Default: a pin matching the installed openhands-sdk (mismatched versions break event parsing). |
+| `MEMORY` | Cross-run memory. Off by default; `MEMORY=1` to enable. |
+| `MEMORY_READONLY` | `1` = knowledge-base mode: memory is uploaded but never updated. |
+| `MEMORY_FILE` | Memory file path. Default `memory/MEMORY.md` in the repo (git-tracked). |
+| `MEMORY_MAX_CHARS` | Hard size budget; oversized updates are discarded. Default 10000. |
+| `MEMORY_GIT_COMMIT` | `1` = auto-commit the memory file after a run/batch (commit only, never push). |
 
 ## Providers
 
@@ -83,6 +88,31 @@ It is disabled unless `CRITIC_API_KEY` is set, because `APIBasedCritic` calls an
 critic model (the all-hands llm-proxy by default); this keeps the local-Ollama path working
 with no cloud dependency. Tune it with `CRITIC_SERVER_URL`, `CRITIC_MODEL_NAME`,
 `CRITIC_SUCCESS_THRESHOLD`, and `CRITIC_MAX_ITERATIONS` (see the table above).
+
+## Cross-run memory (optional, for experiments)
+
+Off by default so experiment baselines stay clean. With `MEMORY=1`, a single curated
+markdown file (`memory/MEMORY.md`) is uploaded into every run's workspace at
+`/workspace/MEMORY.md`; the orchestrator is prompted to read it first and, after the
+migration, to fold new *generalizable* learnings back in. The post-run copy is collected
+and becomes the input of the next run, so knowledge accumulates across runs and batches.
+
+Three properties are enforced **host-side** (not by trusting the agent):
+
+- **Read-only mode** (`MEMORY_READONLY=1`): the container copy is never collected, making
+  the file a fixed knowledge base — useful for A/B-ing "with knowledge" vs "learning".
+- **Bounded size**: an update larger than `MEMORY_MAX_CHARS` is discarded wholesale and
+  the previous memory is kept. The prompt tells the agent its current usage and that
+  curation (merge/rewrite/drop) is the only way to add under a full budget, so the file
+  cannot grow without bound.
+- **Provenance**: each run's output dir gets a `memory.md` snapshot of the memory state
+  after that run, so experiments can reconstruct what each migration saw.
+
+The file lives in the repo, so it is versioned and backed up to GitHub with normal
+pushes; `MEMORY_GIT_COMMIT=1` additionally auto-commits it after each run/batch (pushing
+stays manual). In parallel batches, updates are serialized but last-writer-wins per
+completed run — fine for a research feature, but expect some lost updates at high
+worker counts.
 
 ## Keeping requests inside the context window
 

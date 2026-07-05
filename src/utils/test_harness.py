@@ -12,6 +12,7 @@ Chromium is native and stable; pin its version by pinning the agent-server image
 """
 
 import json
+import shlex
 
 VERIFY_SCRIPT = "/workspace/.openhands/skills/verify/scripts/verify.py"
 
@@ -42,25 +43,55 @@ def run_verify(
 ) -> tuple[bool, dict]:
     """Run the verify skill against ``extension_dir``.
 
-    Returns ``(passed, report)`` where ``report`` is the parsed JSON report (empty dict
-    if it could not be read). ``passed`` is True only when the script exits 0.
+    Returns ``(passed, report)`` where ``report`` is the parsed JSON report. ``passed``
+    requires both the script exiting 0 *and* a report that backs the pass up (loaded,
+    zero errors) — an exit code alone can lie when the run breaks mid-way.
     """
     logger.info(f"Verifying migrated extension in {extension_dir}...")
+    # Fresh-report invariant: the report we read must come from *this* verify run. If a
+    # previous attempt's report survived and this run crashes before writing its own,
+    # the stale file would be read as current — reporting errors already fixed, or worse,
+    # a pass that never happened.
+    workspace.execute_command(f"rm -f {shlex.quote(report_path)}", timeout=30)
+
     result = workspace.execute_command(
-        f"python {VERIFY_SCRIPT} {extension_dir} {report_path}",
+        f"python {VERIFY_SCRIPT} {shlex.quote(extension_dir)} {shlex.quote(report_path)}",
         timeout=_VERIFY_TIMEOUT,
     )
-    passed = result.exit_code == 0
     logger.info(f"Verify exit={result.exit_code}\n{(result.stdout or '').strip()}")
 
     report: dict = {}
-    cat = workspace.execute_command(f"cat {report_path}", timeout=30)
+    cat = workspace.execute_command(f"cat {shlex.quote(report_path)}", timeout=30)
     if cat.exit_code == 0 and (cat.stdout or "").strip():
         try:
-            report = json.loads(cat.stdout)
+            parsed = json.loads(cat.stdout)
+            if isinstance(parsed, dict):
+                report = parsed
+            else:
+                logger.warning(f"Verify report is not a JSON object: {type(parsed).__name__}")
         except json.JSONDecodeError as e:
             logger.warning(f"Could not parse verify report JSON: {e}")
     else:
         logger.warning(f"Verify report not found at {report_path}")
+
+    passed = result.exit_code == 0
+    # Pass/report consistency invariant: a pass claim must be corroborated by a report
+    # saying the extension loaded with zero errors. Exit 0 with a missing or
+    # contradicting report means the verify run itself broke — treat it as a failure
+    # with an actionable error instead of a silent false positive.
+    if passed and not (report.get("loaded") and not report.get("errors")):
+        logger.error(
+            "Verify exited 0 but the report is missing or contradicts the pass; "
+            "treating the run as failed."
+        )
+        passed = False
+        if not report.get("errors"):
+            report.setdefault("errors", []).append(
+                {
+                    "source": "harness",
+                    "text": "verification produced no usable report — the verify run "
+                    "itself failed, so the extension cannot be considered verified",
+                }
+            )
 
     return passed, report
