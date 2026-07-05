@@ -4,9 +4,9 @@ Copy `.env.example` to `.env` and set the variables below.
 
 | Variable | Description |
 |---|---|
-| `LLM_MODEL` | Model identifier, e.g. `claude-sonnet-4-6` or `ollama/llama3`. Required. |
+| `LLM_MODEL` | Model identifier, e.g. `claude-sonnet-4-6`, `zen/claude-sonnet-4-6`, or `ollama/llama3`. Required. |
 | `LLM_API_KEY` | API key. Required unless the model is an Ollama model. |
-| `LLM_BASE_URL` | Base URL. Required for Ollama, e.g. `http://localhost:11434`. |
+| `LLM_BASE_URL` | Base URL. Required for Ollama, e.g. `http://localhost:11434`. Ignored for Zen (the gateway URL is fixed). |
 | `LLM_REASONING_EFFORT` | `low`, `medium`, `high`, `xhigh`, or `none`. Defaults to `low`. |
 | `LLM_TEMPERATURE` | Sampling temperature (≥ 0). Optional; defaults to the provider's default. Overridden by `--temperature`. |
 | `LLM_INPUT_COST_PER_TOKEN` | Optional, for cost tracking. |
@@ -25,6 +25,15 @@ Copy `.env.example` to `.env` and set the variables below.
 
 - Anthropic, OpenAI, or any litellm-compatible API: set `LLM_MODEL` and `LLM_API_KEY`.
 - Ollama (local): prefix the model with `ollama/` and set `LLM_BASE_URL`. No API key needed.
+- [OpenCode Zen](https://opencode.ai/docs/zen) (gateway to many curated models): prefix the
+  model with `zen/` (or `opencode/`) and set `LLM_API_KEY` to your Zen key, e.g.
+  `LLM_MODEL=zen/claude-sonnet-4-6`. `LLM_BASE_URL` is ignored (the gateway URL is
+  fixed, so a stale Ollama base URL cannot redirect Zen traffic). Any model id from
+  [the Zen catalog](https://opencode.ai/docs/zen#endpoints) works — Claude/Qwen,
+  GPT, Gemini, and OpenAI-compatible families are routed to the right Zen endpoint
+  automatically, and per-token costs for cost tracking are filled in from Zen's
+  published pricing unless `LLM_INPUT_COST_PER_TOKEN`/`LLM_OUTPUT_COST_PER_TOKEN`
+  override them.
 
 ## Temperature
 
