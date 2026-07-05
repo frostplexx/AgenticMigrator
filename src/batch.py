@@ -3,9 +3,10 @@
 Design notes:
 
 - **Bounded parallelism.** Each migration spins up its own Docker container running
-  Chromium, so concurrency is capped by ``--workers``. A queue of worker *slots*
-  (0..workers-1) hands each task a disjoint Docker port block (``port_base + slot*10``)
-  so the VSCode/VNC sidecar ports never collide, no matter how many extensions there are.
+  Chromium, so concurrency is capped by ``--workers``. A port-block allocator hands each
+  task a disjoint 10-port Docker block starting at ``port_base``, probing that the ports
+  are actually free on the host so the VSCode/VNC sidecar ports never collide — with each
+  other or with unrelated services already listening.
 - **Streaming + resumable.** Each ``MigrationResult`` is appended to ``results.jsonl`` as
   it finishes (under a lock). ``--resume`` against an existing run directory skips any
   extension already present there, so a 1000-extension run can span sessions or recover
@@ -18,7 +19,7 @@ Design notes:
 import csv
 import json
 import os
-import queue
+import socket
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -90,6 +91,54 @@ def discover_extensions(config: BatchConfig) -> list[str]:
     if config.limit is not None:
         paths = paths[: config.limit]
     return paths
+
+
+class _PortBlockAllocator:
+    """Hand out disjoint 10-port Docker blocks (server, +1 VSCode, +2 VNC) that are
+    verifiably free on the host.
+
+    A worker's block used to be a fixed ``port_base + slot*10``. If anything else was
+    already listening on one of those ports (an unrelated service, a leftover container
+    from a killed run), every task routed through that slot failed instantly — and since
+    the poisoned slot freed up immediately while healthy slots stayed busy for minutes,
+    it drained the entire pending queue. Probing at acquire time skips occupied blocks
+    instead.
+    """
+
+    _SPAN = 10
+
+    def __init__(self, base: int) -> None:
+        self._base = base
+        self._in_use: set[int] = set()
+        self._lock = threading.Lock()
+
+    def acquire(self) -> int:
+        with self._lock:
+            candidate = self._base
+            while candidate in self._in_use or not self._block_is_free(candidate):
+                candidate += self._SPAN
+                if candidate + 2 > 65535:
+                    raise RuntimeError(
+                        f"No free port block found between {self._base} and 65535."
+                    )
+            self._in_use.add(candidate)
+            return candidate
+
+    def release(self, base: int) -> None:
+        with self._lock:
+            self._in_use.discard(base)
+
+    @staticmethod
+    def _block_is_free(base: int) -> bool:
+        # Plain bind() without SO_REUSEADDR: ports in TIME_WAIT count as busy, which is
+        # what we want — Docker is about to bind them for real.
+        for port in (base, base + 1, base + 2):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                try:
+                    sock.bind(("0.0.0.0", port))
+                except OSError:
+                    return False
+        return True
 
 
 def _already_done(results_path: str) -> set[str]:
@@ -191,17 +240,14 @@ def run_batch(config: BatchConfig, console: Console) -> dict:
     if not pending:
         return _write_summary(results_path, output_root) if os.path.isfile(results_path) else {"total": 0, "errors": 0}
 
-    # One slot per worker; each slot owns a disjoint Docker port block.
-    slots: queue.Queue[int] = queue.Queue()
-    for i in range(config.workers):
-        slots.put(i)
+    ports = _PortBlockAllocator(config.port_base)
 
     write_lock = threading.Lock()
     results_fh = open(results_path, "a", encoding="utf-8")
     running = {"cost": 0.0, "success": 0, "verify_failed": 0, "error": 0}
 
     def worker(ext_path: str) -> MigrationResult:
-        slot = slots.get()
+        port_base = ports.acquire()
         try:
             name = os.path.basename(ext_path.rstrip("/"))
             from .cli import conversation_id_for  # local import avoids a cycle at import time
@@ -209,7 +255,7 @@ def run_batch(config: BatchConfig, console: Console) -> dict:
             cfg = RunConfig(
                 extension_path=ext_path,
                 output_dir=os.path.join(output_root, "extensions", name),
-                docker_port_base=config.port_base + slot * 10,
+                docker_port_base=port_base,
                 conversation_id=conversation_id_for(ext_path),
                 quiet=True,
                 goal_max_iterations=config.goal_max_iterations,
@@ -217,7 +263,7 @@ def run_batch(config: BatchConfig, console: Console) -> dict:
             # Fresh LLM per run so llm.metrics stay isolated per extension.
             return run_migration(cfg, build_llm(temperature=config.temperature))
         finally:
-            slots.put(slot)
+            ports.release(port_base)
 
     progress = Progress(
         SpinnerColumn(),
