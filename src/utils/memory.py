@@ -139,6 +139,15 @@ def collect_update(config: MemoryConfig, workspace, remote_root: str, logger) ->
     if not updated.strip():
         logger.warning("Memory: container copy is empty; keeping previous memory.")
         return False
+    # Content invariant: the memory must start with the known header. An agent that blanks
+    # the file to a single space or writes random content has corrupted the structure — do
+    # not replace the host copy. (The seed template always starts with "# Migration Memory".)
+    if not updated.lstrip().startswith("# Migration Memory"):
+        logger.warning(
+            "Memory: container copy no longer starts with '# Migration Memory' header; "
+            "keeping previous memory to avoid losing structured knowledge."
+        )
+        return False
     if len(updated) > config.max_chars:
         logger.warning(
             f"Memory: update is {len(updated)} chars (budget {config.max_chars}); "

@@ -17,6 +17,14 @@ from openhands.sdk import (
     get_logger,
 )
 
+_logger = get_logger(__name__)
+
+# Transient Docker/container start failures (daemon briefly busy, port race after probe)
+# are handled with a simple retry. These are rare enough that an exponential backoff adds
+# no value — a fixed wait is sufficient and keeps startup time predictable.
+_RETRY_ATTEMPTS = 2
+_RETRY_DELAY_S = 5
+
 def _detect_platform():
     """Detects the correct Docker platform string."""
     machine = platform.machine().lower()
@@ -107,6 +115,9 @@ def createDockerWorkspace(port: int, quiet: bool = False) -> DockerWorkspace:
     VNC at ``port + 2``, so concurrent workspaces must be given port bases at least 3
     apart (the batch runner spaces them by 10). When ``quiet`` is True the VSCode/VNC
     URLs are not printed — used by bulk runs so the progress display stays clean.
+
+    Transient failures (Docker daemon briefly busy, port race after a concurrent probe)
+    are retried with a short fixed delay to avoid losing an extension to a flaky startup.
     """
     # Transform localhost URLs to be accessible from Docker containers
     server_image = _get_server_image()
@@ -115,7 +126,7 @@ def createDockerWorkspace(port: int, quiet: bool = False) -> DockerWorkspace:
     # explicit "OH_ENABLE_VNC=false" from the user is respected.
     os.environ.setdefault("OH_ENABLE_VNC", "true")
 
-    def _start() -> DockerWorkspace:
+    def _start_once() -> DockerWorkspace:
         # The DockerWorkspace constructor blocks polling `docker inspect` for readiness and
         # echoes each command's stdout (the repeated "true", the full `docker version` dump).
         # Suppress that raw stdout so the only thing the user sees is the spinner/log line.
@@ -129,11 +140,29 @@ def createDockerWorkspace(port: int, quiet: bool = False) -> DockerWorkspace:
                 forward_env=["DEBUG", "OH_ENABLE_VNC"],  # Forward VNC enable flag to container
             )
 
-    if quiet:
-        ws = _start()
-    else:
-        with ui.spinner("Starting agent container…"):
-            ws = _start()
+    last_exc: Exception | None = None
+    for attempt in range(1, _RETRY_ATTEMPTS + 2):
+        try:
+            if quiet:
+                ws = _start_once()
+            else:
+                with ui.spinner("Starting agent container…"):
+                    ws = _start_once()
+            break  # success
+        except Exception as e:
+            last_exc = e
+            if attempt > _RETRY_ATTEMPTS:
+                _logger.error(
+                    f"Docker workspace start failed after {attempt} attempts: {e}"
+                )
+                raise
+            _logger.warning(
+                f"Docker workspace start failed (attempt {attempt}/{_RETRY_ATTEMPTS + 1}): "
+                f"{e}; retrying in {_RETRY_DELAY_S}s"
+            )
+            time.sleep(_RETRY_DELAY_S)
+
+    if not quiet:
         ui.ok("Agent container ready")
         _print_vscode_host(ws)
         _print_vnc_host(ws)

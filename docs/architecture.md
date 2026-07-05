@@ -11,13 +11,18 @@ bulk `batch` runner; `batch` just calls it for many extensions in parallel (see
 ```
 agentictester migrate <extension-path>
   └── run_migration(config, llm) -> MigrationResult
+        ├── [invariant] Input: check_extension_input — fail fast on invalid extension dir
         ├── Builds the LLM from env vars
+        ├── [invariant] Fresh-run: clear_stale_outputs — never blend two runs' artifacts
         ├── Starts a Docker workspace (OpenHands agent server)
+        │     ├── [invariant] Retry: createDockerWorkspace retries transient failures
         │     ├── VSCode Server  (host_port + 1)
         │     └── VNC Server     (host_port + 2)
         ├── Pre-pass: extension-manifest-converter (host) → partially migrated extension
+        │     └── [invariant] Converter-output: validates output, falls back to original
         ├── Static analysis (api_mappings.json) → writes analysis.json
         ├── Assembles /workspace from src/skills/ + analysis.json, uploads it
+        │     └── [invariant] Empty-archive: warns if downloaded tar contains no files
         ├── Uploads the converted extension to /workspace/extension/
         ├── Installs the verify skill deps (playwright, websocket-client)
         └── Starts a Conversation with MigratorAgent, sends the prompt
@@ -32,21 +37,59 @@ agentictester migrate <extension-path>
               │
               ▼
         run_migration runs verify; on failure it feeds the errors back (up to 3 times).
+              │
+              ├── [invariant] Fresh-report: rm -f test_report.json before each verify run
+              └── [invariant] Pass/report consistency: exit 0 must be backed by a valid report
         Once it verifies, run_migration runs the goal-completion loop (a judge LLM audits the
         transcript and re-prompts until the objective is provably done; on by default,
         --no-goal to skip), re-verifies. It
         then captures metrics + the conversation trace and downloads /workspace/out/
         and analysis.json to the run's output directory (the verification result is kept in
-        the MigrationResult/metrics, not written as a separate report file)
+        the MigrationResult/metrics, not written as a separate report file).
+              │
+              ├── [invariant] Output: check_migrated_output — success requires valid local MV3
+              ├── [invariant] Memory: content structure check before write-back
+              ├── [invariant] Safe close: conversation.close() in own try/except
+              └── [invariant] reconcile_result — status ∈ VALID_STATUSES, cross-field consistency
 ```
+
+## Invariant layer
+
+``src/utils/invariants.py`` defines checks at every trust boundary in the pipeline:
+
+- **Input invariant** — ``check_extension_input(path)`` rejects extensions with no
+  directory, missing/unparseable ``manifest.json`` before any work begins.
+- **Output invariant** — ``check_migrated_output(path)`` validates that a migration
+  reported as ``"success"`` is backed by a local MV3 extension (``manifest_version: 3``,
+  parseable manifest).
+- **Reconciliation** — ``reconcile_result(result, logger)`` makes every
+  ``MigrationResult`` self-consistent before serialization: ``status`` is one of
+  ``VALID_STATUSES``, ``"success"`` implies ``verify_passed``, ``"error"`` carries a
+  message. Repairs are conservative — always downgrade, never upgrade.
+
+Other files enforce additional invariants on their own boundaries:
+
+- ``src/utils/docker.py`` retries transient container start failures (2 retries, 5 s delay).
+- ``src/utils/workspace_io.py`` warns on empty archive downloads (no-op extraction).
+- ``src/utils/memory.py`` validates memory content structure before write-back.
+- ``src/utils/artifacts.py`` clears stale per-run outputs so reruns never blend artifacts.
+- ``src/utils/test_harness.py`` deletes previous test reports before each verify run and
+  cross-checks exit code against the report content.
+- ``src/utils/manifest_converter.py`` validates converter output and falls back to the
+  original extension if the converter produces a broken tree.
+- ``src/utils/conversation_loops.py`` catches agent/conversation crashes mid-fix so the
+  test-fix loop returns the last known result instead of raising.
+- ``src/batch.py`` detects duplicate extension basenames (output collision) up front,
+  tolerates truncated JSON lines in ``results.jsonl``, and wraps every worker in a
+  top-level ``except`` so no extension can kill the batch.
 
 ## Run flow
 
 1. Setup. The CLI (`src/cli.py`) reads the LLM config from `.env` and builds the LLM
-   client; `run_migration` (`src/manager.py`) starts a Docker container running the
-   OpenHands agent server. `run_migration` never raises — any failure is returned as a
-   `MigrationResult` with `status="error"`, so a bulk run is never aborted by one bad
-   extension.
+   client; ``run_migration`` (`src/manager.py`) starts a Docker container running the
+   OpenHands agent server, with retry on transient failure. ``run_migration`` never
+   raises — any failure is returned as a ``MigrationResult`` with ``status="error"``,
+   so a bulk run is never aborted by one bad extension.
 
 2. Converter pre-pass. The extension is run through GoogleChromeLabs'
    [extension-manifest-converter](https://github.com/GoogleChromeLabs/extension-manifest-converter)

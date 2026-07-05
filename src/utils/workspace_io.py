@@ -115,6 +115,18 @@ def download_directory(workspace, remote_dir: str, local_dir: str, logger) -> No
             return
         with tarfile.open(local_tar, "r:gz") as tar:
             tar.extractall(local_dir, filter="data")  # filter blocks path-traversal members
+        # Empty-archive invariant: validate the extraction produced at least one file.
+        # An archive can be structurally valid (tar.gz opens fine) but completely empty,
+        # which silently leaves the target directory in its previous state — a no-op that
+        # makes later stages fail confusingly (missing extension, empty migrated_dir).
+        extracted_file_count = sum(
+            len(files) for _, _, files in os.walk(local_dir)
+        )
+        if extracted_file_count == 0:
+            logger.warning(
+                f"Downloaded archive from {remote_dir} contained no files; "
+                f"{local_dir} may be empty or stale."
+            )
         logger.info(f"Downloaded {remote_dir} -> {local_dir} (single archive)")
     finally:
         if os.path.exists(local_tar):
