@@ -33,12 +33,17 @@ export const CATEGORIES: Record<
     title: "Blocking webRequest -> declarativeNetRequest (DNR)",
     hint:
       'MV3 removes blocking webRequest. Re-express these block/redirect/modify rules ' +
-      "declaratively in a rules.json (see the mv3-non-trivial skill) and drop the " +
-      '"webRequestBlocking" permission. The manifest\'s ' +
-      '"declarative_net_request": {"rule_resources": [...]} entry requires ALL THREE keys ' +
-      'per ruleset — id, enabled, AND path — e.g. ' +
+      "declaratively in a rules.json and drop the \"webRequestBlocking\" permission. The " +
+      "manifest's \"declarative_net_request\": {\"rule_resources\": [...]} entry requires ALL " +
+      "THREE keys per ruleset — id, enabled, AND path — e.g. " +
       '{"id": "ruleset_1", "enabled": true, "path": "rules.json"}; omitting any one fails ' +
-      "extension load.",
+      "extension load.\n" +
+      "rules.json is an ARRAY of rules. A REDIRECT rule must put the target inside " +
+      "action.redirect.url (there is no \"detail\" or \"redirectUrl\" field). Exact shape:\n" +
+      '[{"id": 1, "priority": 1, "action": {"type": "redirect", "redirect": ' +
+      '{"url": "https://example.com/x"}}, "condition": {"regexFilter": ' +
+      '"^https?://.*\\\\.lmu\\\\.de/.*\\\\.(jpg|png|gif)$", "resourceTypes": ["image"]}}]\n' +
+      'A BLOCK rule uses action {"type": "block"}. id must be an integer.',
   },
   background_dom: {
     order: 1,
