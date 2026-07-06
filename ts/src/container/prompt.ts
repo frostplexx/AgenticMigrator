@@ -14,8 +14,19 @@ export function buildPrompt(opts: {
   extDir: string;
   outDir: string;
   mode?: "direct" | "orchestrator";
+  /** Files that need migration changes (from static analysis) */
+  relevantFiles?: string[];
 }): string {
   const { findings, signals, skillMd, extDir, outDir, mode = "direct" } = opts;
+
+  // Files referenced in findings that need migration attention
+  const relevantFiles = opts.relevantFiles ?? [];
+  if (!relevantFiles.length) {
+    const seen = new Set<string>();
+    for (const f of findings) if (!seen.has(f.file)) { seen.add(f.file); relevantFiles.push(f.file); }
+    relevantFiles.sort();
+  }
+
   const howToWork =
     mode === "orchestrator"
       ? `## Your role: ORCHESTRATOR
@@ -30,11 +41,21 @@ Pass the relevant findings, signals, and the reference below along in your task 
       : `## How to work
 Every original file has ALREADY been copied to \`${outDir}\` for you. Edit the files IN
 \`${outDir}\` — do not recreate the ones that don't change.
-1. \`ls\` \`${outDir}\` and read the files that matter (manifest.json, background/service worker, any file in the findings below).
+1. \`ls\` \`${outDir}\` and read only the files that need migration: manifest.json and the files listed below.
 2. Edit \`${outDir}/manifest.json\` and the flagged source files to complete the MV3 migration.
 3. Create new files where required (e.g. \`${outDir}/rules.json\` for declarativeNetRequest).
 4. Apply the deprecated-API replacements below and every other MV2->MV3 change (see reference).
-5. Confirm \`${outDir}/manifest.json\` has "manifest_version": 3.`;
+5. Confirm \`${outDir}/manifest.json\` has "manifest_version": 3.
+
+## Critical: Do NOT touch data files
+
+Some extensions bundle large data files (dictionaries, translation tables, databases in HTML/JSON/CSV
+format). These are NOT code and do NOT need MV3 migration. Do NOT read or edit them. They will be
+automatically preserved from the original extension after you finish.
+
+The only files that matter for migration are:
+- \`${outDir}/manifest.json\`
+- ${relevantFiles.length ? relevantFiles.map((f) => `\`${outDir}/${f}\``).join("\n- ") : "the JS/HTML files listed in the findings below"}`;
 
   return `# Chrome Extension Migration Task
 
