@@ -1,0 +1,22 @@
+{
+  "name": "agentic-migrator-ts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript/pi rewrite of AgenticMigrator (MV2->MV3 Chrome extension migrator)",
+  "bin": { "migrate": "dist/cli.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "cli": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.80.3",
+    "playwright": "1.49.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2"
+  }
+}
