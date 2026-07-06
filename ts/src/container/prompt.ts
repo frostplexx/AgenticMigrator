@@ -13,8 +13,29 @@ export function buildPrompt(opts: {
   skillMd: string;
   extDir: string;
   outDir: string;
+  mode?: "direct" | "orchestrator";
 }): string {
-  const { findings, signals, skillMd, extDir, outDir } = opts;
+  const { findings, signals, skillMd, extDir, outDir, mode = "direct" } = opts;
+  const howToWork =
+    mode === "orchestrator"
+      ? `## Your role: ORCHESTRATOR
+Every original file has ALREADY been copied to \`${outDir}\`. Do NOT edit files yourself.
+Delegate the work to the \`extension_transformer\` tool (a coding sub-agent):
+1. Call \`extension_transformer\` with a precise \`task\`: tell it to apply every MV2->MV3
+   change to the files in \`${outDir}\` (the deprecated-API replacements and signals below,
+   plus manifest_version, service_worker, action, host_permissions, declarativeNetRequest).
+2. After it returns, read \`${outDir}/manifest.json\` to confirm "manifest_version": 3.
+3. If anything is missing, call \`extension_transformer\` again with a precise fix task.
+Pass the relevant findings, signals, and the reference below along in your task text.`
+      : `## How to work
+Every original file has ALREADY been copied to \`${outDir}\` for you. Edit the files IN
+\`${outDir}\` — do not recreate the ones that don't change.
+1. \`ls\` \`${outDir}\` and read the files that matter (manifest.json, background/service worker, any file in the findings below).
+2. Edit \`${outDir}/manifest.json\` and the flagged source files to complete the MV3 migration.
+3. Create new files where required (e.g. \`${outDir}/rules.json\` for declarativeNetRequest).
+4. Apply the deprecated-API replacements below and every other MV2->MV3 change (see reference).
+5. Confirm \`${outDir}/manifest.json\` has "manifest_version": 3.`;
+
   return `# Chrome Extension Migration Task
 
 Migrate the Chrome extension at \`${extDir}\` from Manifest V2 to Manifest V3 and write the
@@ -24,14 +45,7 @@ The extension has already been run through an automated converter, so the manife
 already MV3 and simple API swaps are done. Finish what the converter cannot: service-worker
 code that used the DOM/window, blocking webRequest, and anything subtle. Then make it run.
 
-## How to work
-Every original file has ALREADY been copied to \`${outDir}\` for you. Edit the files IN
-\`${outDir}\` — do not recreate the ones that don't change.
-1. \`ls\` \`${outDir}\` and read the files that matter (manifest.json, background/service worker, any file in the findings below).
-2. Edit \`${outDir}/manifest.json\` and the flagged source files to complete the MV3 migration.
-3. Create new files where required (e.g. \`${outDir}/rules.json\` for declarativeNetRequest).
-4. Apply the deprecated-API replacements below and every other MV2->MV3 change (see reference).
-5. Confirm \`${outDir}/manifest.json\` has "manifest_version": 3.
+${howToWork}
 
 ${formatFindings(findings)}
 ${formatSignals(signals)}
@@ -40,7 +54,7 @@ ${formatSignals(signals)}
 ${skillMd}
 
 ## Response style
-Terse. Technical. Do the file edits with your tools; don't narrate at length. Code unchanged.`;
+Terse. Technical. ${mode === "orchestrator" ? "Delegate via the tool; do not edit files yourself." : "Do the file edits with your tools; don't narrate at length."} Code unchanged.`;
 }
 
 function formatFindings(findings: Finding[]): string {

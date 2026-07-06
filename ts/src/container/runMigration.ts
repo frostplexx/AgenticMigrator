@@ -6,6 +6,7 @@ import { createAgentSession, SessionManager, SettingsManager } from "@earendil-w
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolveModel } from "./model.js";
 import { buildPrompt } from "./prompt.js";
+import { makeTransformerTool } from "./subagent.js";
 import { verify, type VerifyReport } from "./verify.js";
 
 const EXT = process.env.EXTENSION_DIR ?? "/work/extension";
@@ -38,6 +39,20 @@ async function main() {
     compaction: { enabled: true },
   });
 
+  // Subagent mode (USE_SUBAGENTS=1): the main session is an ORCHESTRATOR with read-only
+  // tools + an extension_transformer tool that spawns a nested coding sub-session — the pi
+  // form of the OpenHands orchestrator/subagent split. Default is the faster single session.
+  const useSubagents = /^(1|true|yes|on)$/i.test(process.env.USE_SUBAGENTS ?? "");
+  const mode = useSubagents ? "orchestrator" : "direct";
+  log("mode:", mode);
+
+  const customTools = useSubagents
+    ? [makeTransformerTool({ model, modelRegistry, authStorage, settingsManager, cwd: "/work", log })]
+    : [];
+  const tools = useSubagents
+    ? ["read", "ls", "grep", "find", "extension_transformer"]
+    : ["read", "bash", "edit", "write", "ls", "grep", "find"];
+
   const { session } = await createAgentSession({
     cwd: "/work",
     sessionManager: SessionManager.inMemory("/work"),
@@ -45,7 +60,8 @@ async function main() {
     authStorage,
     modelRegistry,
     model,
-    tools: ["read", "bash", "edit", "write", "ls", "grep", "find"],
+    tools,
+    customTools,
   });
 
   let turns = 0;
@@ -54,7 +70,7 @@ async function main() {
     if (ev.type === "tool_execution_start") log("tool:", ev.toolName);
   });
 
-  const prompt = buildPrompt({ findings: plan.findings ?? [], signals: plan.signals ?? [], skillMd, extDir: EXT, outDir: OUT });
+  const prompt = buildPrompt({ findings: plan.findings ?? [], signals: plan.signals ?? [], skillMd, extDir: EXT, outDir: OUT, mode });
   log("sending migration prompt...");
   await session.prompt(prompt);
 

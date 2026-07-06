@@ -56,6 +56,7 @@ async function main() {
     "-e", `LLM_BASE_URL=${process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434"}`,
     "-e", `LLM_NUM_CTX=${process.env.LLM_NUM_CTX ?? "65536"}`,
     "-e", `MAX_FIX_ATTEMPTS=${process.env.MAX_FIX_ATTEMPTS ?? "3"}`,
+    "-e", `USE_SUBAGENTS=${process.env.USE_SUBAGENTS ?? ""}`,
     ...(process.env.LLM_API_KEY ? ["-e", `LLM_API_KEY=${process.env.LLM_API_KEY}`] : []),
     IMAGE,
     "node", "dist/container/runMigration.js",
