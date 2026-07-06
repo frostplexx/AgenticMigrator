@@ -1,0 +1,62 @@
+===== E2E RUN #2 =====
+[cli] converting (extension-manifest-converter)...
+[cli] /tmp/nix-shell.dsN3aO/emc-work-toOzAs/extension
+[cli] Changing manifest_version to 3
+[cli] Changing to background.service_worker in manifest.json
+[cli] Changed to chrome.action in manifest.json
+[cli] Moving to host_permissions: http://*.lmu.de/*
+[cli] Moving to host_permissions: https://*.lmu.de/*
+[cli] Moving to host_permissions: https://api.capy.lol/*
+[cli] Converted extension into: /tmp/nix-shell.dsN3aO/emc-work-toOzAs/extension_delete
+[cli] static analysis: 2 deprecated API site(s), 4 signal(s)
+[cli] docker run agentic-migrator-ts:latest ...
+[entrypoint] Xvfb ready on :99
+[entrypoint] exec: node dist/container/runMigration.js
+[migrate] model: gemma4:31b-cloud
+[migrate] sending migration prompt...
+[migrate] tool: ls
+[migrate] turn 1
+[migrate] tool: read
+[migrate] turn 2
+[migrate] tool: read
+[migrate] turn 3
+[migrate] tool: write
+[migrate] turn 4
+[migrate] tool: edit
+[migrate] turn 5
+[migrate] tool: edit
+[migrate] turn 6
+[migrate] turn 7
+[migrate] verify #1: PASS
+[migrate] RESULT: SUCCESS → /work/run/report.json
+
+[cli] SUCCESS ✅ — migrated extension in /Users/daniel/Projects/AgenticMigrator-pi-spike/ts/run/out
+[cli] service worker: chrome-extension://ccoifhcpnedpabohaklbbdbjekjomfog/service_worker.js
+cli exit=0
+===== report.json =====
+{
+  "passed": true,
+  "serviceWorker": "chrome-extension://ccoifhcpnedpabohaklbbdbjekjomfog/service_worker.js",
+  "extensionId": "ccoifhcpnedpabohaklbbdbjekjomfog",
+  "reason": null,
+  "errors": [],
+  "turns": 7
+}
+===== rules.json =====
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "url": "https://api.capy.lol/v1/capybara?json=false"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https?://.*\\.lmu\\.de/.*\\.(jpg|jpeg|png|gif|bmp|webp)$",
+      "resourceTypes": ["image"]
+    }
+  }
+]
+E2E2_DONE
