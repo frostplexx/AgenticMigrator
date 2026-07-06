@@ -34,6 +34,24 @@ node dist/cli.js /path/to/mv2-extension --out ./run
 Model via env (`LLM_MODEL`, `LLM_BASE_URL`), pi custom OpenAI-completions provider. Default
 `ollama/gemma4:31b-cloud` over `host.docker.internal:11434`.
 
+### Single-session vs. subagents
+
+By default the pi session edits files directly (fastest). Set `USE_SUBAGENTS=1` to restore
+the OpenHands orchestrator/subagent split the pi way: the main session becomes an
+**orchestrator** with read-only tools plus an `extension_transformer` tool that spawns a
+**nested** coding sub-session per delegated task (`subagent.ts`).
+
+```sh
+USE_SUBAGENTS=1 node dist/cli.js /path/to/mv2-extension --out ./run
+# [migrate] mode: orchestrator
+# [migrate] tool: extension_transformer → subagent: transformer done in 7 turn(s)
+# [migrate] tool: extension_transformer → subagent: transformer done in 5 turn(s)  (fix)
+# [migrate] verify #1: PASS
+```
+
+Both modes migrate `tmp/extension_mv2` to a passing MV3 extension; single-session is faster,
+orchestrator mode mirrors the original agent topology.
+
 ## Proven end-to-end (RESULTS.txt)
 
 Migrating `tmp/extension_mv2` with **gemma4:31b-cloud** (local Ollama):
