@@ -33,25 +33,41 @@ Path B rewrite is retired.
 docker build -t pi-container-spike:latest .
 
 # Positive: migrated MV3 → expect result: PASS, exit 0
-docker run --rm --init --shm-size=1g pi-container-spike:latest \
+docker run --rm --shm-size=1g pi-container-spike:latest \
   node verify.mjs fixtures/migrated-mv3
 
 # Negative: unmigrated MV2 → expect result: FAIL, exit 1
-docker run --rm --init --shm-size=1g pi-container-spike:latest \
+docker run --rm --shm-size=1g pi-container-spike:latest \
   node verify.mjs fixtures/unmigrated-mv2
 
 # pi SDK skeleton (creds-free is fine)
-docker run --rm --init pi-container-spike:latest node run-migration.mjs
+docker run --rm pi-container-spike:latest node run-migration.mjs
 
 # Watch Chrome load the extension live over VNC
-docker run --rm --init --shm-size=1g -e ENABLE_VNC=1 -p 6080:6080 \
+docker run --rm --shm-size=1g -e ENABLE_VNC=1 -p 6080:6080 \
   pi-container-spike:latest node verify.mjs fixtures/migrated-mv3
 # → open http://localhost:6080/vnc.html
 ```
 
-`--shm-size=1g` + `--init` are the two Docker-specific must-haves (Chrome shm crash / zombie
-reaping). Local Ollama: add `--add-host=host.docker.internal:host-gateway` and
+`--shm-size=1g` is the one Docker-specific must-have (Chrome crashes on the default 64MB
+/dev/shm). Do **not** pass `docker run --init`: the image already bakes `tini` as PID 1
+(its ENTRYPOINT), so `--init` would nest a second tini and warn. Local Ollama: add
+`--add-host=host.docker.internal:host-gateway` and
 `-e LLM_BASE_URL=http://host.docker.internal:11434`.
+
+## Results (proven)
+
+Full output in [`RESULTS.txt`](./RESULTS.txt). On Docker 29.4.0 / darwin:
+
+| Test | Outcome | Signal |
+|---|---|---|
+| migrated MV3 | **PASS** (exit 0) | SW registered: `chrome-extension://mjpcnof…/service_worker.js`, 0 load errors |
+| unmigrated MV2 | **FAIL** (exit 1) | no MV3 SW; correctly found the MV2 `_generated_background_page.html` |
+| pi SDK skeleton | **exit 0** | SDK imported, session constructed, custom tool + event stream wired, creds-free |
+
+**Conclusion:** the riskiest part of Path B — headed Chromium loading an MV3 extension under
+Xvfb in a *self-rolled* image (no OpenHands agent-server) — works, and verify cleanly
+discriminates MV3 from MV2. The pi SDK runs in the same container. Container risk retired.
 
 ## Not in scope (deliberately)
 

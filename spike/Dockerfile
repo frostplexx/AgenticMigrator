@@ -10,6 +10,9 @@ FROM mcr.microsoft.com/playwright:v1.49.0-jammy
 # Display stack: Xvfb (headed Chrome is REQUIRED — MV3 extensions won't load headless),
 # x11vnc+noVNC for live debugging, fluxbox WM for a sane VNC view, tini as PID 1 to reap
 # the swarm of Chromium child processes.
+# DEBIAN_FRONTEND + TZ are set so the tzdata dep (pulled transitively) never blocks the
+# build on an interactive "Geographic area:" prompt.
+ENV DEBIAN_FRONTEND=noninteractive TZ=UTC
 RUN apt-get update && apt-get install -y --no-install-recommends \
       xvfb x11vnc fluxbox novnc websockify x11-utils tini \
     && rm -rf /var/lib/apt/lists/*

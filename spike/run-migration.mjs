@@ -36,10 +36,13 @@ async function main() {
   const authStorage = AuthStorage.create();
   const modelRegistry = ModelRegistry.create(authStorage);
 
-  const available = await modelRegistry.getAvailable().catch((e) => {
+  let available = [];
+  try {
+    // getAvailable() may be sync or async depending on pi version; await tolerates both.
+    available = (await modelRegistry.getAvailable()) ?? [];
+  } catch (e) {
     log("getAvailable() failed:", String(e));
-    return [];
-  });
+  }
   log(`SDK loaded. models with usable creds: ${available.length}`);
 
   const { session } = await createAgentSession({
