@@ -8,28 +8,28 @@ import { CATEGORIES } from "../host/staticAnalyzer.js";
 const MAX_SITES = 12;
 
 export function buildPrompt(opts: {
-  findings: Finding[];
-  signals: Signal[];
-  skillMd: string;
-  extDir: string;
-  outDir: string;
-  mode?: "direct" | "orchestrator";
-  /** Files that need migration changes (from static analysis) */
-  relevantFiles?: string[];
+    findings: Finding[];
+    signals: Signal[];
+    skillMd: string;
+    extDir: string;
+    outDir: string;
+    mode?: "direct" | "orchestrator";
+    /** Files that need migration changes (from static analysis) */
+    relevantFiles?: string[];
 }): string {
-  const { findings, signals, skillMd, extDir, outDir, mode = "direct" } = opts;
+    const { findings, signals, skillMd, extDir, outDir, mode = "direct" } = opts;
 
-  // Files referenced in findings that need migration attention
-  const relevantFiles = opts.relevantFiles ?? [];
-  if (!relevantFiles.length) {
-    const seen = new Set<string>();
-    for (const f of findings) if (!seen.has(f.file)) { seen.add(f.file); relevantFiles.push(f.file); }
-    relevantFiles.sort();
-  }
+    // Files referenced in findings that need migration attention
+    const relevantFiles = opts.relevantFiles ?? [];
+    if (!relevantFiles.length) {
+        const seen = new Set<string>();
+        for (const f of findings) if (!seen.has(f.file)) { seen.add(f.file); relevantFiles.push(f.file); }
+        relevantFiles.sort();
+    }
 
-  const howToWork =
-    mode === "orchestrator"
-      ? `## Your role: ORCHESTRATOR
+    const howToWork =
+        mode === "orchestrator"
+            ? `## Your role: ORCHESTRATOR
 Every original file has ALREADY been copied to \`${outDir}\`. Do NOT edit files yourself.
 Delegate the work to the \`extension_transformer\` tool (a coding sub-agent):
 1. Call \`extension_transformer\` with a precise \`task\`: tell it to apply every MV2->MV3
@@ -38,7 +38,7 @@ Delegate the work to the \`extension_transformer\` tool (a coding sub-agent):
 2. After it returns, read \`${outDir}/manifest.json\` to confirm "manifest_version": 3.
 3. If anything is missing, call \`extension_transformer\` again with a precise fix task.
 Pass the relevant findings, signals, and the reference below along in your task text.`
-      : `## How to work
+            : `## How to work
 Every original file has ALREADY been copied to \`${outDir}\` for you. Edit the files IN
 \`${outDir}\` — do not recreate the ones that don't change.
 1. \`ls\` \`${outDir}\` and read only the files that need migration: manifest.json and the files listed below.
@@ -57,7 +57,7 @@ The only files that matter for migration are:
 - \`${outDir}/manifest.json\`
 - ${relevantFiles.length ? relevantFiles.map((f) => `\`${outDir}/${f}\``).join("\n- ") : "the JS/HTML files listed in the findings below"}`;
 
-  return `# Chrome Extension Migration Task
+    return `# Chrome Extension Migration Task
 
 Migrate the Chrome extension at \`${extDir}\` from Manifest V2 to Manifest V3 and write the
 COMPLETE migrated extension to \`${outDir}\`. It must load and run in Chrome with no errors.
@@ -79,51 +79,51 @@ Terse. Technical. ${mode === "orchestrator" ? "Delegate via the tool; do not edi
 }
 
 function formatFindings(findings: Finding[]): string {
-  if (!findings.length) return "## Static Analysis\n\nNo deprecated API usages found.\n";
-  const byFile = new Map<string, Finding[]>();
-  for (const f of findings) {
-    if (!byFile.has(f.file)) byFile.set(f.file, []);
-    byFile.get(f.file)!.push(f);
-  }
-  const lines = [
-    "## Static Analysis: Deprecated APIs Found",
-    "",
-    "Ground truth for which lines need changing.",
-    "",
-  ];
-  for (const file of [...byFile.keys()].sort()) {
-    lines.push(`### ${file}`);
-    for (const h of byFile.get(file)!.sort((a, b) => a.line - b.line))
-      lines.push(`- Line ${h.line}: \`${h.api}\` -> \`${h.replacement}\`  \n  \`${h.snippet}\``);
-    lines.push("");
-  }
-  return lines.join("\n");
+    if (!findings.length) return "## Static Analysis\n\nNo deprecated API usages found.\n";
+    const byFile = new Map<string, Finding[]>();
+    for (const f of findings) {
+        if (!byFile.has(f.file)) byFile.set(f.file, []);
+        byFile.get(f.file)!.push(f);
+    }
+    const lines = [
+        "## Static Analysis: Deprecated APIs Found",
+        "",
+        "Ground truth for which lines need changing.",
+        "",
+    ];
+    for (const file of [...byFile.keys()].sort()) {
+        lines.push(`### ${file}`);
+        for (const h of byFile.get(file)!.sort((a, b) => a.line - b.line))
+            lines.push(`- Line ${h.line}: \`${h.api}\` -> \`${h.replacement}\`  \n  \`${h.snippet}\``);
+        lines.push("");
+    }
+    return lines.join("\n");
 }
 
 function formatSignals(signals: Signal[]): string {
-  if (!signals.length) return "";
-  const grouped = new Map<string, Signal[]>();
-  for (const s of signals) {
-    if (!grouped.has(s.category)) grouped.set(s.category, []);
-    grouped.get(s.category)!.push(s);
-  }
-  const cats = [...grouped.keys()].sort((a, b) => CATEGORIES[a].order - CATEGORIES[b].order);
-  const lines = [
-    "## Migration Signals: Non-Mechanical Work Detected",
-    "",
-    "These need a real rewrite — the converter cannot fix them and they fail at load/runtime if ignored.",
-    "",
-  ];
-  for (const cat of cats) {
-    const meta = CATEGORIES[cat];
-    const hits = grouped.get(cat)!;
-    lines.push(`### ${meta.title}  (skill: \`${meta.skill}\`)`, meta.hint, "");
-    for (const h of hits.slice(0, MAX_SITES)) {
-      const where = h.line === 0 ? h.file : `${h.file}:${h.line}`;
-      lines.push(`- \`${where}\`  \n  \`${h.snippet}\``);
+    if (!signals.length) return "";
+    const grouped = new Map<string, Signal[]>();
+    for (const s of signals) {
+        if (!grouped.has(s.category)) grouped.set(s.category, []);
+        grouped.get(s.category)!.push(s);
     }
-    if (hits.length > MAX_SITES) lines.push(`- …and ${hits.length - MAX_SITES} more`);
-    lines.push("");
-  }
-  return lines.join("\n");
+    const cats = [...grouped.keys()].sort((a, b) => CATEGORIES[a].order - CATEGORIES[b].order);
+    const lines = [
+        "## Migration Signals: Non-Mechanical Work Detected",
+        "",
+        "These need a real rewrite — the converter cannot fix them and they fail at load/runtime if ignored.",
+        "",
+    ];
+    for (const cat of cats) {
+        const meta = CATEGORIES[cat];
+        const hits = grouped.get(cat)!;
+        lines.push(`### ${meta.title}  (skill: \`${meta.skill}\`)`, meta.hint, "");
+        for (const h of hits.slice(0, MAX_SITES)) {
+            const where = h.line === 0 ? h.file : `${h.file}:${h.line}`;
+            lines.push(`- \`${where}\`  \n  \`${h.snippet}\``);
+        }
+        if (hits.length > MAX_SITES) lines.push(`- …and ${hits.length - MAX_SITES} more`);
+        lines.push("");
+    }
+    return lines.join("\n");
 }

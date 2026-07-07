@@ -8,48 +8,48 @@
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 
 export interface ResolvedModel {
-  model: any;
-  modelRegistry: any;
-  authStorage: any;
-  provider: string;
-  id: string;
+    model: any;
+    modelRegistry: any;
+    authStorage: any;
+    provider: string;
+    id: string;
 }
 
 export function resolveModel(): ResolvedModel {
-  const spec = process.env.LLM_MODEL ?? "ollama/gemma4:31b-cloud";
-  const slash = spec.indexOf("/");
-  const provider = slash === -1 ? "ollama" : spec.slice(0, slash);
-  const id = slash === -1 ? spec : spec.slice(slash + 1);
+    const spec = process.env.LLM_MODEL ?? "ollama/gemma4:31b-cloud";
+    const slash = spec.indexOf("/");
+    const provider = slash === -1 ? "ollama" : spec.slice(0, slash);
+    const id = slash === -1 ? spec : spec.slice(slash + 1);
 
-  // Normalize base URL to an OpenAI-compatible /v1 root.
-  let base = process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434";
-  base = base.replace(/\/+$/, "");
-  if (!/\/v1$/.test(base)) base += "/v1";
+    // Normalize base URL to an OpenAI-compatible /v1 root.
+    let base = process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434";
+    base = base.replace(/\/+$/, "");
+    if (!/\/v1$/.test(base)) base += "/v1";
 
-  const apiKey = process.env.LLM_API_KEY || (provider === "ollama" ? "ollama" : "");
+    const apiKey = process.env.LLM_API_KEY || (provider === "ollama" ? "ollama" : "");
 
-  const authStorage = AuthStorage.create();
-  const modelRegistry = ModelRegistry.create(authStorage);
-  modelRegistry.registerProvider(provider, {
-    name: provider,
-    baseUrl: base,
-    apiKey: apiKey || "unused",
-    api: "openai-completions",
-    authHeader: true,
-    models: [
-      {
-        id,
-        name: id,
-        reasoning: false,
-        input: ["text"],
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: Number(process.env.LLM_NUM_CTX ?? 65536),
-        maxTokens: Number(process.env.LLM_MAX_TOKENS ?? 8192),
-      },
-    ],
-  });
+    const authStorage = AuthStorage.create();
+    const modelRegistry = ModelRegistry.create(authStorage);
+    modelRegistry.registerProvider(provider, {
+        name: provider,
+        baseUrl: base,
+        apiKey: apiKey || "unused",
+        api: "openai-completions",
+        authHeader: true,
+        models: [
+            {
+                id,
+                name: id,
+                reasoning: false,
+                input: ["text"],
+                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                contextWindow: Number(process.env.LLM_NUM_CTX ?? 65536),
+                maxTokens: Number(process.env.LLM_MAX_TOKENS ?? 8192),
+            },
+        ],
+    });
 
-  const model = modelRegistry.find(provider, id);
-  if (!model) throw new Error(`could not resolve model ${provider}/${id}`);
-  return { model, modelRegistry, authStorage, provider, id };
+    const model = modelRegistry.find(provider, id);
+    if (!model) throw new Error(`could not resolve model ${provider}/${id}`);
+    return { model, modelRegistry, authStorage, provider, id };
 }
