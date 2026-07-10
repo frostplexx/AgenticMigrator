@@ -6,6 +6,9 @@ import type { Finding, Signal } from "../host/staticAnalyzer.js";
 import { CATEGORIES } from "../host/staticAnalyzer.js";
 
 const MAX_SITES = 12;
+const SNIPPET_MAX = 200;
+/** Defensive snippet cap: keeps one long/minified line from bloating the prompt ~10x. */
+const clip = (s: string): string => (s.length > SNIPPET_MAX ? s.slice(0, SNIPPET_MAX) + " …" : s);
 
 export function buildPrompt(opts: {
     findings: Finding[];
@@ -13,11 +16,10 @@ export function buildPrompt(opts: {
     skillMd: string;
     extDir: string;
     outDir: string;
-    mode?: "direct" | "orchestrator";
     /** Files that need migration changes (from static analysis) */
     relevantFiles?: string[];
 }): string {
-    const { findings, signals, skillMd, extDir, outDir, mode = "direct" } = opts;
+    const { findings, signals, skillMd, extDir, outDir } = opts;
 
     // Files referenced in findings that need migration attention
     const relevantFiles = opts.relevantFiles ?? [];
@@ -27,25 +29,30 @@ export function buildPrompt(opts: {
         relevantFiles.sort();
     }
 
-    const howToWork =
-        mode === "orchestrator"
-            ? `## Your role: ORCHESTRATOR
-Every original file has ALREADY been copied to \`${outDir}\`. Do NOT edit files yourself.
-Delegate the work to the \`extension_transformer\` tool (a coding sub-agent):
-1. Call \`extension_transformer\` with a precise \`task\`: tell it to apply every MV2->MV3
-   change to the files in \`${outDir}\` (the deprecated-API replacements and signals below,
-   plus manifest_version, service_worker, action, host_permissions, declarativeNetRequest).
-2. After it returns, read \`${outDir}/manifest.json\` to confirm "manifest_version": 3.
-3. If anything is missing, call \`extension_transformer\` again with a precise fix task.
-Pass the relevant findings, signals, and the reference below along in your task text.`
-            : `## How to work
-Every original file has ALREADY been copied to \`${outDir}\` for you. Edit the files IN
-\`${outDir}\` — do not recreate the ones that don't change.
-1. \`ls\` \`${outDir}\` and read only the files that need migration: manifest.json and the files listed below.
-2. Edit \`${outDir}/manifest.json\` and the flagged source files to complete the MV3 migration.
+    const howToWork = `## How to work
+Every original file has ALREADY been copied to \`${outDir}\`. You have two ways to change files
+and should pick based on the SIZE of the work:
+
+- **Edit directly** with your \`edit\`/\`write\` tools for small, localized changes — a manifest
+  tweak, a one-line API swap, a single short file.
+- **Delegate to \`extension_transformer\`** for bigger work — a substantial file rewrite (e.g. a
+  service worker that used the DOM/window, or blocking \`webRequest\` → \`declarativeNetRequest\`),
+  or when several independent files need changes. Pass a \`tasks\` array with one entry PER FILE;
+  the sub-agents run IN PARALLEL. Give each task its own \`files\` list and a precise \`task\`.
+  Two tasks must NEVER list the same file. **Prefer this whenever the work is large or spans
+  multiple files** — it is faster and keeps each change focused.
+  IMPORTANT: put ALL independent files that need delegating into ONE \`extension_transformer\`
+  call (one \`tasks\` entry each) so they run at the same time — do NOT make a separate call per
+  file, which would run them one after another and waste the parallelism.
+
+Steps:
+1. \`ls\` \`${outDir}\` and read manifest.json plus the flagged files below.
+2. Make the MV3 changes: edit small stuff yourself; delegate big rewrites / multiple files to
+   \`extension_transformer\` as a parallel batch. Apply the deprecated-API replacements below and
+   every other MV2->MV3 change (manifest_version, service_worker, action, host_permissions,
+   declarativeNetRequest — see reference).
 3. Create new files where required (e.g. \`${outDir}/rules.json\` for declarativeNetRequest).
-4. Apply the deprecated-API replacements below and every other MV2->MV3 change (see reference).
-5. Confirm \`${outDir}/manifest.json\` has "manifest_version": 3.
+4. Confirm \`${outDir}/manifest.json\` has "manifest_version": 3.
 
 ## Critical: Do NOT touch data files
 
@@ -68,6 +75,11 @@ code that used the DOM/window, blocking webRequest, and anything subtle. Then ma
 
 ${howToWork}
 
+## Do NOT verify — the harness does that
+Do NOT run any verification, test, or browser script yourself (no verify.py, no Playwright, no
+launching Chrome). After the edits are applied, STOP. The harness automatically loads the
+migrated extension in Chrome and, if it fails, will send you the concrete runtime errors to fix.
+
 ${formatFindings(findings)}
 ${formatSignals(signals)}
 ## MV3 Migration Reference (mv3-migration skill)
@@ -75,7 +87,8 @@ ${formatSignals(signals)}
 ${skillMd}
 
 ## Response style
-Terse. Technical. ${mode === "orchestrator" ? "Delegate via the tool; do not edit files yourself." : "Do the file edits with your tools; don't narrate at length."} Code unchanged.`;
+Terse. Technical. Edit small things yourself; delegate big/multi-file work to a parallel
+\`extension_transformer\` batch. Don't narrate at length. Code unchanged.`;
 }
 
 function formatFindings(findings: Finding[]): string {
@@ -94,7 +107,7 @@ function formatFindings(findings: Finding[]): string {
     for (const file of [...byFile.keys()].sort()) {
         lines.push(`### ${file}`);
         for (const h of byFile.get(file)!.sort((a, b) => a.line - b.line))
-            lines.push(`- Line ${h.line}: \`${h.api}\` -> \`${h.replacement}\`  \n  \`${h.snippet}\``);
+            lines.push(`- Line ${h.line}: \`${h.api}\` -> \`${h.replacement}\`  \n  \`${clip(h.snippet)}\``);
         lines.push("");
     }
     return lines.join("\n");
@@ -120,7 +133,7 @@ function formatSignals(signals: Signal[]): string {
         lines.push(`### ${meta.title}  (skill: \`${meta.skill}\`)`, meta.hint, "");
         for (const h of hits.slice(0, MAX_SITES)) {
             const where = h.line === 0 ? h.file : `${h.file}:${h.line}`;
-            lines.push(`- \`${where}\`  \n  \`${h.snippet}\``);
+            lines.push(`- \`${where}\`  \n  \`${clip(h.snippet)}\``);
         }
         if (hits.length > MAX_SITES) lines.push(`- …and ${hits.length - MAX_SITES} more`);
         lines.push("");

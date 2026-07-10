@@ -3,6 +3,13 @@
 # in the foreground so its exit == the container's exit. Runs under tini (PID 1).
 set -euo pipefail
 
+# Pretty logging that matches the Node/winston format (dim time, padded level, right-aligned
+# module │ message) so entrypoint lines and the migrator's logs read as one stream. Uses the
+# container clock (UTC, per Dockerfile TZ) so timestamps line up with the node logs that follow.
+_log() { printf '\033[2m%s\033[0m \033[90m%-7s\033[0m \033[2m%8s\033[0m \033[2m│\033[0m %s\n' "$(date +%H:%M:%S)" "$1" "entry" "$2"; }
+log()  { _log "INFO" "$*"; }
+err()  { printf '\033[2m%s\033[0m \033[31m%-7s\033[0m \033[2m%8s\033[0m \033[2m│\033[0m %s\n' "$(date +%H:%M:%S)" "ERROR" "entry" "$*"; }
+
 : "${DISPLAY:=:99}"
 export DISPLAY
 
@@ -16,16 +23,16 @@ for _ in $(seq 1 100); do
   if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then ok=1; break; fi
   sleep 0.1
 done
-[ "$ok" = 1 ] || { echo "[entrypoint] Xvfb failed to start:"; cat /tmp/xvfb.log; exit 1; }
-echo "[entrypoint] Xvfb ready on $DISPLAY"
+[ "$ok" = 1 ] || { err "Xvfb failed to start:"; cat /tmp/xvfb.log; exit 1; }
+log "Xvfb ready on $DISPLAY"
 
 # --- Optional VNC for live debugging (off in batch; ENABLE_VNC=1 to watch Chrome) ---
 if [ "${ENABLE_VNC:-0}" = "1" ]; then
   fluxbox >/tmp/fluxbox.log 2>&1 &
   x11vnc -display "$DISPLAY" -forever -shared -nopw -bg -rfbport 5900 >/tmp/x11vnc.log 2>&1
   websockify --web=/usr/share/novnc 6080 localhost:5900 >/tmp/novnc.log 2>&1 &
-  echo "[entrypoint] VNC up: open http://localhost:6080/vnc.html (map -p HOST:6080)"
+  log "VNC enabled — noVNC :6080, x11vnc :5900"
 fi
 
-echo "[entrypoint] exec: $*"
+log "exec: $*"
 exec "$@"

@@ -16,7 +16,8 @@ export interface ResolvedModel {
 }
 
 export function resolveModel(): ResolvedModel {
-    const spec = process.env.LLM_MODEL ?? "ollama/gemma4:31b-cloud";
+    const spec = process.env.LLM_MODEL;
+    if (spec === undefined) throw new Error("LLM_MODEL environment variable is required");
     const slash = spec.indexOf("/");
     const provider = slash === -1 ? "ollama" : spec.slice(0, slash);
     const id = slash === -1 ? spec : spec.slice(slash + 1);
@@ -40,7 +41,7 @@ export function resolveModel(): ResolvedModel {
             {
                 id,
                 name: id,
-                reasoning: false,
+                reasoning: /^(on|true|yes|low|medium|high|xhigh)$/i.test(process.env.LLM_THINKING ?? ""),
                 input: ["text"],
                 cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
                 contextWindow: Number(process.env.LLM_NUM_CTX ?? 65536),

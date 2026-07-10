@@ -10,7 +10,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "cli": "tsx src/cli.ts"
+    "cli": "tsx src/cli.ts",
+    "clean": "rm -rf run/*",
+    "transcript": "tsx scripts/view-transcript.ts"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.80.3",

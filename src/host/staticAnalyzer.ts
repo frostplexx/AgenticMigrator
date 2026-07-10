@@ -23,6 +23,17 @@ export interface ScanResult {
     signals: Signal[];
 }
 
+// A single "line" longer than this is almost certainly minified/generated code (e.g. a bundled
+// jQuery). Flagging it is unactionable noise, and dumping it into the prompt as a snippet bloats
+// the model context ~10x. Skip scanning such lines, and hard-cap any snippet we do keep.
+const MINIFIED_LINE = 2000;
+const SNIPPET_MAX = 200;
+/** Trim + hard-cap a source snippet so one long line can't blow up the prompt. */
+function clip(s: string): string {
+    s = s.trim();
+    return s.length > SNIPPET_MAX ? s.slice(0, SNIPPET_MAX) + " …" : s;
+}
+
 export const CATEGORIES: Record<
     string,
     { order: number; skill: string; title: string; hint: string }
@@ -127,6 +138,7 @@ export class StaticAnalyzer {
             const fileHasWebrequest = lines.some((l) => l.includes("chrome.webRequest"));
 
             lines.forEach((line, i) => {
+                if (line.length > MINIFIED_LINE) return; // skip minified/generated lines — unactionable noise
                 const lineno = i + 1;
                 this.scanApi(result, rel, lineno, line);
                 this.scanSignals(result, rel, lineno, line, isHtml, isBackground, fileHasWebrequest);
@@ -153,7 +165,7 @@ export class StaticAnalyzer {
             const api = m[0];
             if (!seen.has(api)) {
                 seen.add(api);
-                result.findings.push({ api, replacement: this.apiMap.get(api)!, file: rel, line: lineno, snippet: line.trim() });
+                result.findings.push({ api, replacement: this.apiMap.get(api)!, file: rel, line: lineno, snippet: clip(line) });
             }
         }
     }
@@ -174,7 +186,7 @@ export class StaticAnalyzer {
     }
 
     private addSignal(result: ScanResult, category: string, file: string, line: number, raw: string): void {
-        result.signals.push({ category, skill: CATEGORIES[category].skill, file, line, snippet: raw.trim() });
+        result.signals.push({ category, skill: CATEGORIES[category].skill, file, line, snippet: clip(raw) });
     }
 }
 
