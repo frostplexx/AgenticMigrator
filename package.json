@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.80.3",
+    "extlens-sdk": "file:../extlens/packages/host-sdk",
     "playwright": "^1.61.1",
     "winston": "^3.19.0"
   },

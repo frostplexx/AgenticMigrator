@@ -127,6 +127,8 @@ async function main() {
     mkdirSync(runDir, { recursive: true });
     for (const entry of readdirSync(runDir)) rmSync(join(runDir, entry), { recursive: true, force: true });
     mkdirSync(join(runDir, "out"), { recursive: true });
+    // Record the source extension path so the extlens adapter can serve MV2 file refs.
+    writeFileSync(join(runDir, "source-path.txt"), resolve(extPath));
 
     // 1. convert (host-side deterministic pre-pass).
     logger.info("converting (extension-manifest-converter)...", { module: "cli" });
@@ -192,6 +194,19 @@ async function main() {
         if (!r.passed && r.reason) logger.warn(`reason: ${r.reason}`, { module: "cli" });
     } else {
         logger.warn(`no report produced (container exit ${code})`, { module: "cli" });
+    }
+
+    // Optional extlens server: serve the completed run and stay alive.
+    const extlensPort = Number(process.env.EXLENS_PORT ?? arg("--extlens-port", ""));
+    if (extlensPort) {
+        const { startExtlensServer } = await import("./extlens/index.js");
+        const server = startExtlensServer({ port: extlensPort, runDir });
+        logger.info("press Ctrl+C to stop the extlens server", { module: "extlens" });
+        await new Promise<void>((res) => {
+            process.on("SIGINT", () => res());
+            process.on("SIGTERM", () => res());
+        });
+        await server.close();
     }
     process.exit(code);
 }
