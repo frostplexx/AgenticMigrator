@@ -1,6 +1,4 @@
 node_modules/
-dist/
 run/
 *.log
-.direnv/
-tmp/
+.git
