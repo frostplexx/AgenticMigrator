@@ -1,6 +1,6 @@
 # AgenticMigrator-TS image: pi agent + headed-Chromium verify, self-rolled (no OpenHands).
 # Same proven display stack as the spike. Expects `npm run build` (dist/) done on the host.
-FROM mcr.microsoft.com/playwright:v1.61.0-jammy
+FROM mcr.microsoft.com/playwright:v1.62.1-jammy
 
 ENV DEBIAN_FRONTEND=noninteractive TZ=UTC
 RUN apt-get update && apt-get install -y --no-install-recommends \
