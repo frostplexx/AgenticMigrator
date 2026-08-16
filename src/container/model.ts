@@ -46,6 +46,9 @@ export function resolveModel(): ResolvedModel {
                 cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
                 contextWindow: Number(process.env.LLM_NUM_CTX ?? 65536),
                 maxTokens: Number(process.env.LLM_MAX_TOKENS ?? 8192),
+                // Send max_tokens, not max_completion_tokens: pi's heuristic picks the
+                // latter for unknown providers, but SAIA and Ollama document the former.
+                compat: { maxTokensField: "max_tokens" },
             },
         ],
     });
