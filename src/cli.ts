@@ -1,5 +1,12 @@
-// Host CLI: migrate one extension end-to-end.
-//   migrate <extension-dir> [--out <run-dir>]
+// Host CLI: serve runs and sources over extlens; migrations start on demand.
+//   migrate [--source-dir <corpus|ext-dir>] [--out <run-dir>] [--port <n>]
+//   migrate <extension-dir> --no-server   (one-shot migration, no server)
+// With the server on (default), nothing migrates automatically: a positional
+// extension dir is registered as a pending source and the client triggers the
+// migration via the protocol's host.start (see src/extlens/migrator.ts). The
+// one-shot mode (--no-server + an extension dir) is what host.start runs as a
+// child process. --source-dir accepts a corpus (subdirs with manifest.json)
+// or a single extension dir.
 // Pipeline (TS/pi port of src/manager.py's host side):
 //   1. convert (vendored emc, Python subprocess)
 //   2. static analysis -> plan.json + analysis.json
@@ -10,7 +17,7 @@ import { execFileSync, execSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, basename } from "node:path";
 import { StaticAnalyzer, buildAnalysis } from "./host/staticAnalyzer.js";
 import { convert } from "./host/convert.js";
 import logger from "./logger.js";
@@ -113,13 +120,64 @@ function ensureImage(): void {
 }
 
 async function main() {
-    const extInput = process.argv[2];
-    if (!extInput || extInput.startsWith("--")) {
-        logger.error("usage: migrate <extension-dir> [--out <run-dir>]");
+    if (process.argv.includes("--help") || process.argv.includes("-h")) {
+        logger.info("usage: migrate [--source-dir <corpus|ext-dir>] [--out <run-dir>] [--port <n>] [--no-server]");
+        logger.info("  no positional arg  serve runs (+ sources); wait for host.start from the client");
+        logger.info("  <extension-dir>     register as pending source; wait for host.start");
+        logger.info("  <extension-dir> --no-server  one-shot migration (no server)");
+        process.exit(0);
+    }
+    const args = process.argv.slice(2);
+    const valueFlags = new Set(["--out", "--port", "--extlens-port", "--source-dir"]);
+    const extInput = args.find((a, i) => !a.startsWith("--") && a !== "-h" && !(i > 0 && valueFlags.has(args[i - 1])));
+    const extPath = extInput ? resolve(extInput) : null;
+    const runDir = resolve(arg("--out", "./run"));
+    const sourceArg = arg("--source-dir", "");
+    const sourceDir = sourceArg || process.env.EXLENS_SOURCE_DIR || null;
+    const noServer = args.includes("--no-server");
+    const parsedPort = Number(process.env.EXLENS_PORT ?? arg("--extlens-port", arg("--port", "8081")));
+    const port = Number.isFinite(parsedPort) && parsedPort > 0 ? Math.trunc(parsedPort) : 8081;
+
+    if (extPath && !existsSync(join(extPath, "manifest.json"))) {
+        logger.warn(`${extPath} has no manifest.json; it will not be listed as an extension`, { module: "cli" });
+    }
+
+    // extlens server, on by default. It never auto-migrates: the client
+    // triggers host.start, and the controller runs the migration as a child.
+    const extlens = await import("./extlens/index.js");
+    let server: { port: number; close(): Promise<void> } | null = null;
+    if (!noServer) {
+        mkdirSync(runDir, { recursive: true });
+        if (sourceDir && !existsSync(sourceDir)) {
+            logger.warn(`source dir ${sourceDir} does not exist; no unmigrated extensions will be listed`, { module: "cli" });
+        }
+        server = extlens.startExtlensServer({
+            port,
+            runDir,
+            ...(sourceDir ? { sourceDir } : {}),
+            ...(extPath ? { extraSource: extPath } : {}),
+        });
+        logger.info(`extlens server serving ${runDir} on port ${server.port} (--no-server to disable)`, { module: "cli" });
+    }
+
+    // Interactive mode: serve runs and pending sources; wait for the client.
+    if (server) {
+        if (extPath) {
+            logger.info(`extension ${extPath} registered as pending source (id \"${basename(extPath)}\"); waiting for host.start from the client`, { module: "cli" });
+        } else {
+            logger.info(`serving existing runs under ${runDir} (no migration requested)`, { module: "cli" });
+        }
+        await waitForSignal();
+        await server.close();
+        process.exit(0);
+    }
+
+    // One-shot mode (--no-server): migrate immediately. host.start runs this
+    // same path as a child process with the per-extension run dir.
+    if (!extPath) {
+        logger.error("nothing to do: pass an extension dir to migrate, or drop --no-server to serve");
         process.exit(64);
     }
-    const extPath = resolve(extInput);
-    const runDir = resolve(arg("--out", "./run"));
 
     // Fresh run dir. Clear its CONTENTS rather than removing runDir itself: a shell parked in
     // runDir (it's the session's working dir) would otherwise be orphaned when the inode is
@@ -196,19 +254,14 @@ async function main() {
         logger.warn(`no report produced (container exit ${code})`, { module: "cli" });
     }
 
-    // Optional extlens server: serve the completed run and stay alive.
-    const extlensPort = Number(process.env.EXLENS_PORT ?? arg("--extlens-port", ""));
-    if (extlensPort) {
-        const { startExtlensServer } = await import("./extlens/index.js");
-        const server = startExtlensServer({ port: extlensPort, runDir });
-        logger.info("press Ctrl+C to stop the extlens server", { module: "extlens" });
-        await new Promise<void>((res) => {
-            process.on("SIGINT", () => res());
-            process.on("SIGTERM", () => res());
-        });
-        await server.close();
-    }
     process.exit(code);
+}
+
+function waitForSignal(): Promise<void> {
+    return new Promise((resolve) => {
+        process.once("SIGINT", () => resolve());
+        process.once("SIGTERM", () => resolve());
+    });
 }
 
 main().catch((e) => { logger.error("fatal: " + e, { module: "cli" }); process.exit(1); });
