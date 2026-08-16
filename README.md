@@ -31,10 +31,12 @@ node dist/cli.js /path/to/mv2-extension --out ./run
 # → ./run/out (migrated extension), ./run/report.json
 ```
 
-Model via env (`LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY`), pi custom OpenAI-completions
+Model via env (`LLM_MODEL`, `LLM_BASE_URL`), pi custom OpenAI-completions
 provider. Default `ollama/gemma4:31b-cloud` over `host.docker.internal:11434`; any
 OpenAI-compatible endpoint works, e.g. GWDG SAIA: `saia/gemma-4-31b-it` over
 `https://chat-ai.academiccloud.de/v1` with a key booked via the KISSKI LLM Service page.
+`LLM_API_KEY` is resolved from secretspec (1Password vault `DevVault`, see `secretspec.toml`)
+when not already exported: `secretspec set LLM_API_KEY` stores it.
 
 ### Editing directly vs. parallel sub-agents
 

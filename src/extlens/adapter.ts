@@ -10,6 +10,10 @@
  * of runs (each subdirectory with out/ is one run). Extension ids are the run
  * directory names.
  *
+ * The run and source listings come from the SQLite registry (run/migrator.db),
+ * seeded from disk at server start; content (out/, report.json, ...) is always
+ * read from disk. A run row becomes visible once its out/manifest.json exists.
+ *
  * An optional source dir (the corpus) adds unmigrated extensions: every
  * extension root that no run's source-path.txt points at is listed with an MV2
  * profile and hasMv3: false. They are read-only (no run dir to write reports
@@ -31,19 +35,9 @@ import {
     type SourceFile,
     type HostController,
 } from "extlens-sdk";
+import { Registry, type RunEntry, type RunRow, type SourceEntry } from "./registry.js";
 
 const MAX_TEXT_FILE = 10 * 1024 * 1024;
-
-interface RunEntry {
-    id: string;
-    dir: string;
-}
-
-/** A source extension: a corpus subdirectory or a single extension dir. */
-export interface SourceEntry {
-    id: string;
-    dir: string;
-}
 
 /**
  * True when `dir` holds a Chrome extension manifest (declares manifest_version).
@@ -124,21 +118,6 @@ export function collectSources(sourceDir: string | null, extraSource: string | n
 }
 
 /** A run dir holds the migrated MV3 output at out/manifest.json. */
-function isRunDir(dir: string): boolean {
-    return existsSync(join(dir, "out")) && existsSync(join(dir, "out", "manifest.json"));
-}
-
-function findRuns(runRoot: string): RunEntry[] {
-    if (!existsSync(runRoot)) return [];
-    if (isRunDir(runRoot)) return [{ id: basename(runRoot), dir: runRoot }];
-    return readdirSync(runRoot)
-        .sort()
-        .filter((entry) => {
-            const p = join(runRoot, entry);
-            return statSync(p).isDirectory() && isRunDir(p);
-        })
-        .map((entry) => ({ id: entry, dir: join(runRoot, entry) }));
-}
 
 function readJson(path: string): unknown {
     try {
@@ -229,12 +208,23 @@ function migrateReportToProtocol(run: RunEntry, r: MigrateReport | null): Extlen
     };
 }
 
-export function makeAgenticBackend(runRoot: string, sources: SourceEntry[] = [], host?: HostController): Backend {
+export function makeAgenticBackend(runRoot: string, registry: Registry, host?: HostController): Backend {
     runRoot = resolve(runRoot);
     const sourcePath = (run: RunEntry): string | null => {
         const p = join(run.dir, "source-path.txt");
         return existsSync(p) ? resolve(readFileSync(p, "utf8").trim()) : null;
     };
+
+    /** A run row is visible once the migrated out/manifest.json exists on disk. */
+    const visibleRun = (row: RunRow): RunEntry | null =>
+        existsSync(join(runRoot, row.id, "out", "manifest.json"))
+            ? { id: row.id, dir: join(runRoot, row.id) }
+            : null;
+    const runById = (id: string): RunEntry | null => {
+        const row = registry.getRun(id);
+        return row ? visibleRun(row) : null;
+    };
+    const sources = registry.listSources();
 
     const cached = new Map<string, { sig: string; source: ExtensionSource; profile: ExtensionProfile }>();
     const profileFor = (run: RunEntry) => {
@@ -266,7 +256,7 @@ export function makeAgenticBackend(runRoot: string, sources: SourceEntry[] = [],
     const profileOf = (row: Row) =>
         row.entry.kind === "run" ? profileFor(row.entry.run) : sourceProfileFor(row.entry.src);
     const allRows = (): Row[] => {
-        const runs = findRuns(runRoot);
+        const runs = registry.listRuns().map(visibleRun).filter((r): r is RunEntry => r !== null);
         // A source extension counts as migrated when a run's source-path.txt
         // points at it; the run row then represents it (hasMv3: true).
         const migratedDirs = new Set(runs.map(sourcePath).filter((p): p is string => p !== null));
@@ -326,7 +316,7 @@ export function makeAgenticBackend(runRoot: string, sources: SourceEntry[] = [],
         },
 
         async getExtension(id: string) {
-            const run = findRuns(runRoot).find((r) => r.id === id);
+            const run = runById(id);
             if (run) {
                 const { source, profile } = profileFor(run);
                 const mv2Path = sourcePath(run);
@@ -346,7 +336,7 @@ export function makeAgenticBackend(runRoot: string, sources: SourceEntry[] = [],
         },
 
         async getFiles(id: string) {
-            const run = findRuns(runRoot).find((r) => r.id === id);
+            const run = runById(id);
             if (run) {
                 const mv2 = sourcePath(run);
                 return {
@@ -360,7 +350,7 @@ export function makeAgenticBackend(runRoot: string, sources: SourceEntry[] = [],
         },
 
         async getReport(extensionId: string) {
-            const run = findRuns(runRoot).find((r) => r.id === extensionId);
+            const run = runById(extensionId);
             if (!run) return null; // unmigrated sources have no report
             const manual = readJson(join(run.dir, "report.manual.json")) as ExtlensReport | null;
             if (manual) return manual;
@@ -375,7 +365,7 @@ export function makeAgenticBackend(runRoot: string, sources: SourceEntry[] = [],
                 createdAt: now,
                 updatedAt: now,
             };
-            const run = findRuns(runRoot).find((r) => r.id === report.extensionId);
+            const run = runById(report.extensionId);
             if (!run) {
                 const src = sources.find((s) => s.id === report.extensionId);
                 if (src) throw new Error(`cannot submit report for unmigrated extension: ${report.extensionId}`);

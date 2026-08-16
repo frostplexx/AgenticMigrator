@@ -1,11 +1,10 @@
 // Host CLI: serve runs and sources over extlens; migrations start on demand.
 //   migrate [--source-dir <corpus|ext-dir>] [--out <run-dir>] [--port <n>]
-//   migrate <extension-dir> --no-server   (one-shot migration, no server)
-// With the server on (default), nothing migrates automatically: a positional
+//   migrate <extension-dir>            (register pending source, serve)
+// With the server on (always), nothing migrates automatically: a positional
 // extension dir is registered as a pending source and the client triggers the
 // migration via the protocol's host.start (see src/extlens/migrator.ts). The
-// one-shot mode (--no-server + an extension dir) is what host.start runs as a
-// child process. --source-dir accepts a corpus (subdirs with manifest.json)
+// controller spawns a one-shot child with MIGRATOR_ONESHOT=1 set in its env. --source-dir accepts a corpus (subdirs with manifest.json)
 // or a single extension dir.
 // Pipeline (TS/pi port of src/manager.py's host side):
 //   1. convert (vendored emc, Python subprocess)
@@ -13,11 +12,12 @@
 //   3. docker run the migrator image (pi agent + headed verify) with mounts
 //   4. report exit status; migrated extension lands in <run-dir>/out
 import { createHash } from "node:crypto";
-import { execFileSync, execSync, spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative, basename } from "node:path";
+import { SecretSpec, SecretSpecError } from "secretspec";
 import { StaticAnalyzer, buildAnalysis } from "./host/staticAnalyzer.js";
 import { convert } from "./host/convert.js";
 import logger from "./logger.js";
@@ -43,6 +43,32 @@ const PROJ = resolve(__dirname, "..");
         if (!process.env[key]) process.env[key] = val;
     }
 })();
+
+// Resolve LLM_API_KEY from secretspec (1Password backend) when the environment does not
+// already provide it. Fail fast: the saia endpoint refuses requests without the key.
+async function resolveApiKey(): Promise<void> {
+    if (process.env.LLM_API_KEY) return;
+    let resolved: import("secretspec").Resolved;
+    try {
+        resolved = await SecretSpec.builder()
+            .withReason("agentic-migrator cli: resolve LLM_API_KEY")
+            .loadAsync();
+    } catch (e) {
+        const kind = e instanceof SecretSpecError ? ` (kind: ${e.kind})` : "";
+        const detail = e instanceof Error ? e.message : String(e);
+        logger.error(
+            `LLM_API_KEY is not set and secretspec could not resolve it${kind}: ${detail}`, { module: "cli" }
+        );
+        logger.error("Start the 1Password desktop app (Settings → Developer → Integrate with 1Password CLI) and run 'secretspec set LLM_API_KEY'. Alternatively export LLM_API_KEY.");
+        process.exit(1);
+    }
+    const value = resolved.secrets.LLM_API_KEY?.get();
+    if (!value) {
+        logger.error("LLM_API_KEY is not set: secretspec returned an empty value. Run 'secretspec set LLM_API_KEY'.");
+        process.exit(1);
+    }
+    process.env.LLM_API_KEY = value;
+}
 
 function arg(flag: string, def: string): string {
     const i = process.argv.indexOf(flag);
@@ -121,10 +147,9 @@ function ensureImage(): void {
 
 async function main() {
     if (process.argv.includes("--help") || process.argv.includes("-h")) {
-        logger.info("usage: migrate [--source-dir <corpus|ext-dir>] [--out <run-dir>] [--port <n>] [--no-server]");
+        logger.info("usage: migrate [--source-dir <corpus|ext-dir>] [--out <run-dir>] [--port <n>] [<extension-dir>]");
         logger.info("  no positional arg  serve runs (+ sources); wait for host.start from the client");
         logger.info("  <extension-dir>     register as pending source; wait for host.start");
-        logger.info("  <extension-dir> --no-server  one-shot migration (no server)");
         process.exit(0);
     }
     const args = process.argv.slice(2);
@@ -134,7 +159,9 @@ async function main() {
     const runDir = resolve(arg("--out", "./run"));
     const sourceArg = arg("--source-dir", "");
     const sourceDir = sourceArg || process.env.EXLENS_SOURCE_DIR || null;
-    const noServer = args.includes("--no-server");
+    // Internal one-shot mode: the extlens controller (src/extlens/migrator.ts)
+    // spawns the migration child with MIGRATOR_ONESHOT=1. Not a user-facing flag.
+    const oneShot = process.env.MIGRATOR_ONESHOT === "1";
     const parsedPort = Number(process.env.EXLENS_PORT ?? arg("--extlens-port", arg("--port", "8081")));
     const port = Number.isFinite(parsedPort) && parsedPort > 0 ? Math.trunc(parsedPort) : 8081;
 
@@ -142,11 +169,11 @@ async function main() {
         logger.warn(`${extPath} has no manifest.json; it will not be listed as an extension`, { module: "cli" });
     }
 
-    // extlens server, on by default. It never auto-migrates: the client
+    // extlens server, always on for the CLI. It never auto-migrates: the client
     // triggers host.start, and the controller runs the migration as a child.
     const extlens = await import("./extlens/index.js");
     let server: { port: number; close(): Promise<void> } | null = null;
-    if (!noServer) {
+    if (!oneShot) {
         mkdirSync(runDir, { recursive: true });
         if (sourceDir && !existsSync(sourceDir)) {
             logger.warn(`source dir ${sourceDir} does not exist; no unmigrated extensions will be listed`, { module: "cli" });
@@ -157,7 +184,7 @@ async function main() {
             ...(sourceDir ? { sourceDir } : {}),
             ...(extPath ? { extraSource: extPath } : {}),
         });
-        logger.info(`extlens server serving ${runDir} on port ${server.port} (--no-server to disable)`, { module: "cli" });
+        logger.info(`extlens server serving ${runDir} on port ${server.port}`, { module: "cli" });
     }
 
     // Interactive mode: serve runs and pending sources; wait for the client.
@@ -172,10 +199,10 @@ async function main() {
         process.exit(0);
     }
 
-    // One-shot mode (--no-server): migrate immediately. host.start runs this
-    // same path as a child process with the per-extension run dir.
+    // One-shot mode (internal, MIGRATOR_ONESHOT=1): migrate immediately. The
+    // extlens controller runs this path as a detached child per migration.
     if (!extPath) {
-        logger.error("nothing to do: pass an extension dir to migrate, or drop --no-server to serve");
+        logger.error("nothing to do: pass an extension dir to migrate");
         process.exit(64);
     }
 
@@ -205,6 +232,7 @@ async function main() {
     writeFileSync(join(runDir, "analysis.json"), JSON.stringify(buildAnalysis(findings, convertedDir), null, 2));
 
     // 3. ensure image is current, then docker run the migrator container.
+    await resolveApiKey();
     if (!process.env.MIGRATOR_IMAGE) ensureImage();
     const migratorImage = process.env.MIGRATOR_IMAGE;
     const portBase = process.env.DOCKER_PORT_BASE ? Number(process.env.DOCKER_PORT_BASE) + 2 : 0;

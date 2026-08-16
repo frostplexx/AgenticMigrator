@@ -1,7 +1,7 @@
 /**
  * HostController for the extlens protocol: starts and aborts a real migration
  * and reports lifecycle status. The controller spawns the host CLI as a child
- * process (`cli.ts <source> --out <runRoot>/<id> --no-server`) so a migration
+ * process (`MIGRATOR_ONESHOT=1 cli.ts <source> --out <runRoot>/<id>`) so a migration
  * runs detached from the server loop; the run dir it writes into is served by
  * the adapter the moment `out/` appears.
  *
@@ -19,7 +19,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { ErrorCodes, RpcError, type HostController, type HostStatus } from "extlens-sdk";
-import type { SourceEntry } from "./adapter.js";
+import { Registry, derivePhaseFromDir, type SourceEntry } from "./registry.js";
 
 const TAIL_MAX = 2000;
 const MESSAGE_MAX = 300;
@@ -66,7 +66,23 @@ export class MigratorController implements HostController {
     /** Terminal status of the most recent job; served until the next start. */
     private last: HostStatus | null = null;
 
-    constructor(private readonly opts: MigratorOptions) {}
+    constructor(
+        private readonly opts: MigratorOptions,
+        private readonly registry: Registry | null = null,
+    ) {
+        // Restart continuity: serve the most recent run's terminal state so the
+        // client sees the last phase/tail instead of a blank idle status.
+        const lastRow = this.registry?.mostRecentRun();
+        if (lastRow && lastRow.phase) {
+            this.last = {
+                state: "idle",
+                extensionId: lastRow.id,
+                phase: lastRow.phase,
+                startedAt: null,
+                message: clip(lastRow.tail ?? "") || null,
+            };
+        }
+    }
 
     async getStatus(): Promise<HostStatus> {
         const child = this.child;
@@ -84,10 +100,13 @@ export class MigratorController implements HostController {
             this.finalize(child.exitCode);
             return this.last!;
         }
+        const phase = this.derivePhase();
+        // Persist the phase and tail so a restart mid-run preserves them.
+        if (this.extensionId) this.registry?.updateRun(this.extensionId, { phase, tail: this.tail });
         return {
             state: this.stopping ? "stopping" : "running",
             extensionId: this.extensionId,
-            phase: this.derivePhase(),
+            phase,
             startedAt: this.startedAt,
             message: this.tailMessage(),
         };
@@ -109,11 +128,12 @@ export class MigratorController implements HostController {
         this.extensionId = id;
         this.startedAt = new Date().toISOString();
         this.tail = "";
+        this.registry?.startRun(id, srcDir, this.startedAt);
 
         const [cmd, ...baseArgs] = this.opts.command ?? ["npx", "--no-install", "tsx", "src/cli.ts"];
-        const child = spawn(cmd, [...baseArgs, srcDir, "--out", runDir, "--no-server"], {
+        const child = spawn(cmd, [...baseArgs, srcDir, "--out", runDir], {
             cwd: this.opts.cwd,
-            env: process.env,
+            env: { ...process.env, MIGRATOR_ONESHOT: "1" },
             detached: true,
         });
         this.child = child;
@@ -147,6 +167,7 @@ export class MigratorController implements HostController {
         }
         if (!this.stopping) {
             this.stopping = true;
+            this.registry?.updateRun(this.extensionId ?? "", { state: "stopping" });
             this.killChild();
         }
         return this.getStatus();
@@ -174,14 +195,7 @@ export class MigratorController implements HostController {
 
     private derivePhase(): string {
         const dir = this.runDir();
-        if (!dir) return "preparing";
-        if (existsSync(join(dir, "report.json"))) {
-            const report = readJson(join(dir, "report.json")) as MigrateReport | null;
-            return report?.passed ? "done" : "failed";
-        }
-        if (existsSync(join(dir, "out", "manifest.json"))) return "verifying";
-        if (existsSync(join(dir, "plan.json")) || existsSync(join(dir, "analysis.json"))) return "migrating";
-        return "preparing";
+        return dir ? derivePhaseFromDir(dir) : "preparing";
     }
 
     private tailMessage(): string | null {
@@ -221,5 +235,6 @@ export class MigratorController implements HostController {
             startedAt: null,
             message,
         };
+        if (id) this.registry?.finishRun(id, phase, this.tail, report);
     }
 }

@@ -12,6 +12,7 @@ import { dirname, resolve } from "node:path";
 import { createExtlensServer } from "extlens-sdk";
 import { collectSources, makeAgenticBackend } from "./adapter.js";
 import { MigratorController } from "./migrator.js";
+import { Registry } from "./registry.js";
 import logger from "../logger.js";
 
 export function startExtlensServer(opts: { port?: number; runDir?: string; sourceDir?: string; extraSource?: string } = {}) {
@@ -20,8 +21,11 @@ export function startExtlensServer(opts: { port?: number; runDir?: string; sourc
     const port = opts.port ?? Number(process.env.EXLENS_PORT ?? 8081);
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
     const sources = collectSources(sourceDir, opts.extraSource ?? null);
-    const host = new MigratorController({ runRoot: runDir, sources, cwd: repoRoot });
-    const server = createExtlensServer({ port, backend: makeAgenticBackend(runDir, sources, host) });
+    const registry = new Registry(runDir);
+    registry.syncSources(sources);
+    registry.seedRunsFromDisk();
+    const host = new MigratorController({ runRoot: runDir, sources, cwd: repoRoot }, registry);
+    const server = createExtlensServer({ port, backend: makeAgenticBackend(runDir, registry, host) });
     const srcs = sources.length ? `, ${sources.length} source(s)` : "";
     logger.info(`extlens server on ws://localhost:${server.port} (run dir ${runDir}${srcs})`, { module: "extlens" });
     // Close also aborts any host.start migration the client triggered.
@@ -31,6 +35,7 @@ export function startExtlensServer(opts: { port?: number; runDir?: string; sourc
         },
         close: async () => {
             host.dispose();
+            registry.close();
             await server.close();
         },
     };
