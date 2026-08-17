@@ -352,6 +352,10 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         async getReport(extensionId: string) {
             const run = runById(extensionId);
             if (!run) return null; // unmigrated sources have no report
+            // DB-backed manual report first, then the legacy on-disk file,
+            // then the migration verification report.
+            const row = registry.getReport(extensionId);
+            if (row) return JSON.parse(row.payload) as ExtlensReport;
             const manual = readJson(join(run.dir, "report.manual.json")) as ExtlensReport | null;
             if (manual) return manual;
             return migrateReportToProtocol(run, readJson(join(run.dir, "report.json")) as MigrateReport | null);
@@ -371,6 +375,15 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
                 if (src) throw new Error(`cannot submit report for unmigrated extension: ${report.extensionId}`);
                 throw new Error(`unknown extension: ${report.extensionId}`);
             }
+            // Persist in SQLite so reports survive a restart; also keep the
+            // on-disk file for compatibility with existing consumers.
+            registry.setReport({
+                id: doc.id,
+                extensionId: report.extensionId,
+                payload: JSON.stringify(doc),
+                createdAt: now,
+                updatedAt: now,
+            });
             writeFileSync(join(run.dir, "report.manual.json"), JSON.stringify(doc, null, 2));
             return doc.id;
         },

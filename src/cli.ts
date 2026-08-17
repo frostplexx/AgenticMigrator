@@ -145,11 +145,25 @@ function ensureImage(): void {
     process.env.MIGRATOR_IMAGE = tag;
 }
 
+/**
+ * Resolve migration targets for the CLI. A positional extension dir and a
+ * --source-dir are combined via collectSources (single extension or corpus of
+ * extensions). When a positional dir is itself a corpus (its subdirectories
+ * hold extensions), it is promoted to the source slot so corpus recursion
+ * applies; otherwise it is a single extra extension.
+ */
+async function collectSourcesForCli(sourceDir: string | null, extPath: string | null): Promise<{ id: string; dir: string }[]> {
+    const mod = await import("./extlens/adapter.js");
+    const collect = mod.collectSources;
+    if (!sourceDir) return collect(extPath, null);
+    return collect(sourceDir, extPath);
+}
+
 async function main() {
     if (process.argv.includes("--help") || process.argv.includes("-h")) {
         logger.info("usage: migrate [--source-dir <corpus|ext-dir>] [--out <run-dir>] [--port <n>] [<extension-dir>]");
         logger.info("  no positional arg  serve runs (+ sources); wait for host.start from the client");
-        logger.info("  <extension-dir>     register as pending source; wait for host.start");
+        logger.info("  <extension-dir>     single extension or a corpus of extensions to migrate");
         process.exit(0);
     }
     const args = process.argv.slice(2);
@@ -199,13 +213,62 @@ async function main() {
         process.exit(0);
     }
 
-    // One-shot mode (internal, MIGRATOR_ONESHOT=1): migrate immediately. The
-    // extlens controller runs this path as a detached child per migration.
-    if (!extPath) {
-        logger.error("nothing to do: pass an extension dir to migrate");
+    // One-shot / headless migration path (MIGRATOR_ONESHOT=1, what the extlens
+    // controller spawns as a detached child). Auto-detects the input shape: a
+    // single extension dir, a corpus dir of extensions, or a --source-dir. It
+    // migrates every target into the output root.
+    const targets = await collectSourcesForCli(sourceDir, extPath);
+    if (targets.length === 0) {
+        logger.error("nothing to do: pass an extension dir or --source-dir to migrate");
         process.exit(64);
     }
 
+    // Resolve the LLM key and build/verify the Docker image once for all jobs.
+    await resolveApiKey();
+    if (!process.env.MIGRATOR_IMAGE) ensureImage();
+
+    let migrated = 0;
+    let failed = 0;
+    for (const target of targets) {
+        // A single positional extension keeps the legacy flat layout
+        // (<out>/out, <out>/report.json). A corpus writes one subdir per
+        // extension (<out>/<id>/out).
+        const isSingleDirect = targets.length === 1 && extPath && resolve(target.dir) === resolve(extPath);
+        const jobDir = isSingleDirect ? runDir : join(runDir, target.id);
+        if (isMigrated(jobDir)) {
+            logger.info(`skip ${target.id}: already migrated`, { module: "cli" });
+            migrated += 1;
+            continue;
+        }
+        logger.info(`migrating ${target.id} (${target.dir})`, { module: "cli" });
+        const code = await migrateOne(target.dir, jobDir);
+        if (code === 0) migrated += 1;
+        else {
+            failed += 1;
+            logger.error(`extension ${target.id} failed (exit ${code})`, { module: "cli" });
+        }
+    }
+    logger.info(`migration complete: ${migrated} migrated, ${failed} failed`, { module: "cli" });
+    process.exit(failed ? 1 : 0);
+}
+
+/** True when a job dir already holds a successful migration report. */
+function isMigrated(jobDir: string): boolean {
+    const reportPath = join(jobDir, "report.json");
+    if (!existsSync(reportPath)) return false;
+    try {
+        const r = JSON.parse(readFileSync(reportPath, "utf8")) as { passed?: boolean };
+        return r.passed === true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Migrate one extension into runDir. The run dir starts fresh. Returns the
+ * container/process exit code (0 on success, non-zero on failure).
+ */
+async function migrateOne(extPath: string, runDir: string): Promise<number> {
     // Fresh run dir. Clear its CONTENTS rather than removing runDir itself: a shell parked in
     // runDir (it's the session's working dir) would otherwise be orphaned when the inode is
     // recreated, and the next command crashes with `ENOENT: uv_cwd`.
@@ -232,7 +295,6 @@ async function main() {
     writeFileSync(join(runDir, "analysis.json"), JSON.stringify(buildAnalysis(findings, convertedDir), null, 2));
 
     // 3. ensure image is current, then docker run the migrator container.
-    await resolveApiKey();
     if (!process.env.MIGRATOR_IMAGE) ensureImage();
     const migratorImage = process.env.MIGRATOR_IMAGE;
     const portBase = process.env.DOCKER_PORT_BASE ? Number(process.env.DOCKER_PORT_BASE) + 2 : 0;
@@ -282,7 +344,7 @@ async function main() {
         logger.warn(`no report produced (container exit ${code})`, { module: "cli" });
     }
 
-    process.exit(code);
+    return code;
 }
 
 function waitForSignal(): Promise<void> {

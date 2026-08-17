@@ -64,6 +64,14 @@ CREATE TABLE IF NOT EXISTS runs (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_runs_updated ON runs(updated_at DESC);
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  extension_id TEXT NOT NULL UNIQUE,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reports_extension ON reports(extension_id);
 `;
 
 function readJson(path: string): unknown {
@@ -211,6 +219,42 @@ export class Registry {
                  WHERE id = ?`,
             )
             .run(phase, now, tail ?? "", report ? (report.passed ? 1 : 0) : null, report?.reason ?? null, now, id);
+    }
+
+    /*** Report storage (manual review reports, DB-backed). */
+
+    /** Upsert a review report by id, one per extension. */
+    setReport(report: {
+        id: string;
+        extensionId: string;
+        payload: string;
+        createdAt: string;
+        updatedAt: string;
+    }): void {
+        this.db
+            .prepare(
+                `INSERT INTO reports (id, extension_id, payload, created_at, updated_at)
+                 VALUES (@id, @extensionId, @payload, @createdAt, @updatedAt)
+                 ON CONFLICT(id) DO UPDATE SET
+                   payload = excluded.payload, updated_at = excluded.updated_at`,
+            )
+            .run(report);
+    }
+
+    /** Read a review report by extension id, or null when absent. */
+    getReport(extensionId: string): {
+        id: string;
+        payload: string;
+        createdAt: string;
+        updatedAt: string;
+    } | null {
+        const row = this.db
+            .prepare("SELECT id, payload, created_at, updated_at FROM reports WHERE extension_id = ?")
+            .get(extensionId) as
+            | { id: string; payload: string; created_at: string; updated_at: string }
+            | undefined;
+        if (!row) return null;
+        return { id: row.id, payload: row.payload, createdAt: row.created_at, updatedAt: row.updated_at };
     }
 
     getRun(id: string): RunRow | null {
