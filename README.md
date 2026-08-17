@@ -31,6 +31,29 @@ node dist/cli.js /path/to/mv2-extension --out ./run
 # → ./run/out (migrated extension), ./run/report.json
 ```
 
+### Migrate a single extension or a whole corpus
+
+The CLI auto-detects the input shape. Point it at a single MV2 extension dir
+or at a folder whose subdirectories each contain an MV2 `manifest.json`; it
+migrates every extension into one output root. A single extension writes into
+the output root directly; a corpus writes one subfolder per extension.
+
+```sh
+npx tsx src/cli.ts /path/to/mv2-extension --out ./run
+# → ./run/out (migrated extension), ./run/report.json
+
+npx tsx src/cli.ts ./corpus --out ./mv3-output
+# → ./mv3-output/<id>/out  (migrated MV3 tree, one per extension)
+# → ./mv3-output/<id>/report.json
+```
+
+A target whose run already finished (`report.json` passed) is skipped, so a
+corpus re-run resumes where it left off. When started under the extlens
+controller (one-shot child) the same code path handles both shapes.
+
+Testing: `npm test` runs the registry and batch tests with no Docker or LLM
+needed.
+
 Model via env (`LLM_MODEL`, `LLM_BASE_URL`), pi custom OpenAI-completions
 provider. Default `ollama/gemma4:31b-cloud` over `host.docker.internal:11434`; any
 OpenAI-compatible endpoint works, e.g. GWDG SAIA: `saia/gemma-4-31b-it` over
