@@ -4,7 +4,7 @@
  *
  * Two entry points:
  * - `migrate --extlens-port <port>` (see cli.ts) serves the run it just wrote.
- * - Standalone: `tsx src/extlens/index.ts [--port 8081] [--run ./run] [--source-dir <corpus>]`
+ * - Standalone: `tsx src/extlens/index.ts [--port 8081] [--host 0.0.0.0] [--run ./run] [--source-dir <corpus>]`
  *   serves a pre-populated run directory without re-running a migration.
  */
 import { fileURLToPath } from "node:url";
@@ -15,19 +15,20 @@ import { MigratorController } from "./migrator.js";
 import { Registry } from "./registry.js";
 import logger from "../logger.js";
 
-export function startExtlensServer(opts: { port?: number; runDir?: string; sourceDir?: string; extraSource?: string } = {}) {
+export function startExtlensServer(opts: { port?: number; host?: string; runDir?: string; sourceDir?: string; extraSource?: string } = {}) {
     const runDir = opts.runDir ?? process.env.EXLENS_RUN_DIR ?? "./run";
     const sourceDir = opts.sourceDir ?? process.env.EXLENS_SOURCE_DIR ?? null;
     const port = opts.port ?? Number(process.env.EXLENS_PORT ?? 8081);
+    const bindHost = opts.host ?? process.env.EXLENS_HOST;
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
     const sources = collectSources(sourceDir, opts.extraSource ?? null);
     const registry = new Registry(runDir);
     registry.syncSources(sources);
     registry.seedRunsFromDisk();
     const host = new MigratorController({ runRoot: runDir, sources, cwd: repoRoot }, registry);
-    const server = createExtlensServer({ port, backend: makeAgenticBackend(runDir, registry, host) });
+    const server = createExtlensServer({ port, host: bindHost, backend: makeAgenticBackend(runDir, registry, host) });
     const srcs = sources.length ? `, ${sources.length} source(s)` : "";
-    logger.info(`extlens server on ws://localhost:${server.port} (run dir ${runDir}${srcs})`, { module: "extlens" });
+    logger.info(`extlens server on ws://${bindHost ?? "0.0.0.0"}:${server.port} (run dir ${runDir}${srcs})`, { module: "extlens" });
     // Close also aborts any host.start migration the client triggered.
     return {
         get port(): number {
@@ -49,10 +50,12 @@ if (isMain) {
         return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : undefined;
     };
     const portArg = arg("--port");
+    const hostArg = arg("--host");
     const runArg = arg("--run");
     const sourceArg = arg("--source-dir");
     const server = startExtlensServer({
         ...(portArg !== undefined ? { port: Number(portArg) } : {}),
+        ...(hostArg !== undefined ? { host: hostArg } : {}),
         ...(runArg !== undefined ? { runDir: runArg } : {}),
         ...(sourceArg !== undefined ? { sourceDir: sourceArg } : {}),
     });
