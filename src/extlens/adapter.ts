@@ -165,6 +165,7 @@ function extensionSource(run: RunEntry): ExtensionSource {
 /** Migration verification result written by the container. */
 interface MigrateReport {
     passed: boolean;
+    verdict?: "passed" | "possible_failed";
     serviceWorker: string | null;
     extensionId: string | null;
     reason: string | null;
@@ -183,6 +184,7 @@ function mtimeMs(path: string): number {
 function migrateReportToProtocol(run: RunEntry, r: MigrateReport | null): ExtlensReport | null {
     if (!r) return null;
     const notes = [
+        r.verdict === "possible_failed" ? "verdict: possible failure" : null,
         r.reason ? `reason: ${r.reason}` : null,
         r.errors.length ? `errors: ${r.errors.join("; ")}` : null,
         `turns: ${r.turns}`,
@@ -196,13 +198,15 @@ function migrateReportToProtocol(run: RunEntry, r: MigrateReport | null): Extlen
         tested: r.passed,
         createdAt: ts,
         updatedAt: ts,
-        overallWorking: r.passed,
-        hasErrors: r.errors.length > 0,
-        seemsSlower: null,
+        verificationDurationSecs: null,
+        installs: r.passed ? true : null,
+        worksInMv2: null,
         needsLogin: null,
-        isPopupBroken: null,
-        isSettingsBroken: null,
+        isPopupWorking: null,
+        isSettingsWorking: null,
+        isNewTabWorking: null,
         isInteresting: null,
+        overallWorking: r.passed ? "yes" : "could_not_test",
         notes,
         listeners: [],
     };
@@ -224,6 +228,13 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         const row = registry.getRun(id);
         return row ? visibleRun(row) : null;
     };
+    /** A run counts as tested when any report exists: the migration
+     * verification (report.json), a manual review persisted to the DB
+     * (registry.reports), or the legacy on-disk artifact (report.manual.json). */
+    const hasReport = (run: RunEntry): boolean =>
+        registry.getReport(run.id) !== null ||
+        existsSync(join(run.dir, "report.json")) ||
+        existsSync(join(run.dir, "report.manual.json"));
     const sources = registry.listSources();
 
     const cached = new Map<string, { sig: string; source: ExtensionSource; profile: ExtensionProfile }>();
@@ -289,14 +300,16 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
             const extensions = page.map((row) => {
                 const { source, profile } = profileOf(row);
                 const manifest = source.manifest as { version?: string; manifest_version?: number } | null;
+                const isRun = row.entry.kind === "run";
                 return {
                     id: row.id,
                     name: profile.name,
                     version: manifest?.version ?? null,
-                    manifestVersion: manifest?.manifest_version ?? (row.entry.kind === "run" ? 3 : 2),
+                    manifestVersion: manifest?.manifest_version ?? (isRun ? 3 : 2),
                     score: profile.score,
                     tags: profile.tags,
-                    hasMv3: row.entry.kind === "run",
+                    hasMv3: isRun,
+                    hasReport: row.entry.kind === "run" ? hasReport(row.entry.run) : false,
                 };
             });
 

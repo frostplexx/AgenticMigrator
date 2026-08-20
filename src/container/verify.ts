@@ -21,6 +21,7 @@ export interface VerifyReport {
 
 const LAUNCH_TIMEOUT_MS = 15000; // healthy load is ~2-3s; a hung modal is capped here
 const LOG_FILE = "/tmp/chrome-verify.log";
+const MAX_LAUNCH_ATTEMPTS = Number(process.env.VERIFY_ATTEMPTS ?? 2);
 
 function readLoadErrors(): string[] {
     try {
@@ -36,9 +37,8 @@ function readLoadErrors(): string[] {
     }
 }
 
-export async function verify(extDir: string, swTimeoutMs = 12000): Promise<VerifyReport> {
+async function launchOnce(extDir: string, swTimeoutMs: number): Promise<VerifyReport> {
     const userDataDir = mkdtempSync(join(tmpdir(), "cft-profile-"));
-    rmSync(LOG_FILE, { force: true });
     const errors: string[] = [];
     let context;
     try {
@@ -95,4 +95,23 @@ export async function verify(extDir: string, swTimeoutMs = 12000): Promise<Verif
             errors: [...errors, ...loadErrs],
         };
     }
+}
+
+export async function verify(extDir: string, swTimeoutMs = 12000): Promise<VerifyReport> {
+    let last: VerifyReport = { passed: false, reason: "verify did not run", errors: [] };
+    for (let attempt = 1; attempt <= MAX_LAUNCH_ATTEMPTS; attempt++) {
+        // Clear per attempt so a stale line from a prior launch cannot mask
+        // whether THIS launch produced an actionable error.
+        rmSync(LOG_FILE, { force: true });
+        last = await launchOnce(extDir, swTimeoutMs);
+        if (last.passed) return last;
+        // A hung launch (timeout) with no actionable Chrome log line is the only
+        // transient case worth retrying; deterministic load errors (bad
+        // manifest/rules/CSP) carry a log line and return immediately.
+        const hungWithoutReason =
+            /Chrome rejected the extension at load time/.test(last.reason ?? "") &&
+            last.errors.length === 0;
+        if (!hungWithoutReason) return last;
+    }
+    return last;
 }

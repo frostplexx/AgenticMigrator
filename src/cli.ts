@@ -20,6 +20,7 @@ import { dirname, join, relative, basename } from "node:path";
 import { SecretSpec, SecretSpecError } from "secretspec";
 import { StaticAnalyzer, buildAnalysis } from "./host/staticAnalyzer.js";
 import { convert } from "./host/convert.js";
+import { classifyRun, readRunReport } from "./host/runReport.js";
 import logger from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -68,6 +69,55 @@ async function resolveApiKey(): Promise<void> {
         process.exit(1);
     }
     process.env.LLM_API_KEY = value;
+}
+
+/**
+ * Validate the LLM API key before doing any work. Resolves the key (env or
+ * secretspec), then posts a minimal chat-completion to the configured backend
+ * to confirm the key is accepted. Exits with a clear error on failure so mis-keys
+ * are caught on first boot rather than deep in a migration.
+ */
+async function validateApiKey(): Promise<void> {
+    await resolveApiKey();
+    const key = process.env.LLM_API_KEY;
+    const model = process.env.LLM_MODEL ?? "ollama/gemma4:31b-cloud";
+    // Strip any provider/ prefix (saia/... or ollama/...) to get the model id
+    // the API expects, matching src/container/model.ts.
+    const id = model.includes("/") ? model.slice(model.indexOf("/") + 1) : model;
+    let base = (process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434").replace(/\/+$/, "");
+    if (!/\/v1$/.test(base)) base += "/v1";
+    const url = `${base}/chat/completions`;
+    logger.info(`validating LLM API key against ${url} (${id})...`, { module: "cli" });
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${key}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model: id,
+                messages: [{ role: "user", content: "ping" }],
+                temperature: 0,
+                max_tokens: 1,
+            }),
+        });
+        if (!res.ok) {
+            const detail = (await res.text().catch(() => "")).slice(0, 300);
+            logger.error(
+                `LLM API key validation failed (HTTP ${res.status}): ${detail || "request rejected"}`, { module: "cli" }
+            );
+            process.exit(1);
+        }
+        await res.json().catch(() => undefined);
+        logger.success("LLM API key is valid", { module: "cli" });
+    } catch (e) {
+        logger.error(
+            `LLM API key validation failed: ${e instanceof Error ? e.message : String(e)}`, { module: "cli" }
+        );
+        process.exit(1);
+    }
 }
 
 function arg(flag: string, def: string): string {
@@ -166,6 +216,8 @@ async function main() {
         logger.info("  <extension-dir>     single extension or a corpus of extensions to migrate");
         process.exit(0);
     }
+    // Validate the LLM key on first boot, before starting the server or any run.
+    await validateApiKey();
     const args = process.argv.slice(2);
     const valueFlags = new Set(["--out", "--port", "--extlens-port", "--source-dir"]);
     const extInput = args.find((a, i) => !a.startsWith("--") && a !== "-h" && !(i > 0 && valueFlags.has(args[i - 1])));
@@ -223,11 +275,12 @@ async function main() {
         process.exit(64);
     }
 
-    // Resolve the LLM key and build/verify the Docker image once for all jobs.
-    await resolveApiKey();
+    // Build/verify the Docker image once for all jobs. The LLM key was already
+    // resolved and validated at boot (validateApiKey).
     if (!process.env.MIGRATOR_IMAGE) ensureImage();
 
     let migrated = 0;
+    let possible = 0;
     let failed = 0;
     for (const target of targets) {
         // A single positional extension keeps the legacy flat layout
@@ -242,26 +295,27 @@ async function main() {
         }
         logger.info(`migrating ${target.id} (${target.dir})`, { module: "cli" });
         const code = await migrateOne(target.dir, jobDir);
-        if (code === 0) migrated += 1;
-        else {
+        const outcome = classifyRun(jobDir, code);
+        if (outcome === "migrated") {
+            migrated += 1;
+        } else if (outcome === "possible_failure") {
+            possible += 1;
+            logger.warn(
+                `extension ${target.id}: possible failure — Chrome could not load the migration; continuing`,
+                { module: "cli" },
+            );
+        } else {
             failed += 1;
             logger.error(`extension ${target.id} failed (exit ${code})`, { module: "cli" });
         }
     }
-    logger.info(`migration complete: ${migrated} migrated, ${failed} failed`, { module: "cli" });
+    logger.info(`migration complete: ${migrated} migrated, ${possible} possible failure(s), ${failed} failed`, { module: "cli" });
     process.exit(failed ? 1 : 0);
 }
 
 /** True when a job dir already holds a successful migration report. */
 function isMigrated(jobDir: string): boolean {
-    const reportPath = join(jobDir, "report.json");
-    if (!existsSync(reportPath)) return false;
-    try {
-        const r = JSON.parse(readFileSync(reportPath, "utf8")) as { passed?: boolean };
-        return r.passed === true;
-    } catch {
-        return false;
-    }
+    return readRunReport(jobDir)?.passed === true;
 }
 
 /**
@@ -310,7 +364,7 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
         "-e", `LLM_MODEL=${process.env.LLM_MODEL ?? "ollama/gemma4:31b-cloud"}`,
         "-e", `LLM_BASE_URL=${process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434"}`,
         "-e", `LLM_NUM_CTX=${process.env.LLM_NUM_CTX ?? "65536"}`,
-        "-e", `MAX_FIX_ATTEMPTS=${process.env.MAX_FIX_ATTEMPTS ?? "3"}`,
+        "-e", `MAX_FIX_ATTEMPTS=${process.env.MAX_FIX_ATTEMPTS ?? "6"}`,
         "-e", `LLM_THINKING=${process.env.LLM_THINKING ?? "off"}`,
         "-e", `LOG_FILE=/work/run/migrate.jsonl`,
         ...(process.env.ENABLE_VNC === "1" ? [
@@ -336,7 +390,7 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
         if (r.passed) {
           logger.success(`Migrated extension in ${join(runDir, "out")}`, { module: "cli" });
         } else {
-          logger.error(`Failed to migrate extension in ${join(runDir, "out")}`, { module: "cli" });
+          logger.warn(`Possible failure migrating extension in ${join(runDir, "out")}`, { module: "cli" });
         }
         if (r.serviceWorker) logger.info(`service worker: ${r.serviceWorker}`, { module: "cli" });
         if (!r.passed && r.reason) logger.warn(`reason: ${r.reason}`, { module: "cli" });

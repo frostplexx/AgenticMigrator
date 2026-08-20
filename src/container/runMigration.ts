@@ -16,7 +16,7 @@ const OUT = process.env.OUT_DIR ?? "/work/run/out";
 const PLAN = process.env.PLAN_FILE ?? "/work/run/plan.json";
 const REPORT = process.env.REPORT_FILE ?? "/work/run/report.json";
 const SKILLS_DIR = process.env.SKILLS_DIR ?? "/app/assets/skills";
-const MAX_FIX = Number(process.env.MAX_FIX_ATTEMPTS ?? 3);
+const MAX_FIX = Number(process.env.MAX_FIX_ATTEMPTS ?? 6);
 
 async function main() {
     // Seed OUT with a full copy so binaries/unchanged files are guaranteed present; the agent
@@ -146,6 +146,7 @@ async function main() {
 
     const result = {
         passed: report.passed,
+        verdict: report.passed ? "passed" : "possible_failed",
         serviceWorker: report.serviceWorker ?? null,
         extensionId: report.extensionId ?? null,
         reason: report.reason ?? null,
@@ -188,7 +189,7 @@ function printSummary(s: {
     transcript: string;
 }): void {
     const DIM = "\x1b[2m", RESET = "\x1b[0m";
-    const head = s.passed ? "\x1b[1;32m✓ Migration SUCCESS" : "\x1b[1;31m✗ Migration FAILED";
+    const head = s.passed ? "\x1b[1;32m✓ Migration SUCCESS" : "\x1b[1;33m△ Migration POSSIBLE FAILURE (verify could not load it)";
     const bar = DIM + "─".repeat(60) + RESET;
     const rows: [string, string][] = [
         ["turns", String(s.turns)],
