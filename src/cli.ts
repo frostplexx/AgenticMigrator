@@ -88,35 +88,47 @@ async function validateApiKey(): Promise<void> {
     if (!/\/v1$/.test(base)) base += "/v1";
     const url = `${base}/chat/completions`;
     logger.info(`validating LLM API key against ${url} (${id})...`, { module: "cli" });
-    try {
-        const res = await fetch(url, {
-            method: "POST",
-            headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${key}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                model: id,
-                messages: [{ role: "user", content: "ping" }],
-                temperature: 0,
-                max_tokens: 1,
-            }),
-        });
-        if (!res.ok) {
-            const detail = (await res.text().catch(() => "")).slice(0, 300);
-            logger.error(
-                `LLM API key validation failed (HTTP ${res.status}): ${detail || "request rejected"}`, { module: "cli" }
-            );
-            process.exit(1);
+    // The endpoint can fail transiently (vllm boot/load races, 5xx blips).
+    // Retry a few times, then degrade to a warning: serving runs does not need
+    // the LLM, so a flaky endpoint must not take the server down. Migrations
+    // surface a bad key at run time instead.
+    const attempts = 3;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            const res = await fetch(url, {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${key}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    model: id,
+                    messages: [{ role: "user", content: "ping" }],
+                    temperature: 0,
+                    max_tokens: 1,
+                }),
+            });
+            if (!res.ok) {
+                const detail = (await res.text().catch(() => "")).slice(0, 300);
+                throw new Error(`HTTP ${res.status}: ${detail || "request rejected"}`);
+            }
+            await res.json().catch(() => undefined);
+            logger.success("LLM API key is valid", { module: "cli" });
+            return;
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (attempt < attempts) {
+                logger.warn(
+                    `LLM API key validation failed (${msg}); retrying ${attempt}/${attempts}...`, { module: "cli" }
+                );
+                await new Promise((r) => setTimeout(r, 3000));
+            } else {
+                logger.warn(
+                    `LLM API key validation failed (${msg}); continuing without the LLM check`, { module: "cli" }
+                );
+            }
         }
-        await res.json().catch(() => undefined);
-        logger.success("LLM API key is valid", { module: "cli" });
-    } catch (e) {
-        logger.error(
-            `LLM API key validation failed: ${e instanceof Error ? e.message : String(e)}`, { module: "cli" }
-        );
-        process.exit(1);
     }
 }
 
