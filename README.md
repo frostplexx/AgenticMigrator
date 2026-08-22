@@ -61,25 +61,14 @@ OpenAI-compatible endpoint works, e.g. GWDG SAIA: `saia/gemma-4-31b-it` over
 `LLM_API_KEY` is resolved from secretspec (1Password vault `DevVault`, see `secretspec.toml`)
 when not already exported: `secretspec set LLM_API_KEY` stores it.
 
-### Editing directly vs. parallel sub-agents
+### Single agent
 
-The main session has **both** capabilities and decides per change:
-
-- **Edit directly** with its `edit`/`write` tools for small, localized changes (a manifest
-  tweak, a one-line API swap, a short file).
-- **Delegate to `extension_transformer`** for bigger work — a substantial file rewrite (service
-  worker using DOM/window, blocking `webRequest` → `declarativeNetRequest`) or several
-  independent files at once. Each task spawns a **nested** coding sub-session, one per file,
-  all running **in parallel** (`subagent.ts`); two tasks never touch the same file.
-
-The prompt tells it to prefer the parallel sub-agents whenever the work is large or spans
-multiple files. Each session announces itself in the logs:
+One main agent handles the whole migration. It edits every file itself with its
+`edit`/`write` tools — there are no nested sub-agents or delegation. The run logs:
 
 ```sh
 node dist/cli.js /path/to/mv2-extension --out ./run
-# [migrate]  session: main (edit + parallel subagents)
-# [subagent] session: transformer[0] → service_worker.js
-# [subagent] transformer[0] ✓ service_worker.js — 9 turn(s), 1m 34s
+# [migrate]  session: main (single agent, direct edits)
 # [migrate]  verify #1: PASS
 ```
 

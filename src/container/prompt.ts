@@ -1,6 +1,6 @@
 // Build the migration prompt. Port of src/utils/prompt_generator.py, adapted for pi's
 // single-session model: pi edits files directly with its read/edit/write tools, so there is
-// no orchestrator/subagent split — the agent IS the transformer. The mv3-migration skill is
+// no orchestrator split — the agent IS the transformer. The mv3-migration skill is
 // inlined (short) so a weak local model reliably sees the reference.
 import type { Finding, Signal } from "../host/staticAnalyzer.js";
 import { CATEGORIES } from "../host/staticAnalyzer.js";
@@ -30,27 +30,17 @@ export function buildPrompt(opts: {
     }
 
     const howToWork = `## How to work
-Every original file has ALREADY been copied to \`${outDir}\`. You have two ways to change files
-and should pick based on the SIZE of the work:
-
-- **Edit directly** with your \`edit\`/\`write\` tools for small, localized changes — a manifest
-  tweak, a one-line API swap, a single short file.
-- **Delegate to \`extension_transformer\`** for bigger work — a substantial file rewrite (e.g. a
-  service worker that used the DOM/window, or blocking \`webRequest\` → \`declarativeNetRequest\`),
-  or when several independent files need changes. Pass a \`tasks\` array with one entry PER FILE;
-  the sub-agents run IN PARALLEL. Give each task its own \`files\` list and a precise \`task\`.
-  Two tasks must NEVER list the same file. **Prefer this whenever the work is large or spans
-  multiple files** — it is faster and keeps each change focused.
-  IMPORTANT: put ALL independent files that need delegating into ONE \`extension_transformer\`
-  call (one \`tasks\` entry each) so they run at the same time — do NOT make a separate call per
-  file, which would run them one after another and waste the parallelism.
+Every original file has ALREADY been copied to \`${outDir}\`. You are the ONLY agent — there are
+no sub-agents to delegate to. Do all edits yourself, file by file, with your \`edit\`/\`write\`
+tools. For big work (a service worker that used the DOM/window, blocking \`webRequest\` →
+\`declarativeNetRequest\`, or several files) work through the files one at a time rather than
+skipping them.
 
 Steps:
 1. \`ls\` \`${outDir}\` and read manifest.json plus the flagged files below.
-2. Make the MV3 changes: edit small stuff yourself; delegate big rewrites / multiple files to
-   \`extension_transformer\` as a parallel batch. Apply the deprecated-API replacements below and
-   every other MV2->MV3 change (manifest_version, service_worker, action, host_permissions,
-   declarativeNetRequest — see reference).
+2. Make every MV3 change with your own \`edit\`/\`write\` tools: apply the deprecated-API
+   replacements below and every other MV2->MV3 change (manifest_version, service_worker,
+   action, host_permissions, declarativeNetRequest — see reference).
 3. Create new files where required (e.g. \`${outDir}/rules.json\` for declarativeNetRequest).
 4. Confirm \`${outDir}/manifest.json\` has "manifest_version": 3.
 
@@ -87,8 +77,8 @@ ${formatSignals(signals)}
 ${skillMd}
 
 ## Response style
-Terse. Technical. Edit small things yourself; delegate big/multi-file work to a parallel
-\`extension_transformer\` batch. Don't narrate at length. Code unchanged.`;
+Terse. Technical. Edit each file yourself with your own tools; there are no sub-agents.
+Don't narrate at length. Code unchanged.`;
 }
 
 function formatFindings(findings: Finding[]): string {

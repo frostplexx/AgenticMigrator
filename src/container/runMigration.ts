@@ -1,14 +1,13 @@
 // In-container entrypoint: drive the pi agent to migrate the extension, then verify in a
 // headed browser and feed failures back for a bounded fix loop. Writes the migrated tree to
 // /work/out and a report to /work/report.json. This is the pi/TS replacement for the
-// OpenHands orchestrator + subagent + nudge/test-fix loops in src/manager.py.
+// OpenHands orchestrator + nudge/test-fix loops in src/manager.py.
 import { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import logger, { ensureFileTransport, formatDuration } from "../logger.js";
 import { resolveModel } from "./model.js";
 import { buildPrompt } from "./prompt.js";
-import { makeTransformerTool } from "./subagent.js";
 import { verify, type VerifyReport } from "./verify.js";
 
 const EXT = process.env.EXTENSION_DIR ?? "/work/extension";
@@ -65,11 +64,7 @@ async function main() {
         compaction: { enabled: true },
     });
 
-    // The main session can BOTH edit files directly and delegate to parallel transformer
-    // sub-agents (extension_transformer). The prompt tells it to edit small changes itself and
-    // prefer the parallel sub-agents for bigger rewrites / multiple files.
-    const customTools = [makeTransformerTool({ model, modelRegistry, authStorage, settingsManager, cwd: "/work" })];
-    const tools = ["read", "bash", "edit", "write", "ls", "grep", "find", "extension_transformer"];
+    const tools = ["read", "bash", "edit", "write", "ls", "grep", "find"];
 
     const { session } = await createAgentSession({
         cwd: "/work",
@@ -80,9 +75,8 @@ async function main() {
         model,
         resourceLoader,
         tools,
-        customTools,
     });
-    logger.info("session: main (edit + parallel subagents)", { module: "migrate" });
+    logger.info("session: main (single agent, direct edits)", { module: "migrate" });
 
     // Thinking/reasoning level.
     const thinkLevel = process.env.LLM_THINKING ?? "off";
