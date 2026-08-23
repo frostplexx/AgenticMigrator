@@ -4,7 +4,8 @@
  * analysis (analysis.json), the migration verification result (report.json),
  * and the recorded source path (source-path.txt). The adapter serves the
  * migrated output through the SDK's default analysis flow (computeProfile over
- * the on-disk tree) and maps report.json to the protocol Report.
+ * the on-disk tree). Reports are manual reviews only: the agent's automated
+ * migration result (report.json) does not count as a verified extension.
  *
  * Run layout: the run root may be a single run (contains out/) or a directory
  * of runs (each subdirectory with out/ is one run). Extension ids are the run
@@ -162,54 +163,12 @@ function extensionSource(run: RunEntry): ExtensionSource {
     return { id: run.id, manifest, files: readTree(dir) };
 }
 
-/** Migration verification result written by the container. */
-interface MigrateReport {
-    passed: boolean;
-    verdict?: "passed" | "possible_failed";
-    serviceWorker: string | null;
-    extensionId: string | null;
-    reason: string | null;
-    errors: string[];
-    turns: number;
-}
-
 function mtimeMs(path: string): number {
     try {
         return statSync(path).mtimeMs;
     } catch {
         return Date.now();
     }
-}
-
-function migrateReportToProtocol(run: RunEntry, r: MigrateReport | null): ExtlensReport | null {
-    if (!r) return null;
-    const notes = [
-        r.verdict === "possible_failed" ? "verdict: possible failure" : null,
-        r.reason ? `reason: ${r.reason}` : null,
-        r.errors.length ? `errors: ${r.errors.join("; ")}` : null,
-        `turns: ${r.turns}`,
-    ]
-        .filter((x): x is string => x !== null)
-        .join("\n");
-    const ts = new Date(mtimeMs(join(run.dir, "report.json"))).toISOString();
-    return {
-        id: run.id,
-        extensionId: r.extensionId ?? run.id,
-        tested: r.passed,
-        createdAt: ts,
-        updatedAt: ts,
-        verificationDurationSecs: null,
-        installs: r.passed ? true : null,
-        worksInMv2: null,
-        needsLogin: null,
-        isPopupWorking: null,
-        isSettingsWorking: null,
-        isNewTabWorking: null,
-        isInteresting: null,
-        overallWorking: r.passed ? "yes" : "could_not_test",
-        notes,
-        listeners: [],
-    };
 }
 
 export function makeAgenticBackend(runRoot: string, registry: Registry, host?: HostController): Backend {
@@ -228,12 +187,12 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         const row = registry.getRun(id);
         return row ? visibleRun(row) : null;
     };
-    /** A run counts as tested when any report exists: the migration
-     * verification (report.json), a manual review persisted to the DB
-     * (registry.reports), or the legacy on-disk artifact (report.manual.json). */
+    /** A run counts as verified when a human reviewed it. The agent's
+     * automated migration-verification (report.json) is not a review, so it
+     * does not count. Only a manual review does: the DB reports table or the
+     * legacy on-disk artifact (report.manual.json). */
     const hasReport = (run: RunEntry): boolean =>
         registry.getReport(run.id) !== null ||
-        existsSync(join(run.dir, "report.json")) ||
         existsSync(join(run.dir, "report.manual.json"));
     const sources = registry.listSources();
 
@@ -365,13 +324,11 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         async getReport(extensionId: string) {
             const run = runById(extensionId);
             if (!run) return null; // unmigrated sources have no report
-            // DB-backed manual report first, then the legacy on-disk file,
-            // then the migration verification report.
+            // Manual reviews only. The agent's automated migration result
+            // (report.json) is not a human review and is not exposed as a report.
             const row = registry.getReport(extensionId);
             if (row) return JSON.parse(row.payload) as ExtlensReport;
-            const manual = readJson(join(run.dir, "report.manual.json")) as ExtlensReport | null;
-            if (manual) return manual;
-            return migrateReportToProtocol(run, readJson(join(run.dir, "report.json")) as MigrateReport | null);
+            return readJson(join(run.dir, "report.manual.json")) as ExtlensReport | null;
         },
 
         async submitReport(report: ReportDraft) {
