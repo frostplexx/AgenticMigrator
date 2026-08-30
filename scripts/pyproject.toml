@@ -1,0 +1,6 @@
+[project]
+name = "render-transcript"
+version = "0.1.0"
+description = "Render a pi transcript.jsonl file as readable plain text."
+requires-python = ">=3.10"
+dependencies = ["tiktoken"]
