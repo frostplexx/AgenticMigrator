@@ -208,6 +208,27 @@ function ensureImage(): void {
 }
 
 /**
+ * Refuse to start when the vendored extension-manifest-converter submodule is missing.
+ * A fresh `git clone` does not fetch submodules, so third_party/extension-manifest-converter
+ * stays empty until `git submodule update --init --recursive` runs. Converting MV2
+ * manifests requires it; same resolution as convert.ts (EMC_DIR override, else vendored).
+ */
+function ensureConverter(): void {
+    const emcDir =
+        process.env.EMC_DIR ?? join(PROJ, "third_party", "extension-manifest-converter");
+    if (existsSync(join(emcDir, "emc.py"))) return;
+    logger.error(
+        `extension-manifest-converter not found at ${emcDir}; the pipeline converts MV2 manifests with it`,
+        { module: "cli" },
+    );
+    logger.error(
+        "initialize the submodule: git submodule update --init --recursive",
+        { module: "cli" },
+    );
+    process.exit(1);
+}
+
+/**
  * Resolve migration targets for the CLI. A positional extension dir and a
  * --source-dir are combined via collectSources (single extension or corpus of
  * extensions). When a positional dir is itself a corpus (its subdirectories
@@ -228,6 +249,8 @@ async function main() {
         logger.info("  <extension-dir>     single extension or a corpus of extensions to migrate");
         process.exit(0);
     }
+    // Refuse to boot without the vendored MV2->MV3 converter (git submodule).
+    ensureConverter();
     // Validate the LLM key on first boot, before starting the server or any run.
     await validateApiKey();
     const args = process.argv.slice(2);
