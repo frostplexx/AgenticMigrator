@@ -26,7 +26,7 @@
     "better-sqlite3": "^13.0.3",
     "extlens-sdk": "file:../extlens/packages/host-sdk",
     "tsx": "^4.23.0",
-    "typescript": "5.7.2"
+    "typescript": "5.9.3"
   },
   "overrides": {
     "@extlens/analyzer": "file:../extlens/packages/analyzer",
