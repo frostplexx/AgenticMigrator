@@ -48,7 +48,7 @@ export function resolveModel(): ResolvedModel {
                 maxTokens: Number(process.env.LLM_MAX_TOKENS ?? 8192),
                 // Send max_tokens, not max_completion_tokens: pi's heuristic picks the
                 // latter for unknown providers, but SAIA and Ollama document the former.
-                compat: { maxTokensField: "max_tokens" },
+                compat: { maxTokensField: "max_tokens", supportsDeveloperRole: false },
             },
         ],
     });
