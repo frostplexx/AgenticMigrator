@@ -54,7 +54,7 @@ async function main() {
     const skillMdPath = join(SKILLS_DIR, "mv3-migration", "SKILL.md");
     const skillMd = existsSync(skillMdPath) ? readFileSync(skillMdPath, "utf8") : "(mv3-migration skill unavailable)";
 
-    const { model, modelRegistry, authStorage } = resolveModel();
+    const { model, modelRuntime } = await resolveModel();
     logger.info("model: " + model.id, { module: "migrate" });
 
     const settingsManager = SettingsManager.inMemory({
@@ -70,8 +70,7 @@ async function main() {
         cwd: "/work",
         sessionManager: SessionManager.inMemory("/work"),
         settingsManager,
-        authStorage,
-        modelRegistry,
+        modelRuntime,
         model,
         resourceLoader,
         tools,

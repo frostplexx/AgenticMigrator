@@ -5,17 +5,16 @@
 // LLM_MODEL forms:
 //   ollama/<id>   -> OpenAI-compatible endpoint at LLM_BASE_URL (default host.docker.internal:11434)
 //   openai/<id>   -> generic OpenAI-compatible endpoint at LLM_BASE_URL, key from LLM_API_KEY
-import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 
 export interface ResolvedModel {
     model: any;
-    modelRegistry: any;
-    authStorage: any;
+    modelRuntime: ModelRuntime;
     provider: string;
     id: string;
 }
 
-export function resolveModel(): ResolvedModel {
+export async function resolveModel(): Promise<ResolvedModel> {
     const spec = process.env.LLM_MODEL;
     if (spec === undefined) throw new Error("LLM_MODEL environment variable is required");
     const slash = spec.indexOf("/");
@@ -29,9 +28,8 @@ export function resolveModel(): ResolvedModel {
 
     const apiKey = process.env.LLM_API_KEY || (provider === "ollama" ? "ollama" : "");
 
-    const authStorage = AuthStorage.create();
-    const modelRegistry = ModelRegistry.create(authStorage);
-    modelRegistry.registerProvider(provider, {
+    const modelRuntime = await ModelRuntime.create({ refreshOnCreate: false });
+    modelRuntime.registerProvider(provider, {
         name: provider,
         baseUrl: base,
         apiKey: apiKey || "unused",
@@ -49,11 +47,17 @@ export function resolveModel(): ResolvedModel {
                 // Send max_tokens, not max_completion_tokens: pi's heuristic picks the
                 // latter for unknown providers, but SAIA and Ollama document the former.
                 compat: { maxTokensField: "max_tokens", supportsDeveloperRole: false },
+                // SAIA (qwen3.5/gemma) and Ollama accept these sampling params verbatim.
+                samplingParams: {
+                    temperature: Number(process.env.LLM_TEMPERATURE ?? 1),
+                    top_p: Number(process.env.LLM_TOP_P ?? 0.95),
+                    top_k: Number(process.env.LLM_TOP_K ?? 20),
+                },
             },
         ],
     });
 
-    const model = modelRegistry.find(provider, id);
+    const model = modelRuntime.getModel(provider, id);
     if (!model) throw new Error(`could not resolve model ${provider}/${id}`);
-    return { model, modelRegistry, authStorage, provider, id };
+    return { model, modelRuntime, provider, id };
 }
