@@ -22,7 +22,7 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
-    "@types/node": "22.10.2",
+    "@types/node": "22.20.1",
     "better-sqlite3": "^13.0.3",
     "extlens-sdk": "file:../extlens/packages/host-sdk",
     "tsx": "^4.23.0",
