@@ -21,6 +21,7 @@ import { SecretSpec, SecretSpecError } from "secretspec";
 import { StaticAnalyzer, buildAnalysis } from "./host/staticAnalyzer.js";
 import { convert, emcDir } from "./host/convert.js";
 import { classifyRun, readRunReport } from "./host/runReport.js";
+import { hashDir } from "./host/hashDir.js";
 import logger from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -154,24 +155,6 @@ function latestMtime(p: string): number {
 }
 
 /** Recursively hash a directory's contents (sorted paths). */
-function hashDir(dir: string): string {
-    const entries: string[] = [];
-    function walk(d: string) {
-        for (const entry of readdirSync(d)) {
-            const p = join(d, entry);
-            if (statSync(p).isDirectory()) walk(p);
-            else entries.push(relative(dir, p));
-        }
-    }
-    walk(dir);
-    entries.sort();
-    const h = createHash("sha256");
-    for (const e of entries) {
-        h.update(e);
-        h.update(readFileSync(join(dir, e)));
-    }
-    return h.digest("hex").slice(0, 16);
-}
 
 /** Ensure dist/ is compiled and Docker image is built & tagged. */
 function ensureImage(): void {
@@ -188,7 +171,11 @@ function ensureImage(): void {
 
     const h = createHash("sha256");
     for (const f of inputFiles) h.update(readFileSync(join(PROJ, f)));
+    // Hash EVERY directory the Dockerfile copies. assets/ holds the mv3-* migration skills the
+    // in-container agent reads; leaving it out meant editing a skill produced the same tag, so
+    // `docker image inspect` hit and the run silently used the previous skills.
     h.update(hashDir(join(PROJ, "dist")));
+    h.update(hashDir(join(PROJ, "assets")));
     const tag = `agentic-migrator-ts:build-${h.digest("hex").slice(0, 12)}`;
 
     // 3. If image already exists, use it & skip build.

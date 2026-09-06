@@ -113,9 +113,12 @@ export class MigratorController implements HostController {
             };
         }
         if (child.exitCode !== null) {
-            // Exited between polls; finalize now.
+            // Exited between polls; finalize now. finalize() leaves `last` null when it starts
+            // the next queued source instead of ending the job, so fall through to the live
+            // status of that new child rather than asserting a terminal status exists.
             this.finalize(child.exitCode);
-            return this.last!;
+            if (this.last) return this.last;
+            return this.getStatus();
         }
         const phase = this.derivePhase();
         // Persist the phase and tail so a restart mid-run preserves them.

@@ -9,7 +9,7 @@ import logger, { ensureFileTransport, formatDuration } from "../logger.js";
 import { resolveModel } from "./model.js";
 import { buildPrompt } from "./prompt.js";
 import { verify, type VerifyReport } from "./verify.js";
-import { checkExtension, formatIssues, type Issue } from "./checks.js";
+import { checkExtension, formatIssues, isBlocking, type Issue } from "./checks.js";
 
 const EXT = process.env.EXTENSION_DIR ?? "/work/extension";
 const OUT = process.env.OUT_DIR ?? "/work/run/out";
@@ -162,9 +162,20 @@ async function main() {
     }
 
     let fixAttempts = 0;
-    // Keep fixing while Chrome rejects the extension OR static validation still finds hard errors:
-    // a "loads fine" extension with remote code or a dead browserAction call is not migrated.
-    const needsWork = (r: VerifyReport, is: Issue[]) => !r.passed || is.some((i) => i.severity === "error");
+    // Keep fixing while Chrome rejects the extension OR a load-blocking static error remains.
+    // Non-blocking errors (a stray browserAction call, DOM use inside a vendored bundle) still
+    // go into every fix prompt, and get ONE dedicated round if nothing else is left — but they
+    // never hold the loop open, because some of them cannot be fixed at all and the loop costs
+    // ~10 minutes a round.
+    let qualityRoundUsed = false;
+    const needsWork = (r: VerifyReport, is: Issue[]): boolean => {
+        if (!r.passed || is.some(isBlocking)) return true;
+        if (is.some((i) => i.severity === "error") && !qualityRoundUsed) {
+            qualityRoundUsed = true;
+            return true;
+        }
+        return false;
+    };
     for (let attempt = 1; needsWork(report, issues) && attempt <= MAX_FIX; attempt++) {
         fixAttempts = attempt;
         logger.info(`fix attempt ${attempt}/${MAX_FIX}`, { module: "migrate" });

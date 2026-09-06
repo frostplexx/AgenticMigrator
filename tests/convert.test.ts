@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 import { convert, emcDir, manifestVersion } from "../src/host/convert.js";
+import { hashDir } from "../src/host/hashDir.js";
 
 /** A minimal MV2 extension on disk. */
 function makeMv2(dir: string): string {
@@ -69,6 +70,22 @@ test("manifestVersion returns null rather than throwing on an unparseable manife
         writeFileSync(p, "{ not json");
         assert.equal(manifestVersion(p), null);
         assert.equal(manifestVersion(join(tmp, "absent.json")), null);
+    } finally {
+        rmSync(tmp, { recursive: true, force: true });
+    }
+});
+
+test("hashDir changes when a skill file changes, so an edited skill rebuilds the image", () => {
+    // Regression: assets/ was copied into the image but left out of the build-input hash, so
+    // editing a mv3-* skill produced the same tag and the run silently used the old skills.
+    const tmp = mkdtempSync(join(tmpdir(), "hashdir-"));
+    try {
+        const skill = join(tmp, "skills", "mv3-migration");
+        mkdirSync(skill, { recursive: true });
+        writeFileSync(join(skill, "SKILL.md"), "original");
+        const before = hashDir(tmp);
+        writeFileSync(join(skill, "SKILL.md"), "edited");
+        assert.notEqual(hashDir(tmp), before, "an edited skill must change the image tag");
     } finally {
         rmSync(tmp, { recursive: true, force: true });
     }

@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.84.4",
-    "playwright": "^1.61.1",
+    "playwright": "1.62.1",
     "secretspec": "^0.19.1",
     "winston": "^3.19.0"
   },

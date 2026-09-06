@@ -28,6 +28,27 @@ export interface Issue {
 const MINIFIED_LINE = 2000;
 const SNIPPET_MAX = 160;
 const SCANNABLE = new Set([".js", ".mjs", ".cjs", ".ts"]);
+/**
+ * Issue kinds that stop Chrome loading the extension (or kill the worker on start). Only these
+ * justify spending another fix round: the rest are real defects but load fine, and some live in
+ * vendored bundles the agent cannot meaningfully rewrite — gating the loop on those burns every
+ * remaining round (and an hour of wall clock) for nothing.
+ */
+const BLOCKING_IDS = new Set([
+    "manifest-missing", "manifest-unparseable", "manifest-version",
+    "background-scripts", "background-page", "legacy-action-key",
+    "url-in-permissions", "removed-permission", "csp-string",
+    "war-flat-array", "war-missing-matches", "content-script-no-matches",
+    "missing-file", "dnr-rule-resources-shape", "dnr-ruleset-keys",
+    "dnr-rules-unparseable", "dnr-rules-not-array", "dnr-rule-keys",
+    "dnr-rule-id", "dnr-redirect-shape",
+]);
+
+/** True when this issue prevents the extension loading, so it is worth another fix round. */
+export function isBlocking(issue: Issue): boolean {
+    return issue.severity === "error" && BLOCKING_IDS.has(issue.id);
+}
+
 /** Max issues of one kind reported per file before they are summarised. */
 const PER_FILE_CAP = 3;
 
