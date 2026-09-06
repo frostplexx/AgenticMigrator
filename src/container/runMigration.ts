@@ -9,6 +9,7 @@ import logger, { ensureFileTransport, formatDuration } from "../logger.js";
 import { resolveModel } from "./model.js";
 import { buildPrompt } from "./prompt.js";
 import { verify, type VerifyReport } from "./verify.js";
+import { checkExtension, formatIssues, type Issue } from "./checks.js";
 
 const EXT = process.env.EXTENSION_DIR ?? "/work/extension";
 const OUT = process.env.OUT_DIR ?? "/work/run/out";
@@ -108,30 +109,74 @@ async function main() {
     await session.prompt(prompt);
 
     restoreExcluded();
-    let report: VerifyReport = await verify(OUT);
+
+    /**
+     * One verification round: cheap static checks first, then the real browser load.
+     * The static pass runs even when Chrome is happy, because plenty of MV3 defects (remote
+     * code, executeScript with a code string, a stray browserAction call on a cold path) load
+     * fine and break later.
+     */
+    async function checkAndVerify(): Promise<{ report: VerifyReport; issues: Issue[] }> {
+        const issues = checkExtension(OUT);
+        const errs = issues.filter((i) => i.severity === "error").length;
+        logger.info(`static checks: ${errs} error(s), ${issues.length - errs} warning(s)`, { module: "migrate" });
+        return { report: await verify(OUT), issues };
+    }
+
+    let { report, issues } = await checkAndVerify();
     if (report.passed) {
         logger.info("verify #1: PASS", { module: "migrate" });
     } else {
         logger.warn("verify #1: FAIL — " + report.reason, { module: "migrate" });
     }
 
+    /** Everything known to be wrong right now, as one actionable brief for the agent. */
+    function buildFixPrompt(report: VerifyReport, issues: Issue[]): string {
+        const parts: string[] = [];
+        if (!report.passed) {
+            parts.push(
+                `The migrated extension in ${OUT} FAILED to load in Chrome:\n- ${report.reason}`,
+                report.errors.length ? `Chrome reported:\n${report.errors.map((e) => "- " + e).join("\n")}` : "",
+            );
+        } else {
+            parts.push(
+                `The extension in ${OUT} loads in Chrome, but static validation found problems that ` +
+                `will break it at runtime or at review time.`,
+                report.runtimeErrors?.length
+                    ? `The service worker logged errors after starting:\n${report.runtimeErrors.map((e) => "- " + e).join("\n")}`
+                    : "",
+            );
+        }
+        if (issues.length) {
+            parts.push(
+                `Static validation of ${OUT} found ${issues.length} issue(s). Each line gives the ` +
+                `location, the problem, and the fix — apply them all:\n${formatIssues(issues)}`,
+            );
+        }
+        parts.push(
+            `Fix the files in ${OUT} so the extension loads and its MV3 service worker registers. ` +
+            `Work through EVERY issue above with your edit/write tools, then stop — do not run any ` +
+            `verification yourself.`,
+        );
+        return parts.filter(Boolean).join("\n\n");
+    }
+
     let fixAttempts = 0;
-    for (let attempt = 1; !report.passed && attempt <= MAX_FIX; attempt++) {
+    // Keep fixing while Chrome rejects the extension OR static validation still finds hard errors:
+    // a "loads fine" extension with remote code or a dead browserAction call is not migrated.
+    const needsWork = (r: VerifyReport, is: Issue[]) => !r.passed || is.some((i) => i.severity === "error");
+    for (let attempt = 1; needsWork(report, issues) && attempt <= MAX_FIX; attempt++) {
         fixAttempts = attempt;
         logger.info(`fix attempt ${attempt}/${MAX_FIX}`, { module: "migrate" });
         restoreExcluded();
-        await session.prompt(
-            `The migrated extension in ${OUT} FAILED to load in Chrome:\n` +
-            `- ${report.reason}\n` +
-            (report.errors.length ? `Runtime errors:\n${report.errors.map((e) => "- " + e).join("\n")}\n` : "") +
-            `Fix the files in ${OUT} so the extension loads and its MV3 service worker registers. ` +
-            `Common causes: manifest_version/background.service_worker wrong, an invalid rules.json ` +
-            `(declarative_net_request needs id+enabled+path), or service-worker code using window/DOM.`,
-        );
+        await session.prompt(buildFixPrompt(report, issues));
         restoreExcluded();
-        report = await verify(OUT);
-        if (report.passed) {
+        ({ report, issues } = await checkAndVerify());
+        const staticErrs = issues.filter((i) => i.severity === "error").length;
+        if (report.passed && !staticErrs) {
             logger.info(`verify after fix ${attempt}: PASS`, { module: "migrate" });
+        } else if (report.passed) {
+            logger.warn(`verify after fix ${attempt}: loads, but ${staticErrs} static error(s) remain`, { module: "migrate" });
         } else {
             logger.warn(`verify after fix ${attempt}: FAIL — ${report.reason}`, { module: "migrate" });
         }
@@ -156,13 +201,21 @@ async function main() {
         }
     }
 
+    // `passed` stays "Chrome loaded it and the worker registered" so pass rates remain
+    // comparable across runs; unresolved static issues ride alongside it rather than
+    // redefining it, but they are recorded so a "pass" with known defects is visible.
+    const staticErrors = issues.filter((i) => i.severity === "error");
     const result = {
         passed: report.passed,
-        verdict: report.passed ? "passed" : "possible_failed",
+        verdict: report.passed ? (staticErrors.length ? "passed_with_issues" : "passed") : "possible_failed",
         serviceWorker: report.serviceWorker ?? null,
         extensionId: report.extensionId ?? null,
         reason: report.reason ?? null,
         errors: report.errors,
+        runtimeErrors: report.runtimeErrors ?? [],
+        staticErrorCount: staticErrors.length,
+        staticWarningCount: issues.length - staticErrors.length,
+        issues,
         turns,
     };
     writeFileSync(REPORT, JSON.stringify(result, null, 2));
@@ -175,7 +228,8 @@ async function main() {
         duration: formatDuration(Date.now() - t0),
         turns,
         verify: report.passed
-            ? `PASS${fixAttempts ? ` (after ${fixAttempts} fix ${fixAttempts === 1 ? "round" : "rounds"})` : " (first try)"}`
+            ? `PASS${fixAttempts ? ` (after ${fixAttempts} fix ${fixAttempts === 1 ? "round" : "rounds"})` : " (first try)"}` +
+              (staticErrors.length ? ` — ${staticErrors.length} static error(s) unresolved` : "")
             : `FAIL — ${report.reason}`,
         serviceWorker: report.serviceWorker,
         extensionId: report.extensionId,

@@ -17,11 +17,16 @@ export interface VerifyReport {
     extensionId?: string;
     reason?: string;
     errors: string[];
+    /** Errors the service worker/pages logged AFTER a successful registration. */
+    runtimeErrors?: string[];
 }
 
 const LAUNCH_TIMEOUT_MS = 15000; // healthy load is ~2-3s; a hung modal is capped here
 const LOG_FILE = "/tmp/chrome-verify.log";
 const MAX_LAUNCH_ATTEMPTS = Number(process.env.VERIFY_ATTEMPTS ?? 2);
+// Time to let a freshly-registered worker run its top-level code and first events before we
+// decide it is healthy. Long enough to catch immediate throws, short enough not to slow the loop.
+const SETTLE_MS = Number(process.env.VERIFY_SETTLE_MS ?? 2500);
 
 function readLoadErrors(): string[] {
     try {
@@ -65,8 +70,28 @@ async function launchOnce(extDir: string, swTimeoutMs: number): Promise<VerifyRe
 
         if (sw) {
             const extId = new URL(sw.url()).host;
+            // Registering is not the same as working: a worker that throws on its first event,
+            // or calls a chrome.* API it lacks permission for, registers fine and then fails at
+            // runtime. Settle briefly and collect what it logs, so those defects reach the agent
+            // instead of being reported as a clean pass.
+            const runtimeErrors: string[] = [];
+            sw.on("console" as any, (msg: any) => {
+                if (msg.type() === "error") runtimeErrors.push(`service worker console: ${msg.text()}`);
+            });
+            context.on("console", (msg) => {
+                if (msg.type() === "error") runtimeErrors.push(`page console: ${msg.text()}`);
+            });
+            // Uncaught page exceptions already arrive via the "weberror" handler above.
+            await new Promise((r) => setTimeout(r, SETTLE_MS));
             await context.close();
-            return { passed: true, serviceWorker: sw.url(), extensionId: extId, errors };
+            const swErrors = [...new Set([...runtimeErrors, ...errors])].slice(0, 10);
+            return {
+                passed: true,
+                serviceWorker: sw.url(),
+                extensionId: extId,
+                errors: swErrors,
+                runtimeErrors: swErrors,
+            };
         }
         const bg = context.backgroundPages().map((p) => p.url());
         const loadErrs = readLoadErrors();
