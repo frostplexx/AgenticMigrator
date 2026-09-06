@@ -137,6 +137,25 @@ async function main() {
         }
     }
 
+    // Invariant: the output MUST be MV3. The converter bumps manifest_version deterministically
+    // and the agent is told to confirm it, so an MV2 manifest here means both stages were
+    // skipped or reverted — a distinct, actionable failure that read as a generic
+    // "no service worker registered" for a whole batch before this check existed.
+    const outMv = manifestVersion(join(OUT, "manifest.json"));
+    if (outMv !== 3) {
+        const detail =
+            `output manifest_version is ${outMv ?? "missing/unparseable"}, not 3` +
+            (manifestVersion(join(EXT, "manifest.json")) !== 3
+                ? " (input was not MV3 either — the host-side converter pre-pass did not run; check convert.log)"
+                : "");
+        logger.error(detail, { module: "migrate" });
+        if (report.passed) {
+            report = { ...report, passed: false, reason: detail };
+        } else {
+            report = { ...report, reason: `${report.reason}; ${detail}` };
+        }
+    }
+
     const result = {
         passed: report.passed,
         verdict: report.passed ? "passed" : "possible_failed",
@@ -235,3 +254,13 @@ function stripDataFiles(outDir: string): string[] {
 }
 
 main().catch((e) => { logger.error("fatal: " + e, { module: "migrate" }); process.exit(2); });
+
+/** manifest_version of a manifest.json, or null when missing/unparseable. */
+function manifestVersion(manifestPath: string): number | null {
+    try {
+        const v = JSON.parse(readFileSync(manifestPath, "utf8")).manifest_version;
+        return typeof v === "number" ? v : null;
+    } catch {
+        return null;
+    }
+}

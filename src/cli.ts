@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, relative, basename } from "node:path";
 import { SecretSpec, SecretSpecError } from "secretspec";
 import { StaticAnalyzer, buildAnalysis } from "./host/staticAnalyzer.js";
-import { convert } from "./host/convert.js";
+import { convert, emcDir } from "./host/convert.js";
 import { classifyRun, readRunReport } from "./host/runReport.js";
 import logger from "./logger.js";
 
@@ -214,11 +214,25 @@ function ensureImage(): void {
  * manifests requires it; same resolution as convert.ts (EMC_DIR override, else vendored).
  */
 function ensureConverter(): void {
-    const emcDir =
-        process.env.EMC_DIR ?? join(PROJ, "third_party", "extension-manifest-converter");
-    if (existsSync(join(emcDir, "emc.py"))) return;
+    // Resolve through convert.ts's own resolver — never re-derive the path here. A guard that
+    // computes it differently passes while convert() looks elsewhere and silently falls back,
+    // which shipped 52 unconverted (still-MV2) extensions before it was caught.
+    const dir = emcDir();
+    if (existsSync(join(dir, "emc.py"))) {
+        // File-exists is not enough: a broken python3 or an unimportable emc.py fails the same
+        // way at run time, one extension at a time. Smoke-test the converter once, up front.
+        try {
+            execSync("python3 emc.py", { cwd: dir, stdio: "pipe", timeout: 30_000 });
+        } catch (e: any) {
+            logger.error(`converter at ${dir} is present but not runnable: ${e.message}`, { module: "cli" });
+            logger.error("check python3 and the submodule contents", { module: "cli" });
+            process.exit(1);
+        }
+        return;
+    }
+    const emcDirPath = dir;
     logger.error(
-        `extension-manifest-converter not found at ${emcDir}; the pipeline converts MV2 manifests with it`,
+        `extension-manifest-converter not found at ${emcDirPath}; the pipeline converts MV2 manifests with it`,
         { module: "cli" },
     );
     logger.error(
@@ -369,11 +383,17 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
 
     // 1. convert (host-side deterministic pre-pass).
     logger.info("converting (extension-manifest-converter)...", { module: "cli" });
-    const { dir: convertedDir, log: convLog } = convert(extPath);
+    const { dir: convertedDir, log: convLog, converted } = convert(extPath);
     if (convLog) {
       for (const line of convLog.split("\n")) logger.info(line, { module: "cli" });
     } else {
       logger.info("(no converter output)", { module: "cli" });
+    }
+    // Persist the converter outcome next to the run: the fallbacks are silent otherwise, and
+    // an unconverted (still-MV2) extension is the usual cause of "unsupported manifest version".
+    writeFileSync(join(runDir, "convert.log"), `converted=${converted}\n${convLog}\n`);
+    if (!converted) {
+      logger.warn(`converter did NOT convert ${extPath}; the extension is still MV2 going in`, { module: "cli" });
     }
 
     // 2. static analysis -> plan + analysis.
