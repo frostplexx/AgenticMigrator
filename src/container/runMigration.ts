@@ -10,6 +10,7 @@ import { resolveModel } from "./model.js";
 import { buildPrompt } from "./prompt.js";
 import { verify, type VerifyReport } from "./verify.js";
 import { checkExtension, formatIssues, isBlocking, type Issue } from "./checks.js";
+import { analyzeCompat, type CompatFinding } from "../host/compat.js";
 
 const EXT = process.env.EXTENSION_DIR ?? "/work/extension";
 const OUT = process.env.OUT_DIR ?? "/work/run/out";
@@ -104,7 +105,7 @@ async function main() {
         }
     };
 
-    const prompt = buildPrompt({ findings: plan.findings ?? [], signals: plan.signals ?? [], skillMd, extDir: EXT, outDir: OUT });
+    const prompt = buildPrompt({ findings: plan.findings ?? [], signals: plan.signals ?? [], skillMd, compat: plan.compat, extDir: EXT, outDir: OUT });
     logger.info("sending migration prompt...", { module: "migrate" });
     await session.prompt(prompt);
 
@@ -117,10 +118,38 @@ async function main() {
      * fine and break later.
      */
     async function checkAndVerify(): Promise<{ report: VerifyReport; issues: Issue[] }> {
-        const issues = checkExtension(OUT);
+        const issues = [...checkExtension(OUT), ...(await compatIssues())];
         const errs = issues.filter((i) => i.severity === "error").length;
         logger.info(`static checks: ${errs} error(s), ${issues.length - errs} warning(s)`, { module: "migrate" });
         return { report: await verify(OUT), issues };
+    }
+
+    /**
+     * Post-migration MDN compat pass over OUT: does the migrated code only call APIs that exist
+     * in MV3 Chrome? Chrome loads an extension that calls a nonexistent API without complaint and
+     * throws only when that path runs, so a hallucinated or still-MV2 API is invisible to
+     * verify.ts. This costs a JSON lookup and catches the whole class.
+     *
+     * Reported as non-blocking (the ids are absent from checks.ts BLOCKING_IDS): these reach the
+     * agent in every fix prompt and get the one dedicated quality round, but a HARD finding is
+     * often unfixable by construction and must never hold the loop open.
+     */
+    async function compatIssues(): Promise<Issue[]> {
+        const { findings } = await analyzeCompat(OUT);
+        return findings
+            .filter((f: CompatFinding) => f.severity !== "INFO")
+            .map((f: CompatFinding) => ({
+                id: `compat-${f.reason}`,
+                severity: "error" as const,
+                message: `${f.kind} \`${f.key}\` does not exist in the target Chrome (${f.reason})`,
+                fix:
+                    f.severity === "HARD"
+                        ? `No MV3 equivalent exists. Remove the call and the capability rather than ` +
+                          `substituting an API that does not exist${f.mdnUrl ? ` — see ${f.mdnUrl}` : ""}.`
+                        : `Replace it with its MV3 equivalent${f.mdnUrl ? ` — see ${f.mdnUrl}` : ""}.`,
+                file: f.file,
+                line: f.line,
+            }));
     }
 
     let { report, issues } = await checkAndVerify();

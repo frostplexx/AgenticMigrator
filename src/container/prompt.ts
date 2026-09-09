@@ -4,6 +4,7 @@
 // inlined (short) so a weak local model reliably sees the reference.
 import type { Finding, Signal } from "../host/staticAnalyzer.js";
 import { CATEGORIES } from "../host/staticAnalyzer.js";
+import { formatCompat, type CompatReport } from "../host/compat.js";
 
 const MAX_SITES = 12;
 const SNIPPET_MAX = 200;
@@ -14,12 +15,14 @@ export function buildPrompt(opts: {
     findings: Finding[];
     signals: Signal[];
     skillMd: string;
+    /** MDN compat findings over the input, when the host pre-pass produced them. */
+    compat?: CompatReport;
     extDir: string;
     outDir: string;
     /** Files that need migration changes (from static analysis) */
     relevantFiles?: string[];
 }): string {
-    const { findings, signals, skillMd, extDir, outDir } = opts;
+    const { findings, signals, skillMd, compat, extDir, outDir } = opts;
 
     // Files referenced in findings that need migration attention
     const relevantFiles = opts.relevantFiles ?? [];
@@ -72,6 +75,7 @@ migrated extension in Chrome and, if it fails, will send you the concrete runtim
 
 ${formatFindings(findings)}
 ${formatSignals(signals)}
+${compat ? formatCompat(compat) : ""}
 ## MV3 Migration Reference (mv3-migration skill)
 
 ${skillMd}

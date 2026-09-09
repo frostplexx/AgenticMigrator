@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, relative, basename } from "node:path";
 import { SecretSpec, SecretSpecError } from "secretspec";
 import { StaticAnalyzer, buildAnalysis } from "./host/staticAnalyzer.js";
+import { analyzeCompat } from "./host/compat.js";
 import { convert, emcDir } from "./host/convert.js";
 import { classifyRun, readRunReport } from "./host/runReport.js";
 import { hashDir } from "./host/hashDir.js";
@@ -387,7 +388,25 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
     const mappings = JSON.parse(readFileSync(join(__dirname, "..", "assets", "api_mappings.json"), "utf8"));
     const { findings, signals } = new StaticAnalyzer(mappings).scan(convertedDir);
     logger.info(`static analysis: ${findings.length} deprecated API site(s), ${signals.length} signal(s)`, { module: "cli" });
-    writeFileSync(join(runDir, "plan.json"), JSON.stringify({ findings, signals }, null, 2));
+    // MDN compat data over the converted input: HARD findings are capabilities MV3 cannot express
+    // at all, so they bound what any model could achieve on this extension (and are recorded
+    // per-run so the corpus-wide ceiling is a query, not a re-scan).
+    // Two passes. The ceiling is a property of the ORIGINAL extension, so it is measured there;
+    // the prompt gets the converted tree instead, because the converter has already fixed part of
+    // what the original still shows and re-reporting it would send the agent after non-problems.
+    const compat = await analyzeCompat(extPath);
+    const compatConverted = await analyzeCompat(convertedDir);
+    const hard = compat.findings.filter((f) => f.severity === "HARD").length;
+    const soft = compat.findings.filter((f) => f.severity === "SOFT").length;
+    logger.info(
+        `compat (chrome ${compat.version}, bcd ${compat.bcdVersion ?? "?"}): ${hard} hard, ${soft} soft finding(s)`,
+        { module: "cli" },
+    );
+    if (compat.hasHardBlocker) {
+        logger.warn("extension uses capabilities with no MV3 equivalent; a faithful migration may be impossible", { module: "cli" });
+    }
+    writeFileSync(join(runDir, "compat.json"), JSON.stringify(compat, null, 2));
+    writeFileSync(join(runDir, "plan.json"), JSON.stringify({ findings, signals, compat: compatConverted }, null, 2));
     writeFileSync(join(runDir, "analysis.json"), JSON.stringify(buildAnalysis(findings, convertedDir), null, 2));
 
     // 3. ensure image is current, then docker run the migrator container.
