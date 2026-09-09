@@ -16,7 +16,7 @@
     "transcript": "tsx scripts/view-transcript.ts"
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.4",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "browser-extension-compat-data": "^0.2.2",
     "playwright": "1.62.1",
     "secretspec": "^0.19.1",
