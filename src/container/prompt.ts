@@ -17,12 +17,14 @@ export function buildPrompt(opts: {
     skillMd: string;
     /** MDN compat findings over the input, when the host pre-pass produced them. */
     compat?: CompatReport;
+    /** Path the agent writes to instead of migrating, when the extension cannot be migrated. */
+    abstainFile?: string;
     extDir: string;
     outDir: string;
     /** Files that need migration changes (from static analysis) */
     relevantFiles?: string[];
 }): string {
-    const { findings, signals, skillMd, compat, extDir, outDir } = opts;
+    const { findings, signals, skillMd, compat, abstainFile, extDir, outDir } = opts;
 
     // Files referenced in findings that need migration attention
     const relevantFiles = opts.relevantFiles ?? [];
@@ -67,6 +69,21 @@ already MV3 and simple API swaps are done. Finish what the converter cannot: ser
 code that used the DOM/window, blocking webRequest, and anything subtle. Then make it run.
 
 ${howToWork}
+
+## If it cannot be migrated, say so instead of faking it
+${abstainFile
+    ? `Some extensions depend on capabilities MV3 removed with no replacement (a blocking
+\`webRequest\` decision computed from the request itself, fetching and running remote code). If
+this is one of them, do NOT invent an API that does not exist and do NOT ship a version that
+loads but does nothing. Write \`${abstainFile}\` containing:
+
+    REASON: <one line>
+    EVIDENCE: <file:line of the code that cannot be ported>
+    CONSTRAINT: <the Chrome documentation url stating the limitation>
+
+Then stop. Migrate everything you CAN migrate first; abstain only for the capability that is
+genuinely impossible, and only with all three fields filled in.`
+    : "If part of the extension depends on a capability MV3 removed outright, leave that capability out rather than inventing an API that does not exist."}
 
 ## Do NOT verify — the harness does that
 Do NOT run any verification, test, or browser script yourself (no verify.py, no Playwright, no

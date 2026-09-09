@@ -42,6 +42,24 @@ function readLoadErrors(): string[] {
     }
 }
 
+/**
+ * Chrome flags for loading one unpacked extension. Shared with behaviour.ts so the two harnesses
+ * cannot drift into loading the extension under different conditions and disagreeing for that
+ * reason alone. Callers add their own logging/feature flags.
+ */
+export function chromeArgs(extDir: string): string[] {
+    return [
+        `--disable-extensions-except=${extDir}`,
+        `--load-extension=${extDir}`,
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+    ];
+}
+
 async function launchOnce(extDir: string, swTimeoutMs: number): Promise<VerifyReport> {
     const userDataDir = mkdtempSync(join(tmpdir(), "cft-profile-"));
     const errors: string[] = [];
@@ -50,18 +68,7 @@ async function launchOnce(extDir: string, swTimeoutMs: number): Promise<VerifyRe
         context = await chromium.launchPersistentContext(userDataDir, {
             headless: false,
             timeout: LAUNCH_TIMEOUT_MS,
-            args: [
-                `--disable-extensions-except=${extDir}`,
-                `--load-extension=${extDir}`,
-                "--enable-logging",
-                `--log-file=${LOG_FILE}`,
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--no-first-run",
-                "--no-default-browser-check",
-            ],
+            args: [...chromeArgs(extDir), "--enable-logging", `--log-file=${LOG_FILE}`],
         });
         context.on("weberror", (e) => errors.push(String(e.error())));
 

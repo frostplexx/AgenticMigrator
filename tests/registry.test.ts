@@ -95,3 +95,51 @@ test("syncSources prunes stale sources", () => {
     registry.close();
     rmSync(dir, { recursive: true, force: true });
 });
+
+test("outcomes accumulate per (extension, model) instead of overwriting", () => {
+    const { registry } = makeRegistry();
+    const base = { extension: "ext-a", passed: false, score: 0.2 };
+    registry.recordOutcome({ ...base, model: "qwen", runId: "run-1" });
+    registry.recordOutcome({ ...base, model: "deepseek", runId: "run-2", passed: true, score: 1 });
+
+    const rows = registry.outcomesFor("ext-a");
+    assert.equal(rows.length, 2);
+    assert.deepEqual(rows.map((r) => r.model).sort(), ["deepseek", "qwen"]);
+});
+
+test("re-running the same run id replaces its row rather than duplicating it", () => {
+    const { registry } = makeRegistry();
+    registry.recordOutcome({ extension: "ext-a", model: "qwen", runId: "run-1", passed: false, score: 0 });
+    registry.recordOutcome({ extension: "ext-a", model: "qwen", runId: "run-1", passed: true, score: 1 });
+    const rows = registry.outcomesFor("ext-a");
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].passed, 1);
+    assert.equal(rows[0].score, 1);
+});
+
+// The lower bound is a union over every model ever run: one success is a proof of possibility
+// that a later model's failure cannot retract.
+test("migratedByAnyModel unions successes; unmigratedSoFar is its complement", () => {
+    const { registry } = makeRegistry();
+    registry.recordOutcome({ extension: "ext-a", model: "qwen", runId: "r1", passed: false });
+    registry.recordOutcome({ extension: "ext-a", model: "deepseek", runId: "r2", passed: true });
+    registry.recordOutcome({ extension: "ext-b", model: "qwen", runId: "r3", passed: false });
+    registry.recordOutcome({ extension: "ext-b", model: "deepseek", runId: "r4", passed: false });
+
+    assert.deepEqual(registry.migratedByAnyModel(), ["ext-a"]);
+    assert.deepEqual(registry.unmigratedSoFar(), ["ext-b"]);
+});
+
+test("abstention and hard blockers round-trip as their own fields", () => {
+    const { registry } = makeRegistry();
+    registry.recordOutcome({
+        extension: "ext-c", model: "qwen", runId: "r5", passed: false,
+        abstained: true, hasHardBlocker: true, label: null, costUsd: 0.42, wallTimeMs: 1234,
+    });
+    const [row] = registry.outcomesFor("ext-c");
+    assert.equal(row.abstained, 1);
+    assert.equal(row.has_hard_blocker, 1);
+    assert.equal(row.cost_usd, 0.42);
+    // An abstention is not a success: it must never reach the migratable union.
+    assert.deepEqual(registry.migratedByAnyModel(), []);
+});

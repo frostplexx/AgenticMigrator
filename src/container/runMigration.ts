@@ -11,12 +11,21 @@ import { buildPrompt } from "./prompt.js";
 import { verify, type VerifyReport } from "./verify.js";
 import { checkExtension, formatIssues, isBlocking, type Issue } from "./checks.js";
 import { analyzeCompat, type CompatFinding } from "../host/compat.js";
+import { formatBehaviour, isInvalidInstance, runBehaviourChecks, scoreBehaviour, type BehaviourReport } from "./behaviour.js";
 
 const EXT = process.env.EXTENSION_DIR ?? "/work/extension";
 const OUT = process.env.OUT_DIR ?? "/work/run/out";
 const PLAN = process.env.PLAN_FILE ?? "/work/run/plan.json";
 const REPORT = process.env.REPORT_FILE ?? "/work/run/report.json";
 const SKILLS_DIR = process.env.SKILLS_DIR ?? "/app/assets/skills";
+/**
+ * The UNCONVERTED MV2 extension, mounted read-only by the host. EXT is the converter's output, so
+ * it is already part-migrated and cannot serve as a behavioural baseline. Absent (older host, or
+ * a run started by hand) means no baseline: the run still works, it just scores nothing.
+ */
+const ORIGINAL = process.env.ORIGINAL_DIR ?? "/work/original";
+/** The agent writes this file instead of migrating when it judges the extension un-migratable. */
+const ABSTAIN_FILE = process.env.ABSTAIN_FILE ?? "/work/run/ABSTAIN.md";
 const MAX_FIX = Number(process.env.MAX_FIX_ATTEMPTS ?? 6);
 
 async function main() {
@@ -87,9 +96,22 @@ async function main() {
     logger.info("thinking: " + thinkLevel, { module: "migrate" });
 
     let turns = 0;
+    // Token/cost accounting. The paper needs cost per run to justify a sampling budget per
+    // stratum, and pi reports usage per assistant message, so it is accumulated rather than read
+    // once at the end (compaction discards messages, and with them their usage).
+    const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, costUsd: 0 };
     session.subscribe((ev: any) => {
         if (ev.type === "turn_end") { turns++; logger.debug(`turn ${turns}`, { module: "migrate" }); }
         if (ev.type === "tool_execution_start") logger.debug("tool: " + ev.toolName, { module: "migrate" });
+        const u = ev?.message?.usage;
+        if (u) {
+            usage.input += u.input ?? 0;
+            usage.output += u.output ?? 0;
+            usage.cacheRead += u.cacheRead ?? 0;
+            usage.cacheWrite += u.cacheWrite ?? 0;
+            usage.totalTokens += u.totalTokens ?? 0;
+            usage.costUsd += u.cost?.total ?? 0;
+        }
     });
 
     // Restore excluded data files before verify so the extension loads fully.
@@ -105,7 +127,25 @@ async function main() {
         }
     };
 
-    const prompt = buildPrompt({ findings: plan.findings ?? [], signals: plan.signals ?? [], skillMd, compat: plan.compat, extDir: EXT, outDir: OUT });
+    // MV2 baseline, BEFORE the agent touches anything. An original that cannot be graded is an
+    // invalid instance: it must leave the denominator rather than be counted as a model failure,
+    // which is what a harness without this step silently does.
+    let baseline: BehaviourReport | null = null;
+    if (existsSync(join(ORIGINAL, "manifest.json"))) {
+        baseline = await runBehaviourChecks(ORIGINAL);
+        const passing = baseline.checks.filter((c) => c.status === "pass").map((c) => c.name);
+        logger.info(
+            `baseline (MV2): ${passing.length}/${baseline.checks.length} check(s) pass — ${passing.join(", ") || "none"}`,
+            { module: "migrate" },
+        );
+        if (isInvalidInstance(baseline)) {
+            logger.warn("baseline does not work: this instance is not gradeable (INVALID_INSTANCE)", { module: "migrate" });
+        }
+    } else {
+        logger.warn(`no original extension at ${ORIGINAL}; skipping baseline (run will not be scored)`, { module: "migrate" });
+    }
+
+    const prompt = buildPrompt({ findings: plan.findings ?? [], signals: plan.signals ?? [], skillMd, compat: plan.compat, extDir: EXT, outDir: OUT, abstainFile: ABSTAIN_FILE });
     logger.info("sending migration prompt...", { module: "migrate" });
     await session.prompt(prompt);
 
@@ -241,13 +281,73 @@ async function main() {
         }
     }
 
+    // Behaviour of the RESULT, against the same checks the baseline ran. Only meaningful when
+    // there is a baseline to compare with, so it is skipped rather than guessed at otherwise.
+    let post: BehaviourReport | null = null;
+    let behaviourScore: ReturnType<typeof scoreBehaviour> | null = null;
+    if (baseline) {
+        post = await runBehaviourChecks(OUT);
+        behaviourScore = scoreBehaviour(baseline, post);
+        logger.info(
+            `behaviour: ${behaviourScore.passed}/${behaviourScore.denominator} baseline check(s) preserved` +
+            (behaviourScore.regressions.length ? ` — lost: ${behaviourScore.regressions.join(", ")}` : ""),
+            { module: "migrate" },
+        );
+    }
+
+    // One behaviour-driven fix round. The load loop above cannot see these failures at all (the
+    // extension loads fine; it just does not work any more), and they are the defects that matter
+    // most for the score — but one round only, because each costs two browser sessions and a
+    // regression the agent cannot fix must not spin the loop.
+    if (baseline && post && behaviourScore?.regressions.length && fixAttempts < MAX_FIX) {
+        logger.info(`behaviour fix round (lost: ${behaviourScore.regressions.join(", ")})`, { module: "migrate" });
+        restoreExcluded();
+        await session.prompt(
+            `${formatBehaviour(post, baseline)}\nFix the files in ${OUT} so these work again, then stop. ` +
+            `Do not run any verification yourself.`,
+        );
+        restoreExcluded();
+        fixAttempts++;
+        ({ report, issues } = await checkAndVerify());
+        post = await runBehaviourChecks(OUT);
+        behaviourScore = scoreBehaviour(baseline, post);
+        logger.info(
+            `behaviour after fix: ${behaviourScore.passed}/${behaviourScore.denominator} preserved`,
+            { module: "migrate" },
+        );
+    }
+
+    // Did the agent decline? Recorded, never folded into the pass rate: models abstain from
+    // hard-but-possible work too, so treating abstention as evidence about the PLATFORM would
+    // circularly inflate the impossibility estimate. It belongs on a risk-coverage curve.
+    const abstained = existsSync(ABSTAIN_FILE);
+    const abstainReason = abstained ? readFileSync(ABSTAIN_FILE, "utf8").trim().slice(0, 2000) : null;
+    if (abstained) logger.warn("agent ABSTAINED — see ABSTAIN.md", { module: "migrate" });
+
     // `passed` stays "Chrome loaded it and the worker registered" so pass rates remain
     // comparable across runs; unresolved static issues ride alongside it rather than
     // redefining it, but they are recorded so a "pass" with known defects is visible.
     const staticErrors = issues.filter((i) => i.severity === "error");
+    const outCompat = await analyzeCompat(OUT);
+    const inCompat = plan.compat ?? null;
+
+    /**
+     * The only labels the HARNESS may assign: the ones that are facts about the run rather than
+     * judgements about the platform. IMPOSSIBLE / DEGRADED_ONLY / POSSIBLE_MODEL_FAILED require
+     * adjudication with evidence and stay null here, so an automatic guess can never be mistaken
+     * for an annotated one.
+     */
+    const label: string | null =
+        baseline && isInvalidInstance(baseline)
+            ? "INVALID_INSTANCE"
+            : baseline && !post?.loaded && !report.passed && report.reason?.startsWith("browser error")
+                ? "HARNESS_FAILURE"
+                : null;
+
     const result = {
         passed: report.passed,
         verdict: report.passed ? (staticErrors.length ? "passed_with_issues" : "passed") : "possible_failed",
+        model: model.id,
         serviceWorker: report.serviceWorker ?? null,
         extensionId: report.extensionId ?? null,
         reason: report.reason ?? null,
@@ -257,6 +357,26 @@ async function main() {
         staticWarningCount: issues.length - staticErrors.length,
         issues,
         turns,
+        // --- ceiling / scoring data ---
+        baseline: baseline
+            ? { loaded: baseline.loaded, checks: baseline.checks, error: baseline.error ?? null }
+            : null,
+        behaviour: post ? { loaded: post.loaded, checks: post.checks, error: post.error ?? null } : null,
+        score: behaviourScore?.score ?? null,
+        scoreDenominator: behaviourScore?.denominator ?? 0,
+        regressions: behaviourScore?.regressions ?? [],
+        /** HARD/SOFT compat findings: on the input they bound what is achievable, on the output they are defects. */
+        blockers: {
+            input: inCompat?.findings ?? [],
+            output: outCompat.findings,
+            inputHasHardBlocker: inCompat?.hasHardBlocker ?? null,
+        },
+        abstained,
+        abstainReason,
+        label,
+        fixAttempts,
+        usage,
+        wallTimeMs: Date.now() - t0,
     };
     writeFileSync(REPORT, JSON.stringify(result, null, 2));
     // Save full LLM transcript (messages + tool calls) as JSONL.
@@ -274,6 +394,12 @@ async function main() {
         serviceWorker: report.serviceWorker,
         extensionId: report.extensionId,
         errorCount: report.errors.length,
+        score: behaviourScore?.score ?? null,
+        scoreDetail: behaviourScore ? `${behaviourScore.passed}/${behaviourScore.denominator} baseline checks preserved` : null,
+        abstained,
+        label,
+        cost: usage.costUsd,
+        tokens: usage.totalTokens,
         report: REPORT,
         transcript: transcriptPath,
     });
@@ -291,6 +417,12 @@ function printSummary(s: {
     serviceWorker?: string;
     extensionId?: string;
     errorCount: number;
+    score: number | null;
+    scoreDetail: string | null;
+    abstained: boolean;
+    label: string | null;
+    cost: number;
+    tokens: number;
     report: string;
     transcript: string;
 }): void {
@@ -304,6 +436,10 @@ function printSummary(s: {
     if (s.serviceWorker) rows.push(["service worker", s.serviceWorker]);
     if (s.extensionId) rows.push(["extension id", s.extensionId]);
     if (s.errorCount) rows.push(["errors", String(s.errorCount)]);
+    if (s.score !== null) rows.push(["score", `${s.score.toFixed(2)}  ${s.scoreDetail ?? ""}`.trim()]);
+    if (s.abstained) rows.push(["abstained", "yes (see ABSTAIN.md)"]);
+    if (s.label) rows.push(["label", s.label]);
+    if (s.tokens) rows.push(["tokens", `${s.tokens}${s.cost ? ` ($${s.cost.toFixed(4)})` : ""}`]);
     rows.push(["report", s.report], ["transcript", s.transcript]);
     const lines = ["", bar, `  ${head}${RESET}  ${DIM}${s.duration}${RESET}`, ""];
     for (const [k, v] of rows) lines.push(`  ${DIM}${k.padEnd(15)}${RESET}${v}`);

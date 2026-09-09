@@ -421,6 +421,9 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
         "run", "--rm", "--shm-size=1g",
         "--add-host=host.docker.internal:host-gateway",
         "-v", `${convertedDir}:/work/extension:ro`,
+        // The UNCONVERTED original, for the MV2 behavioural baseline. Without it the container
+        // has nothing to compare the migration against and the run cannot be scored.
+        "-v", `${extPath}:/work/original:ro`,
         "-v", `${runDir}:/work/run`,
         "-e", `LLM_MODEL=${process.env.LLM_MODEL ?? "ollama/gemma4:31b-cloud"}`,
         "-e", `LLM_BASE_URL=${process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434"}`,
@@ -431,6 +434,7 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
         "-e", `MAX_FIX_ATTEMPTS=${process.env.MAX_FIX_ATTEMPTS ?? "6"}`,
         "-e", `LLM_THINKING=${process.env.LLM_THINKING ?? "off"}`,
         "-e", `LOG_FILE=/work/run/migrate.jsonl`,
+        "-e", `ORIGINAL_DIR=/work/original`,
         ...(process.env.ENABLE_VNC === "1" ? [
             "-e", "ENABLE_VNC=1",
             "-p", `${portBase}:6080`,
@@ -458,6 +462,11 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
         }
         if (r.serviceWorker) logger.info(`service worker: ${r.serviceWorker}`, { module: "cli" });
         if (!r.passed && r.reason) logger.warn(`reason: ${r.reason}`, { module: "cli" });
+        if (typeof r.score === "number") {
+            logger.info(`behaviour score: ${r.score.toFixed(2)} (${r.scoreDenominator} baseline check(s))`, { module: "cli" });
+        }
+        if (r.label) logger.warn(`label: ${r.label}`, { module: "cli" });
+        await recordOutcome(runDir, extPath, r);
     } else {
         logger.warn(`no report produced (container exit ${code})`, { module: "cli" });
     }
@@ -473,3 +482,34 @@ function waitForSignal(): Promise<void> {
 }
 
 main().catch((e) => { logger.error("fatal: " + e, { module: "cli" }); process.exit(1); });
+
+
+/**
+ * Append this run to the cross-model outcome index, so a second model accumulates alongside the
+ * first instead of overwriting it. Best-effort by design: the index is analysis infrastructure,
+ * and a migration must not fail because better-sqlite3 is unavailable or the DB is locked.
+ */
+async function recordOutcome(runDir: string, extPath: string, report: any): Promise<void> {
+    try {
+        const { Registry } = await import("./extlens/registry.js");
+        const registry = new Registry(dirname(resolve(runDir)));
+        try {
+            registry.recordOutcome({
+                extension: basename(resolve(extPath)),
+                model: report.model ?? process.env.LLM_MODEL ?? "unknown",
+                runId: basename(resolve(runDir)),
+                passed: Boolean(report.passed),
+                score: report.score ?? null,
+                label: report.label ?? null,
+                abstained: Boolean(report.abstained),
+                hasHardBlocker: report.blockers?.inputHasHardBlocker ?? null,
+                costUsd: report.usage?.costUsd ?? null,
+                wallTimeMs: report.wallTimeMs ?? null,
+            });
+        } finally {
+            registry.close();
+        }
+    } catch (e) {
+        logger.debug(`outcome not recorded: ${e}`, { module: "cli" });
+    }
+}

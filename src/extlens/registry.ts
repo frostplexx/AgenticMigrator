@@ -16,6 +16,21 @@ import { basename, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import Database from "better-sqlite3";
 
+/** One (extension, model) migration attempt. */
+export interface OutcomeRow {
+    extension: string;
+    model: string;
+    run_id: string;
+    passed: number;
+    score: number | null;
+    label: string | null;
+    abstained: number;
+    has_hard_blocker: number | null;
+    cost_usd: number | null;
+    wall_time_ms: number | null;
+    recorded_at: string;
+}
+
 /** A served source extension: a corpus subdirectory or a single extension dir. */
 export interface SourceEntry {
     id: string;
@@ -72,6 +87,26 @@ CREATE TABLE IF NOT EXISTS reports (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_reports_extension ON reports(extension_id);
+-- One row per (extension, model) attempt. The runs table is keyed by run directory, so a second model's
+-- results sit in a second directory with nothing joining them; this table is what makes the
+-- cross-model questions answerable: which extensions has ANY model ever migrated (the lower bound
+-- on what is migratable at all — it only ever grows as more models are run), and which has no
+-- model managed yet.
+CREATE TABLE IF NOT EXISTS outcomes (
+  extension TEXT NOT NULL,
+  model TEXT NOT NULL,
+  run_id TEXT NOT NULL,
+  passed INTEGER NOT NULL,
+  score REAL,
+  label TEXT,
+  abstained INTEGER NOT NULL DEFAULT 0,
+  has_hard_blocker INTEGER,
+  cost_usd REAL,
+  wall_time_ms INTEGER,
+  recorded_at TEXT NOT NULL,
+  PRIMARY KEY (extension, model, run_id)
+);
+CREATE INDEX IF NOT EXISTS idx_outcomes_extension ON outcomes(extension);
 `;
 
 function readJson(path: string): unknown {
@@ -219,6 +254,79 @@ export class Registry {
                  WHERE id = ?`,
             )
             .run(phase, now, tail ?? "", report ? (report.passed ? 1 : 0) : null, report?.reason ?? null, now, id);
+    }
+
+    /*** Cross-model outcomes. */
+
+    /** Record one (extension, model) attempt. Re-running the same run id replaces its row. */
+    recordOutcome(o: {
+        extension: string;
+        model: string;
+        runId: string;
+        passed: boolean;
+        score?: number | null;
+        label?: string | null;
+        abstained?: boolean;
+        hasHardBlocker?: boolean | null;
+        costUsd?: number | null;
+        wallTimeMs?: number | null;
+    }): void {
+        this.db
+            .prepare(
+                `INSERT INTO outcomes
+                   (extension, model, run_id, passed, score, label, abstained, has_hard_blocker, cost_usd, wall_time_ms, recorded_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON CONFLICT(extension, model, run_id) DO UPDATE SET
+                   passed = excluded.passed, score = excluded.score, label = excluded.label,
+                   abstained = excluded.abstained, has_hard_blocker = excluded.has_hard_blocker,
+                   cost_usd = excluded.cost_usd, wall_time_ms = excluded.wall_time_ms,
+                   recorded_at = excluded.recorded_at`,
+            )
+            .run(
+                o.extension,
+                o.model,
+                o.runId,
+                o.passed ? 1 : 0,
+                o.score ?? null,
+                o.label ?? null,
+                o.abstained ? 1 : 0,
+                o.hasHardBlocker === null || o.hasHardBlocker === undefined ? null : o.hasHardBlocker ? 1 : 0,
+                o.costUsd ?? null,
+                o.wallTimeMs ?? null,
+                new Date().toISOString(),
+            );
+    }
+
+    /** Every attempt on one extension, newest first. */
+    outcomesFor(extension: string): OutcomeRow[] {
+        return this.db
+            .prepare("SELECT * FROM outcomes WHERE extension = ? ORDER BY recorded_at DESC")
+            .all(extension) as unknown as OutcomeRow[];
+    }
+
+    /**
+     * Extensions at least one model has migrated successfully: the constructive lower bound on
+     * migratability. Union, not per-model — a success by ANY model is a proof of possibility that
+     * every later model's failure cannot retract.
+     */
+    migratedByAnyModel(): string[] {
+        return (this.db
+            .prepare("SELECT DISTINCT extension FROM outcomes WHERE passed = 1 ORDER BY extension")
+            .all() as { extension: string }[]).map((r) => r.extension);
+    }
+
+    /**
+     * Extensions attempted but never migrated by any model. These, not the raw failure list, are
+     * what an impossibility audit should sample from.
+     */
+    unmigratedSoFar(): string[] {
+        return (this.db
+            .prepare(
+                `SELECT DISTINCT extension FROM outcomes
+                 WHERE extension NOT IN (SELECT extension FROM outcomes WHERE passed = 1)
+                 ORDER BY extension`,
+            )
+            .all() as { extension: string }[]).map((r) => r.extension);
     }
 
     /*** Report storage (manual review reports, DB-backed). */

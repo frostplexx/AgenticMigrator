@@ -90,5 +90,32 @@ registering. Chrome emitted `_metadata/` (indexed rulesets) — it accepts the D
 
 ## Deferred (vs. the Python original)
 
-Cross-run memory, the goal-completion judge loop, the per-run critic, batch mode, and full
-metrics/cost capture. All straightforward additions on this foundation.
+The goal-completion judge loop, the per-run critic, and batch mode. All straightforward
+additions on this foundation.
+
+## Measuring migration quality
+
+`report.json` carries more than pass/fail, because "Chrome loaded it" is a weak success
+criterion — an MV3 port whose every feature is dead still passes it:
+
+- `baseline` — the same behavioural checks run against the **unconverted MV2 original** before
+  the agent starts (mounted at `/work/original`). A check the original already failed is not
+  evidence about the migration, and an original that grades nothing is labelled
+  `INVALID_INSTANCE` and leaves the denominator instead of counting as a model failure.
+- `behaviour` / `score` / `regressions` — the same checks after migration, scored as the
+  fraction of baseline-passing checks preserved (0–1). Checks: background context alive, popup /
+  options / newtab render, storage round-trip, content-script injection, DNR rulesets actually
+  enabled, and **service-worker survives termination** — the last being where MV3 ports break in
+  the wild and where a load-only harness is blind.
+- `blockers` — MDN compat findings (`src/host/compat.ts`) over the input and the output, tagged
+  HARD (no MV3 equivalent exists) or SOFT (a replacement exists). An input HARD blocker bounds
+  what any model could achieve on that extension.
+- `abstained` — the agent wrote `ABSTAIN.md` instead of migrating. Recorded, never folded into
+  the pass rate: models abstain from hard-but-possible work too.
+- `usage` / `wallTimeMs` — tokens and cost per run.
+
+Every run is also appended to the `outcomes` table in `run/migrator.db` keyed by
+`(extension, model, run_id)`, so a second model accumulates alongside the first rather than
+overwriting it. `Registry.migratedByAnyModel()` is then the union of everything any model has
+ever migrated, and `unmigratedSoFar()` its complement — the set an impossibility audit should
+sample from.
