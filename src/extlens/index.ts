@@ -13,6 +13,7 @@ import { createExtlensServer } from "extlens-sdk";
 import { collectSources, makeAgenticBackend } from "./adapter.js";
 import { MigratorController } from "./migrator.js";
 import { Registry } from "./registry.js";
+import { reportSdkCheck } from "./sdkCheck.js";
 import logger from "../logger.js";
 
 export function startExtlensServer(opts: { port?: number; host?: string; runDir?: string; sourceDir?: string; extraSource?: string } = {}) {
@@ -22,6 +23,9 @@ export function startExtlensServer(opts: { port?: number; host?: string; runDir?
     // EXLENS_* (missing the T) was the original spelling and is what existing shell history and
     // scripts set; EXTLENS_* is the documented one. Both work, documented one wins.
     const bindHost = opts.host ?? process.env.EXTLENS_HOST ?? process.env.EXLENS_HOST;
+    // Before anything is served: is the SDK we loaded the one that was built? A stale copy makes
+    // the analyzer look broken rather than out of date (see sdkCheck.ts).
+    reportSdkCheck();
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
     const sources = collectSources(sourceDir, opts.extraSource ?? null);
     const registry = new Registry(runDir);
