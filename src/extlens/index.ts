@@ -16,10 +16,12 @@ import { Registry } from "./registry.js";
 import logger from "../logger.js";
 
 export function startExtlensServer(opts: { port?: number; host?: string; runDir?: string; sourceDir?: string; extraSource?: string } = {}) {
-    const runDir = opts.runDir ?? process.env.EXLENS_RUN_DIR ?? "./run";
-    const sourceDir = opts.sourceDir ?? process.env.EXLENS_SOURCE_DIR ?? null;
-    const port = opts.port ?? Number(process.env.EXLENS_PORT ?? 8081);
-    const bindHost = opts.host ?? process.env.EXLENS_HOST;
+    const runDir = opts.runDir ?? (process.env.EXTLENS_RUN_DIR ?? process.env.EXLENS_RUN_DIR) ?? "./run";
+    const sourceDir = opts.sourceDir ?? (process.env.EXTLENS_SOURCE_DIR ?? process.env.EXLENS_SOURCE_DIR) ?? null;
+    const port = opts.port ?? Number((process.env.EXTLENS_PORT ?? process.env.EXLENS_PORT) ?? 8081);
+    // EXLENS_* (missing the T) was the original spelling and is what existing shell history and
+    // scripts set; EXTLENS_* is the documented one. Both work, documented one wins.
+    const bindHost = opts.host ?? process.env.EXTLENS_HOST ?? process.env.EXLENS_HOST;
     const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
     const sources = collectSources(sourceDir, opts.extraSource ?? null);
     const registry = new Registry(runDir);

@@ -261,11 +261,11 @@ async function main() {
     const extPath = extInput ? resolve(extInput) : null;
     const runDir = resolve(arg("--out", "./run"));
     const sourceArg = arg("--source-dir", "");
-    const sourceDir = sourceArg || process.env.EXLENS_SOURCE_DIR || null;
+    const sourceDir = sourceArg || (process.env.EXTLENS_SOURCE_DIR ?? process.env.EXLENS_SOURCE_DIR) || null;
     // Internal one-shot mode: the extlens controller (src/extlens/migrator.ts)
     // spawns the migration child with MIGRATOR_ONESHOT=1. Not a user-facing flag.
     const oneShot = process.env.MIGRATOR_ONESHOT === "1";
-    const parsedPort = Number(process.env.EXLENS_PORT ?? arg("--extlens-port", arg("--port", "8081")));
+    const parsedPort = Number((process.env.EXTLENS_PORT ?? process.env.EXLENS_PORT) ?? arg("--extlens-port", arg("--port", "8081")));
     const port = Number.isFinite(parsedPort) && parsedPort > 0 ? Math.trunc(parsedPort) : 8081;
 
     if (extPath && !existsSync(join(extPath, "manifest.json"))) {
