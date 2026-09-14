@@ -171,6 +171,18 @@ function mtimeMs(path: string): number {
     }
 }
 
+/**
+ * Does an extension match what the reviewer typed?
+ *
+ * Name first, because that is what is on screen and what gets typed; id as well, because run
+ * directories and log lines carry ids and pasting one in should find it.
+ */
+export function matchesSearch(name: string, id: string, query: string): boolean {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return true;
+    return name.toLowerCase().includes(needle) || id.toLowerCase().includes(needle);
+}
+
 export function makeAgenticBackend(runRoot: string, registry: Registry, host?: HostController): Backend {
     runRoot = resolve(runRoot);
     const sourcePath = (run: RunEntry): string | null => {
@@ -237,16 +249,23 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         ];
     };
 
+    const nameOf = (row: Row): string => profileOf(row).profile.name;
+
     return {
         async listExtensions(params: ListParams): Promise<ListResult> {
             const rows = allRows();
             const search = params.search?.trim().toLowerCase();
             let filtered = rows;
             if (search) {
-                filtered = rows.filter((r) => r.id.toLowerCase().includes(search));
+                // Extension ids are 32 random characters, so matching only those made the search
+                // box look broken: a reviewer types the name they can see, and the name was the
+                // one field not being looked at.
+                filtered = rows.filter((r) => matchesSearch(nameOf(r), r.id, search));
             }
             if (params.sort === "name") {
-                filtered = [...filtered].sort((a, b) => a.id.localeCompare(b.id));
+                // Likewise by name rather than by id — sorting a list of names into id order is
+                // indistinguishable from not sorting it.
+                filtered = [...filtered].sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
             } else if (params.sort === "interestingness_asc") {
                 filtered = [...filtered].sort((a, b) => profileOf(a).profile.score - profileOf(b).profile.score);
             } else {
