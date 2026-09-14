@@ -13,7 +13,13 @@
     "cli": "tsx src/cli.ts",
     "test": "tsx --test tests/*.test.ts",
     "clean": "rm -rf run/*",
-    "transcript": "tsx scripts/view-transcript.ts"
+    "transcript": "tsx scripts/view-transcript.ts",
+    "host": "bash scripts/host.sh",
+    "host:start": "bash scripts/host.sh start",
+    "host:stop": "bash scripts/host.sh stop",
+    "host:restart": "bash scripts/host.sh restart",
+    "host:status": "bash scripts/host.sh status",
+    "host:logs": "bash scripts/host.sh logs"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.84.4",

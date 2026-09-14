@@ -4,3 +4,5 @@ run/
 *.log
 .direnv/
 tmp/
+.host/
+.env.local

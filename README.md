@@ -178,3 +178,27 @@ Every run is also appended to the `outcomes` table in `run/migrator.db` keyed by
 overwriting it. `Registry.migratedByAnyModel()` is then the union of everything any model has
 ever migrated, and `unmigratedSoFar()` its complement — the set an impossibility audit should
 sample from.
+
+## Running the host
+
+The host is a long-running background process. `scripts/host.sh` tracks it so you never have to
+find it in `ps aux | grep node` — a pattern that also matches the migrator's own node processes,
+and the ssh session you are typing in:
+
+```sh
+npm run host:start -- --source-dir ../corpus --out ../run_test/   # detached; args are remembered
+npm run host:restart                                              # reuses the remembered args
+npm run host:stop
+npm run host:status                                               # running? since when? which port?
+npm run host:logs                                                 # or: npm run host -- logs -f
+```
+
+`start` puts the host in its own process group and records it, so `stop` signals that group and
+nothing else. It waits for the server to announce its port rather than reporting success the
+instant it forks, so a bad key or a port clash surfaces immediately.
+
+`.env` (tracked: model, base url) and `.env.local` (gitignored: `LLM_API_KEY`) are both loaded on
+start, so a restart needs no environment juggling.
+
+`status` also surfaces the SDK staleness warning, which is the first thing to check when the review
+form under-reports what an extension exposes.
