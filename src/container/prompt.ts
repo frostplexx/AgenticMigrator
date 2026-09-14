@@ -23,8 +23,17 @@ export function buildPrompt(opts: {
     outDir: string;
     /** Files that need migration changes (from static analysis) */
     relevantFiles?: string[];
+    /**
+     * The unmigrated MV2 tree, when the run is configured to show it.
+     *
+     * Off by default, and a deliberate experimental variable rather than an oversight: the task is
+     * "produce a working MV3 extension", and handing over the original makes it "port this", which
+     * is a different task with a different difficulty. Whether it helps is a question the two
+     * conditions can answer with numbers — see promptRef.includesOriginalSource.
+     */
+    originalDir?: string;
 }): string {
-    const { findings, signals, skillMd, compat, abstainFile, extDir, outDir } = opts;
+    const { findings, signals, skillMd, compat, abstainFile, extDir, outDir, originalDir } = opts;
 
     // Files referenced in findings that need migration attention
     const relevantFiles = opts.relevantFiles ?? [];
@@ -93,6 +102,7 @@ migrated extension in Chrome and, if it fails, will send you the concrete runtim
 ${formatFindings(findings)}
 ${formatSignals(signals)}
 ${compat ? formatCompat(compat) : ""}
+${originalDir ? formatOriginal(originalDir) : ""}
 ## MV3 Migration Reference (mv3-migration skill)
 
 ${skillMd}
@@ -100,6 +110,24 @@ ${skillMd}
 ## Response style
 Terse. Technical. Edit each file yourself with your own tools; there are no sub-agents.
 Don't narrate at length. Code unchanged.`;
+}
+
+/**
+ * Point the agent at the untouched MV2 source.
+ *
+ * A listing and a path, not the file contents: the tree is already on disk and the agent has read
+ * tools, so inlining it would spend the context window on files it may not need. What matters
+ * experimentally is only that it CAN consult the original — the condition, not the delivery.
+ */
+function formatOriginal(originalDir: string): string {
+    return [
+        "## Original MV2 source (read-only)",
+        "",
+        `The unmodified MV2 extension is at \`${originalDir}\`. Read from it whenever you need to see`,
+        "what a function did before you rewrote it — the goal is to preserve the original behaviour,",
+        "not merely to produce something MV3-shaped. Never edit anything under that path.",
+        "",
+    ].join("\n");
 }
 
 function formatFindings(findings: Finding[]): string {

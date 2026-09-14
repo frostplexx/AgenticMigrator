@@ -93,6 +93,65 @@ registering. Chrome emitted `_metadata/` (indexed rulesets) — it accepts the D
 The goal-completion judge loop, the per-run critic, and batch mode. All straightforward
 additions on this foundation.
 
+## Change ledger and tags
+
+`report.json` records, for every MV2→MV3 change, whether it was **needed** (detected in the
+original MV2 source) and whether it was **applied** (detected in the migrated output). Counting
+applied changes alone cannot distinguish a pipeline that handles every offscreen case from one
+that handles half of them — the interesting cell is `needed && !applied`, a silently skipped
+change, which a load-only verifier cannot see.
+
+Changes tracked: `manifest_version`, `background_service_worker`,
+`background_persistent_removed`, `action_rename`, `host_permissions_split`, `webrequest_to_dnr`,
+`offscreen_document`, `execute_script_api`, `remote_code_removed`,
+`web_accessible_resources_v3`, `csp_object_form`, `commands_execute_action`,
+`storage_over_dom_state` (`src/host/changes.ts`).
+
+Tags (`src/host/tags.ts`) come in four kinds, because they answer different questions:
+
+| kind | example | answers |
+| --- | --- | --- |
+| `applied` | `change.webrequest_to_dnr` | what the pipeline does |
+| `skipped` | `skipped.offscreen_document` | where the pipeline stops |
+| `repair` | `repair.action_rename` | what LLM repair is worth |
+| `misc` | `source.minified`, `surface.context_menu` | what the sample is made of |
+
+`repair` tags are a diff of the change ledger taken before and after the repair round — the
+output tree alone cannot say when a change appeared.
+
+**A skipped capability is no longer a failed run.** The framework used to stop and exit non-zero
+when it met something it could not migrate, which removed the extension from the results instead
+of recording what *did* migrate. It now applies everything it can, records the skip as a tag with
+its evidence, and exits 0; whether the migration succeeded is the analyst's call.
+
+## Comparing models fairly
+
+Two models are only comparable when both were given the same starting information, which is easy
+to believe and hard to prove months later. Each run records a `promptRef`: a hash over the
+reference documents plus the flags that change the prompt's shape. Equal fingerprints mean equal
+starting information; different ones mean the rows need a caveat.
+
+`PROMPT_WITH_ORIGINAL=1` lets the agent read the untouched MV2 source. It is **off by default**
+and is an experimental condition rather than a setting: showing the original turns "produce a
+working MV3 extension" into "port this one", a different task with a different difficulty. Run
+both conditions and compare — the flag is recorded in `promptRef.includesOriginalSource`, so the
+two are never silently mixed.
+
+## Failure labels
+
+`src/host/labels.ts` defines the closed label set for *why* an extension is not working, with
+`validateAdjudication()` enforcing the rules at write time:
+
+`IMPOSSIBLE_PLATFORM`, `DEGRADED_ONLY`, `POSSIBLE_MODEL_FAILED`, `MODEL_INCOMPLETE`,
+`MODEL_HALLUCINATED_API`, `SILENT_BEHAVIOUR_LOSS`, `SOURCE_NOT_EDITABLE`, `NOT_TESTABLE`,
+`INVALID_INSTANCE`, `HARNESS_FAILURE`.
+
+Every label needs a description and file-level evidence; `IMPOSSIBLE_PLATFORM` and
+`DEGRADED_ONLY` additionally need a citable platform-documentation URL, without which the label
+degrades into "the annotator found it hard". `POSSIBLE_MODEL_FAILED` needs the run id that proves
+the migration is possible. The harness only ever assigns `INVALID_INSTANCE` and `HARNESS_FAILURE`
+— facts about its own execution; everything else is adjudication.
+
 ## Measuring migration quality
 
 `report.json` carries more than pass/fail, because "Chrome loaded it" is a weak success

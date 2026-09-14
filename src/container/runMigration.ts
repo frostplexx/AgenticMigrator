@@ -11,6 +11,9 @@ import { buildPrompt } from "./prompt.js";
 import { verify, type VerifyReport } from "./verify.js";
 import { checkExtension, formatIssues, isBlocking, type Issue } from "./checks.js";
 import { analyzeCompat, type CompatFinding } from "../host/compat.js";
+import { buildChangeLedger, summarizeLedger, type ChangeRecord } from "../host/changes.js";
+import { buildTags, countByKind, type Tag } from "../host/tags.js";
+import { promptRef } from "../host/promptRef.js";
 import { formatBehaviour, isInvalidInstance, runBehaviourChecks, scoreBehaviour, type BehaviourReport } from "./behaviour.js";
 
 const EXT = process.env.EXTENSION_DIR ?? "/work/extension";
@@ -145,7 +148,35 @@ async function main() {
         logger.warn(`no original extension at ${ORIGINAL}; skipping baseline (run will not be scored)`, { module: "migrate" });
     }
 
-    const prompt = buildPrompt({ findings: plan.findings ?? [], signals: plan.signals ?? [], skillMd, compat: plan.compat, extDir: EXT, outDir: OUT, abstainFile: ABSTAIN_FILE });
+    /*
+     * Whether the agent may consult the original MV2 source is an experimental condition, not a
+     * setting: showing it turns "produce a working MV3 extension" into "port this one", which is a
+     * different task. Off by default so existing results stay comparable; the flag is recorded in
+     * the report so the two conditions can be told apart afterwards.
+     */
+    const showOriginal = process.env.PROMPT_WITH_ORIGINAL === "1" && existsSync(ORIGINAL);
+    const reference = promptRef({
+        skillsDir: SKILLS_DIR,
+        includesOriginalSource: showOriginal,
+        includesCompatFindings: Boolean(plan.compat),
+        includesStaticFindings: Boolean(plan.findings?.length),
+    });
+    logger.info(
+        `prompt ref: docs ${reference.docsHash} (${reference.docs.length} docs)` +
+            `${showOriginal ? " + original mv2 source" : ""}`,
+        { module: "migrate" },
+    );
+
+    const prompt = buildPrompt({
+        findings: plan.findings ?? [],
+        signals: plan.signals ?? [],
+        skillMd,
+        compat: plan.compat,
+        extDir: EXT,
+        outDir: OUT,
+        abstainFile: ABSTAIN_FILE,
+        originalDir: showOriginal ? ORIGINAL : undefined,
+    });
     logger.info("sending migration prompt...", { module: "migrate" });
     await session.prompt(prompt);
 
@@ -299,7 +330,11 @@ async function main() {
     // extension loads fine; it just does not work any more), and they are the defects that matter
     // most for the score — but one round only, because each costs two browser sessions and a
     // regression the agent cannot fix must not spin the loop.
+    // Snapshot before repair: a change that appears only after the repair round is attributable
+    // to repair, and the output tree alone cannot say when something appeared.
+    let ledgerBeforeRepair: ChangeRecord[] | undefined;
     if (baseline && post && behaviourScore?.regressions.length && fixAttempts < MAX_FIX) {
+        ledgerBeforeRepair = buildChangeLedger(EXT, OUT);
         logger.info(`behaviour fix round (lost: ${behaviourScore.regressions.join(", ")})`, { module: "migrate" });
         restoreExcluded();
         await session.prompt(
@@ -328,6 +363,29 @@ async function main() {
     // comparable across runs; unresolved static issues ride alongside it rather than
     // redefining it, but they are recorded so a "pass" with known defects is visible.
     const staticErrors = issues.filter((i) => i.severity === "error");
+
+    /**
+     * What the migration SHOULD have changed versus what it did, plus the tag vocabulary built
+     * from it. Counting applied changes alone cannot distinguish a pipeline that handles every
+     * offscreen case from one that handles half of them.
+     */
+    const { tags, changes } = buildTags({
+        inputDir: EXT,
+        outputDir: OUT,
+        beforeRepair: ledgerBeforeRepair,
+        abstainReason,
+    });
+    const changeSummary = summarizeLedger(changes);
+    const tagCounts = countByKind(tags);
+    logger.info(
+        `changes: ${changeSummary.applied}/${changeSummary.needed} applied, ${changeSummary.skipped} skipped` +
+            ` · tags: ${tagCounts.applied} applied, ${tagCounts.skipped} skipped, ${tagCounts.repair} repair`,
+        { module: "migrate" },
+    );
+    for (const tag of tags.filter((t) => t.kind === "skipped")) {
+        logger.warn(`skipped: ${tag.title}`, { module: "migrate" });
+    }
+
     const outCompat = await analyzeCompat(OUT);
     const inCompat = plan.compat ?? null;
 
@@ -374,6 +432,14 @@ async function main() {
         abstained,
         abstainReason,
         label,
+        /** Every MV2→MV3 change, with whether it was needed and whether it happened. */
+        changes,
+        changeSummary,
+        /** applied / skipped / repair / misc, countable across a corpus. */
+        tags,
+        tagCounts,
+        /** Proof that two runs were given the same starting information. */
+        promptRef: reference,
         fixAttempts,
         usage,
         wallTimeMs: Date.now() - t0,
@@ -405,7 +471,23 @@ async function main() {
     });
 
     session.dispose();
-    process.exit(report.passed ? 0 : 1);
+    /*
+     * A skipped capability is not a failed run.
+     *
+     * The framework used to stop, and exit non-zero, when it met something it could not migrate —
+     * which removed the extension from the results rather than recording what DID migrate, and
+     * skewed every rate computed from them. Now the run applies everything it can, records the
+     * skip as a tag with its evidence, and exits 0; whether the migration actually succeeded is
+     * the human analyst's call, made from the behaviour score and the skipped tags.
+     */
+    const skippedOnly = !report.passed && abstained;
+    if (skippedOnly) {
+        logger.warn(
+            "migration incomplete (a capability was skipped) — recorded, not failed; see tags",
+            { module: "migrate" },
+        );
+    }
+    process.exit(report.passed || skippedOnly ? 0 : 1);
 }
 
 /** Print a clean, aligned end-of-run summary banner (bypasses winston so there's no per-line prefix). */

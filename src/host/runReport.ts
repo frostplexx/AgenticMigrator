@@ -1,5 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { ChangeRecord } from "./changes.js";
+import type { Tag, TagKind } from "./tags.js";
+import { HARNESS_ASSIGNABLE } from "./labels.js";
+import type { PromptRef } from "./promptRef.js";
 
 export type RunOutcome = "migrated" | "possible_failure" | "failed";
 
@@ -11,12 +15,13 @@ export interface CheckResult {
 }
 
 /**
- * Labels the harness may assign. The remaining labels an analysis needs — IMPOSSIBLE,
- * DEGRADED_ONLY, POSSIBLE_MODEL_FAILED — are adjudication verdicts that require evidence (a
- * citable platform constraint, or a demonstration that some model or human CAN do it), so they
- * are never produced automatically; a null label means "not yet adjudicated".
+ * Labels the harness may assign: facts about its own execution.
+ *
+ * The rest of the taxonomy lives in labels.ts and is adjudication — it needs evidence, and in two
+ * cases a citable platform constraint — so it is never produced automatically. A null label means
+ * "not yet adjudicated", which is different from "nothing was wrong".
  */
-export type RunLabel = "INVALID_INSTANCE" | "HARNESS_FAILURE";
+export type RunLabel = (typeof HARNESS_ASSIGNABLE)[number];
 
 /** Result summary written to a run's report.json by the migrator container. */
 export interface RunReport {
@@ -38,6 +43,20 @@ export interface RunReport {
         /** True when the ORIGINAL uses a capability MV3 cannot express: the per-extension ceiling. */
         inputHasHardBlocker: boolean | null;
     };
+    /**
+     * Every MV2→MV3 change with `needed` and `applied`. The interesting cell is needed &&
+     * !applied: a change the platform demanded and the pipeline did not make.
+     */
+    changes?: ChangeRecord[];
+    changeSummary?: { needed: number; applied: number; skipped: number; appliedUnneeded: number };
+    /** applied / skipped / repair / misc tags, countable across a corpus. */
+    tags?: Tag[];
+    tagCounts?: Record<TagKind, number>;
+    /**
+     * Fingerprint of the starting information. Two runs are only a model comparison when their
+     * refs match; see promptRef.ts.
+     */
+    promptRef?: PromptRef;
     /** The agent declined to migrate. Kept out of the pass rate on purpose (see runMigration.ts). */
     abstained?: boolean;
     abstainReason?: string | null;
