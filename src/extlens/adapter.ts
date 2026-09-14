@@ -326,6 +326,21 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
             return null;
         },
 
+        /**
+         * Every manual review, with the extension's current name.
+         *
+         * Reports that no longer have a run on disk are still returned: a review is evidence about
+         * an extension at a moment, and losing it because the run directory was cleaned would
+         * quietly shrink the corpus an analysis is computed over.
+         */
+        async listReports() {
+            return registry.listReports().map((row) => {
+                const run = runById(row.extensionId);
+                const name = run ? profileFor(run).profile.name : row.extensionId;
+                return { name, report: JSON.parse(row.payload) as ExtlensReport };
+            });
+        },
+
         async getFiles(id: string) {
             const run = runById(id);
             if (run) {

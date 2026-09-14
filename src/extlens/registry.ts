@@ -365,6 +365,20 @@ export class Registry {
         return { id: row.id, payload: row.payload, createdAt: row.created_at, updatedAt: row.updated_at };
     }
 
+    /** Every stored report, oldest first, for export. */
+    listReports(): { id: string; extensionId: string; payload: string; createdAt: string; updatedAt: string }[] {
+        const rows = this.db
+            .prepare("SELECT id, extension_id, payload, created_at, updated_at FROM reports ORDER BY created_at")
+            .all() as { id: string; extension_id: string; payload: string; created_at: string; updated_at: string }[];
+        return rows.map((r) => ({
+            id: r.id,
+            extensionId: r.extension_id,
+            payload: r.payload,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+        }));
+    }
+
     getRun(id: string): RunRow | null {
         const row = this.db.prepare("SELECT * FROM runs WHERE id = ?").get(id) as RunRow | undefined;
         return row ?? null;

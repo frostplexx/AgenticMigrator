@@ -63,6 +63,17 @@ interface MigrateReport {
     reason: string | null;
 }
 
+/**
+ * The model this host migrates with, as the reviewer should see it.
+ *
+ * Read at call time rather than captured: the host outlives any one migration, and the value comes
+ * from the environment it was started with. The provider prefix is kept — "saia/qwen3" and
+ * "ollama/qwen3" are different runs and a results table has to be able to tell them apart.
+ */
+export function configuredModel(): string | null {
+    return process.env.LLM_MODEL ?? null;
+}
+
 export class MigratorController implements HostController {
     private child: ChildProcessWithoutNullStreams | null = null;
     private extensionId: string | null = null;
@@ -97,6 +108,7 @@ export class MigratorController implements HostController {
                 phase: lastRow.phase,
                 startedAt: null,
                 message: clip(lastRow.tail ?? "") || null,
+                model: configuredModel(),
             };
         }
     }
@@ -110,6 +122,7 @@ export class MigratorController implements HostController {
                 phase: null,
                 startedAt: null,
                 message: null,
+                model: configuredModel(),
             };
         }
         if (child.exitCode !== null) {
@@ -129,6 +142,7 @@ export class MigratorController implements HostController {
             phase,
             startedAt: this.startedAt,
             message: this.tailMessage(),
+            model: configuredModel(),
         };
     }
 
@@ -156,6 +170,7 @@ export class MigratorController implements HostController {
                 phase: "done",
                 startedAt: null,
                 message: "all extensions already migrated",
+                model: configuredModel(),
             };
             return this.last;
         }
@@ -376,6 +391,7 @@ export class MigratorController implements HostController {
             phase: terminalPhase,
             startedAt: null,
             message: terminalMessage,
-        };
+                model: configuredModel(),
+            };
     }
 }
