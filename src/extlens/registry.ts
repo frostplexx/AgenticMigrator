@@ -365,6 +365,12 @@ export class Registry {
         return { id: row.id, payload: row.payload, createdAt: row.created_at, updatedAt: row.updated_at };
     }
 
+    /** Distinct models that have recorded an outcome in this run root. */
+    outcomeModels(): string[] {
+        const rows = this.db.prepare("SELECT DISTINCT model FROM outcomes ORDER BY model").all() as { model: string }[];
+        return rows.map((r) => r.model);
+    }
+
     /** Every stored report, oldest first, for export. */
     listReports(): { id: string; extensionId: string; payload: string; createdAt: string; updatedAt: string }[] {
         const rows = this.db

@@ -19,6 +19,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, relative, basename } from "node:path";
 import { SecretSpec, SecretSpecError } from "secretspec";
 import { StaticAnalyzer, buildAnalysis } from "./host/staticAnalyzer.js";
+import { Registry } from "./extlens/registry.js";
+import { mixedModelError } from "./host/runRoot.js";
 import { analyzeCompat } from "./host/compat.js";
 import { convert, emcDir } from "./host/convert.js";
 import { classifyRun, readRunReport } from "./host/runReport.js";
@@ -312,6 +314,8 @@ async function main() {
         process.exit(64);
     }
 
+    assertRunRootBelongsToModel(runDir);
+
     // Build/verify the Docker image once for all jobs. The LLM key was already
     // resolved and validated at boot (validateApiKey).
     if (!process.env.MIGRATOR_IMAGE) ensureImage();
@@ -348,6 +352,24 @@ async function main() {
     }
     logger.info(`migration complete: ${migrated} migrated, ${possible} possible failure(s), ${failed} failed`, { module: "cli" });
     process.exit(failed ? 1 : 0);
+}
+
+/** Guard the run root against a second model; see host/runRoot.ts for why. */
+function assertRunRootBelongsToModel(runDir: string): void {
+    if (process.env.ALLOW_MIXED_MODELS === "1") return;
+    const current = process.env.LLM_MODEL ?? "unknown";
+    let existing: string[] = [];
+    try {
+        const registry = new Registry(runDir);
+        existing = registry.outcomeModels();
+        registry.close();
+    } catch {
+        return; // no registry yet, so nothing to conflict with
+    }
+    const problem = mixedModelError(existing, current);
+    if (!problem) return;
+    logger.error(problem, { module: "cli" });
+    process.exit(64);
 }
 
 /** True when a job dir already holds a successful migration report. */
