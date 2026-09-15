@@ -93,6 +93,8 @@ export class MigratorController implements HostController {
     /** Completed/failed runs in the current queue job. */
     private succeeded = 0;
     private failed = 0;
+    /** When the current batch began, so a client can derive a rate from it. */
+    private batchStartedAt: string | null = null;
 
     constructor(
         private readonly opts: MigratorOptions,
@@ -109,6 +111,7 @@ export class MigratorController implements HostController {
                 startedAt: null,
                 message: clip(lastRow.tail ?? "") || null,
                 model: configuredModel(),
+                progress: this.progress(),
             };
         }
     }
@@ -123,6 +126,7 @@ export class MigratorController implements HostController {
                 startedAt: null,
                 message: null,
                 model: configuredModel(),
+                progress: null,
             };
         }
         if (child.exitCode !== null) {
@@ -143,6 +147,22 @@ export class MigratorController implements HostController {
             startedAt: this.startedAt,
             message: this.tailMessage(),
             model: configuredModel(),
+            progress: this.progress(),
+        };
+    }
+
+    /**
+     * How far through the batch, or null for a single migration.
+     *
+     * `done` counts finished attempts rather than successes: the watcher is asking how much is
+     * left to wait for, and a failed attempt took just as long as a successful one.
+     */
+    private progress(): { done: number; total: number; startedAt: string | null } | null {
+        if (this.queueTotal <= 0) return null;
+        return {
+            done: this.succeeded + this.failed,
+            total: this.queueTotal,
+            startedAt: this.batchStartedAt,
         };
     }
 
@@ -171,11 +191,13 @@ export class MigratorController implements HostController {
                 startedAt: null,
                 message: "all extensions already migrated",
                 model: configuredModel(),
+                progress: this.progress(),
             };
             return this.last;
         }
         this.queue = pending.map((s) => s.id);
         this.queueTotal = this.queue.length;
+        this.batchStartedAt = new Date().toISOString();
         const first = this.queue.shift()!;
         return this.launch(first, new Date().toISOString(), true);
     }
@@ -392,6 +414,7 @@ export class MigratorController implements HostController {
             startedAt: null,
             message: terminalMessage,
                 model: configuredModel(),
+                progress: this.progress(),
             };
     }
 }

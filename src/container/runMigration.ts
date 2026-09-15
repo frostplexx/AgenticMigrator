@@ -394,11 +394,15 @@ async function main() {
     const tagCounts = countByKind(tags);
     logger.info(
         `changes: ${changeSummary.applied}/${changeSummary.needed} applied, ${changeSummary.skipped} skipped` +
-            ` · tags: ${tagCounts.applied} applied, ${tagCounts.skipped} skipped, ${tagCounts.repair} repair`,
+            ` · tags: ${tagCounts.applied} applied, ${tagCounts.skipped} skipped, ` +
+            `${tagCounts.repair} repair, ${tagCounts.spurious} spurious`,
         { module: "migrate" },
     );
     for (const tag of tags.filter((t) => t.kind === "skipped")) {
         logger.warn(`skipped: ${tag.title}`, { module: "migrate" });
+    }
+    for (const tag of tags.filter((t) => t.kind === "spurious")) {
+        logger.warn(`spurious: ${tag.title}`, { module: "migrate" });
     }
 
     const outCompat = await analyzeCompat(OUT);

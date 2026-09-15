@@ -191,5 +191,31 @@ test("tags count by kind", () => {
         { tag: "b", kind: "skipped", title: "" },
         { tag: "c", kind: "skipped", title: "" },
     ]);
-    assert.deepEqual(counts, { applied: 1, skipped: 2, repair: 0, misc: 0 });
+    assert.deepEqual(counts, { applied: 1, skipped: 2, repair: 0, spurious: 0, misc: 0 });
+});
+
+test("a change applied without being needed is tagged spurious", () => {
+    // The case that actually happened: the harness demanded a service worker of an extension that
+    // never had a background, and the model wrote one to satisfy it.
+    const records: ChangeRecord[] = [
+        {
+            id: "background_service_worker",
+            title: "background page/scripts → service worker",
+            needed: false,
+            applied: true,
+            evidence: [],
+        },
+    ];
+    const [tag] = ledgerTags(records);
+    assert.equal(tag.tag, "spurious.background_service_worker");
+    assert.equal(tag.kind, "spurious");
+});
+
+test("counts spurious changes separately from applied ones", () => {
+    const counts = countByKind([
+        { tag: "a", kind: "applied", title: "" },
+        { tag: "b", kind: "spurious", title: "" },
+    ]);
+    assert.equal(counts.applied, 1);
+    assert.equal(counts.spurious, 1);
 });

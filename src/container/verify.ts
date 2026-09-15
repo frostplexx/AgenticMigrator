@@ -6,10 +6,11 @@
 // modal that hangs launchPersistentContext until timeout. Like the Python version we bound
 // the launch and read Chrome's --log-file for the REAL load error, so the fix loop gets an
 // actionable reason instead of an opaque Playwright timeout.
-import { chromium } from "playwright";
+import { chromium, type BrowserContext } from "playwright";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { unpackedExtensionId } from "./extensionId.js";
 
 export interface VerifyReport {
     passed: boolean;
@@ -60,6 +61,52 @@ export function chromeArgs(extDir: string): string[] {
     ];
 }
 
+/**
+ * Does the migrated extension declare a service worker?
+ *
+ * The question decides what "verified" means, and getting it wrong had teeth. `passed` used to be
+ * "an MV3 service worker registered", full stop — so an extension that never had a background at
+ * all could not pass, and the fix loop told the model so in as many words. The model did the
+ * obvious thing: it invented one. In the DeepSeek run, a content-script-only extension came back
+ * with a new background.js whose own comment read "No background work is required, but an MV3
+ * extension must register a service worker" — which is false, and which our failure message taught
+ * it. 22 of the 49 extensions in that corpus have no background, so nearly half were exposed to a
+ * harness that rewarded adding code the original never had.
+ */
+function declaresServiceWorker(extDir: string): boolean {
+    try {
+        const manifest = JSON.parse(readFileSync(join(extDir, "manifest.json"), "utf8")) as {
+            background?: { service_worker?: string };
+        };
+        return Boolean(manifest.background?.service_worker);
+    } catch {
+        // Unreadable manifest is a load failure, which the launch path reports with Chrome's own
+        // reason. Requiring a worker here would only mask it.
+        return false;
+    }
+}
+
+/**
+ * Is the extension installed at all?
+ *
+ * Its own pages are reachable exactly when Chrome accepted it, so this is the load check for an
+ * extension with nothing else to look at — and it is the one thing worth asserting about every
+ * migration regardless of shape.
+ */
+async function installed(context: BrowserContext, extDir: string): Promise<boolean> {
+    const page = await context.newPage();
+    try {
+        const res = await page.goto(`chrome-extension://${unpackedExtensionId(extDir)}/manifest.json`, {
+            timeout: 10_000,
+        });
+        return Boolean(res && res.status() === 200);
+    } catch {
+        return false;
+    } finally {
+        await page.close().catch(() => { });
+    }
+}
+
 async function launchOnce(extDir: string, swTimeoutMs: number): Promise<VerifyReport> {
     const userDataDir = mkdtempSync(join(tmpdir(), "cft-profile-"));
     const errors: string[] = [];
@@ -100,6 +147,34 @@ async function launchOnce(extDir: string, swTimeoutMs: number): Promise<VerifyRe
                 runtimeErrors: swErrors,
             };
         }
+        // No worker — but only an extension that DECLARES one owes us a worker. For the rest, the
+        // question is whether Chrome accepted it and whether anything threw.
+        if (!declaresServiceWorker(extDir)) {
+            const runtimeErrors: string[] = [];
+            context.on("console", (msg) => {
+                if (msg.type() === "error") runtimeErrors.push(`page console: ${msg.text()}`);
+            });
+            const ok = await installed(context, extDir);
+            await new Promise((r) => setTimeout(r, SETTLE_MS));
+            const loadErrsNoBg = readLoadErrors();
+            await context.close();
+            const collected = [...new Set([...runtimeErrors, ...errors, ...loadErrsNoBg])].slice(0, 10);
+            return ok
+                ? {
+                      passed: true,
+                      extensionId: unpackedExtensionId(extDir),
+                      errors: collected,
+                      runtimeErrors: collected,
+                  }
+                : {
+                      passed: false,
+                      reason:
+                          "Chrome did not install the extension (no background declared, so no worker is expected)" +
+                          (collected.length ? ` — ${collected[collected.length - 1]}` : ""),
+                      errors: collected,
+                  };
+        }
+
         const bg = context.backgroundPages().map((p) => p.url());
         const loadErrs = readLoadErrors();
         await context.close();

@@ -9,6 +9,7 @@
  *   applied — the framework made this change. What the pipeline does.
  *   skipped — the change was needed and did not happen. Where the pipeline stops.
  *   repair  — an LLM repair round made the change the first pass missed. What repair is worth.
+ *   spurious— the change was made and was never needed. What the pipeline invents.
  *   misc    — a property of the extension, not of the migration: UI surfaces it exposes,
  *             whether it is minified or bundled. What the sample is made of.
  */
@@ -16,7 +17,7 @@ import { buildChangeLedger, type ChangeRecord } from "./changes.js";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 
-export type TagKind = "applied" | "skipped" | "repair" | "misc";
+export type TagKind = "applied" | "skipped" | "repair" | "spurious" | "misc";
 
 export interface Tag {
     /** Dotted identifier, stable enough to group by in a results table. */
@@ -118,6 +119,22 @@ export function ledgerTags(records: ChangeRecord[]): Tag[] {
     for (const record of records) {
         if (record.needed && record.applied) {
             tags.push({ tag: `change.${record.id}`, kind: "applied", title: record.title });
+        } else if (!record.needed && record.applied) {
+            /*
+             * Applied without being needed.
+             *
+             * Measured, not hypothetical: the harness used to require a service worker of every
+             * migration, so a content-script-only extension could not pass, and the model added a
+             * background.js whose own comment said "No background work is required, but an MV3
+             * extension must register a service worker". Code the original never had, in the
+             * output, because of how we asked. A pipeline that invents changes needs that counted
+             * as carefully as one that skips them.
+             */
+            tags.push({
+                tag: `spurious.${record.id}`,
+                kind: "spurious",
+                title: `${record.title} — applied but never needed`,
+            });
         } else if (record.needed && !record.applied) {
             // The one the old tagging could not express: the framework met this and moved on.
             tags.push({
@@ -178,7 +195,7 @@ export function buildTags(opts: {
 
 /** Counts per kind, for a one-line summary. */
 export function countByKind(tags: Tag[]): Record<TagKind, number> {
-    const counts: Record<TagKind, number> = { applied: 0, skipped: 0, repair: 0, misc: 0 };
+    const counts: Record<TagKind, number> = { applied: 0, skipped: 0, repair: 0, spurious: 0, misc: 0 };
     for (const tag of tags) counts[tag.kind]++;
     return counts;
 }

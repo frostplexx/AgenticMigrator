@@ -13,12 +13,14 @@
 // the fraction of baseline-passing checks that still pass — partial behaviour preservation,
 // instead of a binary that has to call a half-working port either a success or a total loss.
 import { chromium, type BrowserContext, type Page } from "playwright";
-import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { chromeArgs } from "./verify.js";
+import { unpackedExtensionId } from "./extensionId.js";
+
+export { unpackedExtensionId };
 
 /**
  * `pass`/`fail` are statements about the extension. `na` means the extension has no such surface.
@@ -109,16 +111,6 @@ async function bounded(name: string, run: () => Promise<CheckResult>): Promise<C
     }
 }
 
-/**
- * Chrome's unpacked-extension id: the first 16 bytes of SHA-256 over the absolute path, each
- * nibble mapped into a-p. Deterministic, so extension-page checks work even for an extension that
- * has no background context to read the id from (an MV2 popup-only extension, or a migration
- * whose worker died on start).
- */
-export function unpackedExtensionId(extDir: string): string {
-    const digest = createHash("sha256").update(resolve(extDir)).digest("hex").slice(0, 32);
-    return [...digest].map((c) => String.fromCharCode(97 + parseInt(c, 16))).join("");
-}
 
 function readManifest(extDir: string): any {
     try {
