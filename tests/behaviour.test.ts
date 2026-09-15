@@ -118,3 +118,16 @@ test("a baseline of only na checks is unavailable rather than invalid", () => {
     const nothing: BehaviourReport = { loaded: false, checks: [] };
     assert.equal(baselineUnavailable(nothing), true);
 });
+
+test("an extension with no reachable surface is ungradeable, not invalid", () => {
+    // Measured on a real corpus extension: content-script-only, with match patterns that never
+    // cover a page the harness can serve. Every check is `na` — nothing was tested, so there is no
+    // evidence on which to call the original broken.
+    const nothingToCheck = report([
+        na("background_alive"),
+        na("popup_renders"),
+        na("content_script_injects"),
+    ]);
+    assert.equal(baselineUnavailable(nothingToCheck), true);
+    assert.equal(isInvalidInstance(nothingToCheck), false);
+});

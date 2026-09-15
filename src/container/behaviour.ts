@@ -501,5 +501,9 @@ export function baselineUnavailable(baseline: BehaviourReport): boolean {
     if (baseline.error) return true;
     if (baseline.checks.length === 0) return true;
     const judgeable = baseline.checks.filter((c) => c.status !== "na");
-    return judgeable.length > 0 && judgeable.every((c) => c.status === "error");
+    // Nothing to judge at all. A content-script-only extension whose match patterns never cover a
+    // page we can serve has no surface this harness can reach — measured, that is every check `na`.
+    // It is not a broken original, it is one we cannot grade, and the two must not share a label.
+    if (judgeable.length === 0) return true;
+    return judgeable.every((c) => c.status === "error");
 }
