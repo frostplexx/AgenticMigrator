@@ -196,8 +196,8 @@ async function checkPage(context: BrowserContext, extId: string, path: string, n
  * extension simply never loads. The baseline then fails every check, and the instance looks broken
  * when in truth it was never tested: an entire corpus labelled INVALID_INSTANCE by the harness.
  *
- * CHROME_OLD points at a build that still loads MV2 (Chrome for Testing 116). Without it, MV2
- * baselines are reported as unavailable rather than as failures.
+ * CHROME_OLD points at a build that still loads MV2 (the image installs Chrome for Testing 130).
+ * Without it, MV2 baselines are reported as unavailable rather than as failures.
  */
 function executableFor(mv: number | undefined): { path?: string; mv2Capable: boolean } {
     if (mv !== 2) return { mv2Capable: true }; // MV3 runs in the bundled chromium

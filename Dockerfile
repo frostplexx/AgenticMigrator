@@ -19,11 +19,17 @@ RUN npm ci --omit=dev
 
 # An MV2-capable Chrome for the behavioural BASELINE.
 #
-# The bundled chromium is current, and current Chrome has removed MV2 support outright — an MV2
-# extension simply never loads in it, so every baseline failed every check and every instance in a
-# run was labelled INVALID_INSTANCE. Chrome for Testing 116 is the last build that still loads MV2,
-# which is what makes the before/after comparison possible at all. ~150MB, fetched once per image.
-ARG MV2_CHROME_VERSION=116.0.5845.96
+# The bundled chromium is current, and current Chrome refuses MV2 outright: measured in this image,
+# an MV2 extension reports installed=false under 151 and installed=true under 116, 130 and 140. So
+# the baseline never loaded, every check failed, and every instance in a run was labelled
+# INVALID_INSTANCE — the corpus was ungradeable for a reason that had nothing to do with the
+# extensions.
+#
+# 130 rather than the oldest that works: the closer the baseline browser is to the MV3 one, the
+# less of the before/after difference is an artefact of a two-year gap in Chrome itself. 140 also
+# loads MV2 and is closer still, but it sits deep in the removal timeline where MV2 survives only
+# behind a flag — 130 predates that. Override with --build-arg when that judgement changes.
+ARG MV2_CHROME_VERSION=130.0.6723.116
 RUN curl -fsSL -o /tmp/chrome-mv2.zip \
       "https://storage.googleapis.com/chrome-for-testing-public/${MV2_CHROME_VERSION}/linux64/chrome-linux64.zip" \
     && unzip -q /tmp/chrome-mv2.zip -d /opt \
