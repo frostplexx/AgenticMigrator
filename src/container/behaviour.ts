@@ -15,12 +15,18 @@
 import { chromium, type BrowserContext, type Page } from "playwright";
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { chromeArgs } from "./verify.js";
 
-export type CheckStatus = "pass" | "fail" | "na";
+/**
+ * `pass`/`fail` are statements about the extension. `na` means the extension has no such surface.
+ * `error` means the harness could not tell — a timeout, a crashed browser — and is deliberately
+ * separate from `fail`, because counting "we could not look" as "it is broken" is how a migration
+ * success rate becomes unfalsifiable.
+ */
+export type CheckStatus = "pass" | "fail" | "na" | "error";
 
 export interface CheckResult {
     name: string;
@@ -46,10 +52,62 @@ export interface BehaviourScore {
     passed: number;
     /** Checks the original passed and the migration does not — the actual behaviour lost. */
     regressions: string[];
+    /**
+     * Checks the harness could not judge after migration (timeout, crashed browser).
+     *
+     * Kept out of the denominator rather than counted as lost: a flaky harness must not read as a
+     * bad migration. Listed so a run whose score rests on two checks out of eight is visible.
+     */
+    inconclusive: string[];
 }
 
 const PAGE_TIMEOUT_MS = Number(process.env.BEHAVIOUR_PAGE_TIMEOUT_MS ?? 8000);
 const SW_TIMEOUT_MS = Number(process.env.BEHAVIOUR_SW_TIMEOUT_MS ?? 12000);
+
+/**
+ * Ceiling on one check, and on the whole session.
+ *
+ * Playwright's `evaluate` has no timeout of its own: if the page or service worker it runs in never
+ * answers, the call waits forever. A wedged worker therefore hung an entire migration run for a day
+ * — one extension, one browser, no output, nothing to kill but the container.
+ *
+ * A check that cannot answer in 30s is not going to, and a session that cannot finish in five
+ * minutes is stuck rather than slow. Both are recorded as harness failures, because a check that
+ * timed out is a fact about our harness and must not be read as a fact about the extension.
+ */
+const CHECK_TIMEOUT_MS = Number(process.env.BEHAVIOUR_CHECK_TIMEOUT_MS ?? 30_000);
+const SESSION_TIMEOUT_MS = Number(process.env.BEHAVIOUR_SESSION_TIMEOUT_MS ?? 300_000);
+
+/** Reject after `ms`, so an unbounded playwright call cannot stall the run. */
+function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+        work.then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (error) => {
+                clearTimeout(timer);
+                reject(error);
+            },
+        );
+    });
+}
+
+/**
+ * Run one check under a deadline, reporting a timeout as `error` rather than `fail`.
+ *
+ * The distinction is the whole point: `fail` says the extension is broken, `error` says we could
+ * not tell. Scoring counts the first and excludes the second.
+ */
+async function bounded(name: string, run: () => Promise<CheckResult>): Promise<CheckResult> {
+    try {
+        return await withTimeout(run(), CHECK_TIMEOUT_MS, name);
+    } catch (error) {
+        return { name, status: "error", detail: error instanceof Error ? error.message : String(error) };
+    }
+}
 
 /**
  * Chrome's unpacked-extension id: the first 16 bytes of SHA-256 over the absolute path, each
@@ -130,6 +188,24 @@ async function checkPage(context: BrowserContext, extId: string, path: string, n
  * Never throws — a harness failure is reported as `loaded: false` with every check `na`, because
  * "our harness broke" and "the extension is broken" must not be the same datum.
  */
+/**
+ * The browser to run an extension in.
+ *
+ * MV2 needs a Chrome that still supports it. Current Chrome does not — the support was removed, so
+ * `--disable-features=ExtensionManifestV2Disabled` has nothing left to re-enable and an MV2
+ * extension simply never loads. The baseline then fails every check, and the instance looks broken
+ * when in truth it was never tested: an entire corpus labelled INVALID_INSTANCE by the harness.
+ *
+ * CHROME_OLD points at a build that still loads MV2 (Chrome for Testing 116). Without it, MV2
+ * baselines are reported as unavailable rather than as failures.
+ */
+function executableFor(mv: number | undefined): { path?: string; mv2Capable: boolean } {
+    if (mv !== 2) return { mv2Capable: true }; // MV3 runs in the bundled chromium
+    const old = process.env.CHROME_OLD;
+    if (old && existsSync(old)) return { path: old, mv2Capable: true };
+    return { mv2Capable: false };
+}
+
 export async function runBehaviourChecks(extDir: string): Promise<BehaviourReport> {
     const manifest = readManifest(extDir);
     const mv = typeof manifest.manifest_version === "number" ? manifest.manifest_version : undefined;
@@ -139,15 +215,36 @@ export async function runBehaviourChecks(extDir: string): Promise<BehaviourRepor
     let context: BrowserContext | undefined;
     let http: { url: string; close: () => Promise<void> } | undefined;
 
+    // An MV2 extension in a Chrome without MV2 support cannot be judged, and saying so is the
+    // difference between "this extension is broken" and "we have no browser for it".
+    const runtime = executableFor(mv);
+    if (!runtime.mv2Capable) {
+        return {
+            loaded: false,
+            manifestVersion: mv,
+            checks: [{ name: "background_alive", status: "error", detail: "no MV2-capable browser (set CHROME_OLD)" }],
+            error: "no MV2-capable browser available: set CHROME_OLD to a Chrome build that still loads MV2",
+        };
+    }
+
+    /** Nothing after this point may outlive the session deadline. */
+    const deadline = Date.now() + SESSION_TIMEOUT_MS;
+    const left = () => Math.max(1000, deadline - Date.now());
+
     try {
-        context = await chromium.launchPersistentContext(userDataDir, {
+        context = await withTimeout(
+            chromium.launchPersistentContext(userDataDir, {
+                ...(runtime.path ? { executablePath: runtime.path } : {}),
             headless: false,
             timeout: 20000,
             // MV2 is disabled by default in current Chrome, so the BASELINE would fail to load for
             // reasons that have nothing to do with the extension. Re-enabling it is what makes the
             // MV2 and MV3 runs comparable at all.
-            args: [...chromeArgs(extDir), "--disable-features=ExtensionManifestV2Disabled,ExtensionManifestV2Unsupported"],
-        });
+                args: [...chromeArgs(extDir), "--disable-features=ExtensionManifestV2Disabled,ExtensionManifestV2Unsupported"],
+            }),
+            left(),
+            "browser launch",
+        );
 
         // 1. Background context alive — MV3 service worker or MV2 background page. Version-agnostic
         //    on purpose: the question is "does its background code run", not "how".
@@ -167,34 +264,49 @@ export async function runBehaviourChecks(extDir: string): Promise<BehaviourRepor
         // 2. Extension pages render.
         const action = manifest.action ?? manifest.browser_action ?? manifest.page_action ?? {};
         const popup = action.default_popup;
-        checks.push(popup ? await checkPage(context, extId, popup, "popup_renders") : { name: "popup_renders", status: "na", detail: "no popup" });
+        checks.push(
+            popup
+                ? await bounded("popup_renders", () => checkPage(context!, extId, popup, "popup_renders"))
+                : { name: "popup_renders", status: "na", detail: "no popup" },
+        );
 
         const options = manifest.options_page ?? manifest.options_ui?.page;
-        checks.push(options ? await checkPage(context, extId, options, "options_renders") : { name: "options_renders", status: "na", detail: "no options page" });
+        checks.push(
+            options
+                ? await bounded("options_renders", () => checkPage(context!, extId, options, "options_renders"))
+                : { name: "options_renders", status: "na", detail: "no options page" },
+        );
 
         const newtab = manifest.chrome_url_overrides?.newtab;
-        checks.push(newtab ? await checkPage(context, extId, newtab, "newtab_renders") : { name: "newtab_renders", status: "na", detail: "no newtab override" });
+        checks.push(
+            newtab
+                ? await bounded("newtab_renders", () => checkPage(context!, extId, newtab, "newtab_renders"))
+                : { name: "newtab_renders", status: "na", detail: "no newtab override" },
+        );
 
         // 3. Storage round-trips from an extension context. Cheap, and it catches a whole class of
         //    MV3 ports that lost their permissions or moved state into a worker global that dies.
-        checks.push(await checkStorage(context, extId, manifest));
+        checks.push(await bounded("storage_roundtrip", () => checkStorage(context!, extId, manifest)));
 
         // 4. Content script injection, when one would match a plain local page.
         if (broadContentScript(manifest)) {
             http = await serveBlank();
-            checks.push(await checkContentScript(context, http.url));
+            const url = http.url;
+            checks.push(await bounded("content_script_injects", () => checkContentScript(context!, url)));
         } else {
             checks.push({ name: "content_script_injects", status: "na", detail: "no content script matching a local page" });
         }
 
         // 5. Declared DNR rulesets are actually enabled. A migration that writes rules.json and
         //    forgets to wire it up loads perfectly and blocks nothing.
-        checks.push(await checkDnr(sw, manifest));
+        checks.push(await bounded("dnr_rulesets_enabled", () => checkDnr(sw, manifest)));
 
         // 6. Service worker survives termination. This is where MV3 ports break in the wild and
         //    where a load-only harness is blind: the worker is torn down after ~30s idle and must
         //    come back with its listeners intact.
-        checks.push(await checkWorkerRestart(context, sw, mv));
+        // The likeliest place to hang: it stops the worker and then asks a page whether the
+        // extension still answers, and a worker that never comes back never answers.
+        checks.push(await bounded("worker_survives_restart", () => checkWorkerRestart(context!, sw, mv)));
 
         const loaded = hasBackground || checks.some((c) => c.status === "pass");
         return { loaded, extensionId: extId, manifestVersion: mv, checks };
@@ -321,19 +433,30 @@ export function scoreBehaviour(baseline: BehaviourReport, post: BehaviourReport)
     const postByName = new Map(post.checks.map((c) => [c.name, c]));
     const expected = baseline.checks.filter((c) => c.status === "pass");
     const regressions: string[] = [];
+    const inconclusive: string[] = [];
     let passed = 0;
+    let denominator = 0;
     for (const b of expected) {
         const p = postByName.get(b.name);
+        // The harness could not tell — a timeout, a crashed browser. Excluded from the denominator
+        // rather than counted as a regression: "we did not look" is not "it broke", and scoring it
+        // as a loss would make a flaky harness look like a bad migration.
+        if (p?.status === "error") {
+            inconclusive.push(b.name);
+            continue;
+        }
+        denominator++;
         if (p?.status === "pass") passed++;
         // An `na` post-check for something the original did is a lost capability, not a free pass:
         // "no popup declared any more" is exactly the silent-removal failure we are looking for.
         else regressions.push(b.name);
     }
     return {
-        score: expected.length ? passed / expected.length : null,
-        denominator: expected.length,
+        score: denominator ? passed / denominator : null,
+        denominator,
         passed,
         regressions,
+        inconclusive,
     };
 }
 
@@ -361,5 +484,22 @@ export function formatBehaviour(report: BehaviourReport, baseline?: BehaviourRep
 
 /** True when the original extension is not gradeable, so the instance must leave the denominator. */
 export function isInvalidInstance(baseline: BehaviourReport): boolean {
+    // A baseline the harness could not run at all is not evidence about the extension. Blaming the
+    // instance for our missing browser is how a whole corpus ends up labelled INVALID_INSTANCE.
+    if (baselineUnavailable(baseline)) return false;
     return !baseline.loaded || baseline.checks.every((c) => c.status !== "pass");
+}
+
+/**
+ * Did the harness fail to produce a baseline at all?
+ *
+ * True when the browser never loaded the original, or when every check errored. The canonical case
+ * is an MV2 extension in a Chrome that no longer supports MV2: nothing loads, every check fails,
+ * and the extension looks broken when in fact nothing was tested.
+ */
+export function baselineUnavailable(baseline: BehaviourReport): boolean {
+    if (baseline.error) return true;
+    if (baseline.checks.length === 0) return true;
+    const judgeable = baseline.checks.filter((c) => c.status !== "na");
+    return judgeable.length > 0 && judgeable.every((c) => c.status === "error");
 }

@@ -36,6 +36,8 @@ export interface RunReport {
     /** Fraction of baseline-passing checks preserved, or null when there is no baseline. */
     score?: number | null;
     scoreDenominator?: number;
+    /** Checks the harness could not judge after migration; excluded from the score's denominator. */
+    inconclusive?: string[];
     regressions?: string[];
     blockers?: {
         input: unknown[];

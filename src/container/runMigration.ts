@@ -14,7 +14,14 @@ import { analyzeCompat, type CompatFinding } from "../host/compat.js";
 import { buildChangeLedger, summarizeLedger, type ChangeRecord } from "../host/changes.js";
 import { buildTags, countByKind, type Tag } from "../host/tags.js";
 import { promptRef } from "../host/promptRef.js";
-import { formatBehaviour, isInvalidInstance, runBehaviourChecks, scoreBehaviour, type BehaviourReport } from "./behaviour.js";
+import {
+    baselineUnavailable,
+    formatBehaviour,
+    isInvalidInstance,
+    runBehaviourChecks,
+    scoreBehaviour,
+    type BehaviourReport,
+} from "./behaviour.js";
 
 const EXT = process.env.EXTENSION_DIR ?? "/work/extension";
 const OUT = process.env.OUT_DIR ?? "/work/run/out";
@@ -141,7 +148,15 @@ async function main() {
             `baseline (MV2): ${passing.length}/${baseline.checks.length} check(s) pass — ${passing.join(", ") || "none"}`,
             { module: "migrate" },
         );
-        if (isInvalidInstance(baseline)) {
+        if (baselineUnavailable(baseline)) {
+            // Our problem, not the extension's. Saying INVALID_INSTANCE here would blame the corpus
+            // for a browser we failed to provide, and a whole run can be lost to that one word.
+            logger.error(
+                `baseline could not run: ${baseline.error ?? "every check errored"} — the migration will ` +
+                    `still be verified, but nothing about behaviour can be scored`,
+                { module: "migrate" },
+            );
+        } else if (isInvalidInstance(baseline)) {
             logger.warn("baseline does not work: this instance is not gradeable (INVALID_INSTANCE)", { module: "migrate" });
         }
     } else {
@@ -396,7 +411,9 @@ async function main() {
      * for an annotated one.
      */
     const label: string | null =
-        baseline && isInvalidInstance(baseline)
+        baseline && baselineUnavailable(baseline)
+            ? "HARNESS_FAILURE"
+            : baseline && isInvalidInstance(baseline)
             ? "INVALID_INSTANCE"
             : baseline && !post?.loaded && !report.passed && report.reason?.startsWith("browser error")
                 ? "HARNESS_FAILURE"
@@ -423,6 +440,7 @@ async function main() {
         score: behaviourScore?.score ?? null,
         scoreDenominator: behaviourScore?.denominator ?? 0,
         regressions: behaviourScore?.regressions ?? [],
+        inconclusive: behaviourScore?.inconclusive ?? [],
         /** HARD/SOFT compat findings: on the input they bound what is achievable, on the output they are defects. */
         blockers: {
             input: inCompat?.findings ?? [],

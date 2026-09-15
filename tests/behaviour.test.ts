@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isInvalidInstance, scoreBehaviour, unpackedExtensionId, type BehaviourReport, type CheckResult } from "../src/container/behaviour.js";
+import {
+    baselineUnavailable,
+    isInvalidInstance,
+    scoreBehaviour,
+    unpackedExtensionId,
+    type BehaviourReport,
+    type CheckResult,
+} from "../src/container/behaviour.js";
 
 const report = (checks: CheckResult[], loaded = true): BehaviourReport => ({ loaded, checks });
 const pass = (name: string): CheckResult => ({ name, status: "pass" });
@@ -49,8 +56,13 @@ test("a fully preserved migration scores 1", () => {
     assert.deepEqual(s.regressions, []);
 });
 
-test("invalid instances are the ones the baseline could not grade", () => {
-    assert.equal(isInvalidInstance(report([], false)), true);
+test("invalid instances are the ones the baseline graded and found dead", () => {
+    // A baseline that produced no checks at all is NOT an invalid instance: nothing was judged, so
+    // there is nothing to call the extension broken for. That distinction is what keeps a missing
+    // browser from labelling an entire corpus INVALID_INSTANCE.
+    assert.equal(isInvalidInstance(report([], false)), false);
+    assert.equal(baselineUnavailable(report([], false)), true);
+
     assert.equal(isInvalidInstance(report([fail("background_alive"), na("popup_renders")])), true);
     assert.equal(isInvalidInstance(report([pass("background_alive")])), false);
 });
@@ -60,4 +72,49 @@ test("unpacked extension id is a stable 32-char a-p string keyed on the path", (
     assert.match(id, /^[a-p]{32}$/);
     assert.equal(id, unpackedExtensionId("/work/out/"));
     assert.notEqual(id, unpackedExtensionId("/work/original"));
+});
+
+test("a check the harness could not judge is excluded from the score, not counted as lost", () => {
+    // A timeout means we did not look. Scoring it as a regression makes a flaky harness read as a
+    // bad migration, which is the opposite conclusion.
+    const baseline = report([
+        { name: "popup_renders", status: "pass" },
+        { name: "storage_roundtrip", status: "pass" },
+    ]);
+    const post = report([
+        { name: "popup_renders", status: "pass" },
+        { name: "storage_roundtrip", status: "error", detail: "timed out" },
+    ]);
+    const score = scoreBehaviour(baseline, post);
+    assert.equal(score.score, 1);
+    assert.equal(score.denominator, 1);
+    assert.deepEqual(score.regressions, []);
+    assert.deepEqual(score.inconclusive, ["storage_roundtrip"]);
+});
+
+test("an unavailable baseline is a harness failure, never an invalid instance", () => {
+    // The case that mislabelled a whole run: current Chrome cannot load MV2, so every check
+    // errored and every extension looked broken.
+    const noBrowser: BehaviourReport = {
+        loaded: false,
+        checks: [{ name: "background_alive", status: "error", detail: "no MV2-capable browser (set CHROME_OLD)" }],
+        error: "no MV2-capable browser available",
+    };
+    assert.equal(baselineUnavailable(noBrowser), true);
+    assert.equal(isInvalidInstance(noBrowser), false);
+});
+
+test("an extension that genuinely does nothing is still an invalid instance", () => {
+    const dead = report([
+        { name: "background_alive", status: "fail" },
+        { name: "popup_renders", status: "fail" },
+    ]);
+    assert.equal(baselineUnavailable(dead), false);
+    assert.equal(isInvalidInstance(dead), true);
+});
+
+test("a baseline of only na checks is unavailable rather than invalid", () => {
+    // Nothing was judged either way, so there is nothing to call the extension broken for.
+    const nothing: BehaviourReport = { loaded: false, checks: [] };
+    assert.equal(baselineUnavailable(nothing), true);
 });

@@ -457,6 +457,11 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
         "-e", `LLM_THINKING=${process.env.LLM_THINKING ?? "off"}`,
         "-e", `LOG_FILE=/work/run/migrate.jsonl`,
         "-e", `ORIGINAL_DIR=/work/original`,
+        // The MV2-capable Chrome the image installs, for the behavioural baseline. Overridable so a
+        // host with its own build can point at that instead.
+        "-e", `CHROME_OLD=${process.env.CHROME_OLD ?? "/opt/chrome-mv2/chrome"}`,
+        "-e", `BEHAVIOUR_CHECK_TIMEOUT_MS=${process.env.BEHAVIOUR_CHECK_TIMEOUT_MS ?? "30000"}`,
+        "-e", `BEHAVIOUR_SESSION_TIMEOUT_MS=${process.env.BEHAVIOUR_SESSION_TIMEOUT_MS ?? "300000"}`,
         ...(process.env.ENABLE_VNC === "1" ? [
             "-e", "ENABLE_VNC=1",
             "-p", `${portBase}:6080`,
