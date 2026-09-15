@@ -370,14 +370,17 @@ export class MigratorController implements HostController {
         if (phase === "done") this.succeeded += 1;
         else if (phase === "failed") this.failed += 1;
 
-        // Corpus queue: start the next source with the same startedAt and the
+        // Corpus queue: start the next source with its own startedAt and the
         // same log stream, so the client dock shows the whole run. stopping
         // (host.stop / dispose) drops the remaining queue.
         let continueQueue = !stopRequested && this.queue.length > 0;
         if (continueQueue) {
             const next = this.queue.shift()!;
             try {
-                this.launch(next, this.startedAt!, false);
+                // Its own timestamp, not the batch's. Reusing the first item's made startedAt mean
+                // "when the queue began", which is what progress.startedAt is for — and it left the
+                // runs table recording the same start for every extension in a batch.
+                this.launch(next, new Date().toISOString(), false);
             } catch {
                 // Source vanished or unspawnable: count the rest as failed.
                 this.failed = this.queueTotal - this.succeeded;
