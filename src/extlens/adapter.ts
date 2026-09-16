@@ -25,9 +25,11 @@ import { join, basename, resolve } from "node:path";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import {
     computeProfile,
+    reportVerdict,
     summarizeManifest,
     type Backend,
     type ExtensionProfile,
+    type ExtensionVerdict,
     type ExtensionSource,
     type ListParams,
     type ListResult,
@@ -207,6 +209,14 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
     const hasReport = (run: RunEntry): boolean =>
         registry.getReport(run.id) !== null ||
         existsSync(join(run.dir, "report.manual.json"));
+    /** The stored review's verdict, from the registry or the legacy on-disk file. */
+    const verdictOf = (run: RunEntry): ExtensionVerdict | null => {
+        const row = registry.getReport(run.id);
+        const report = row
+            ? (JSON.parse(row.payload) as ExtlensReport)
+            : (readJson(join(run.dir, "report.manual.json")) as ExtlensReport | null);
+        return report ? reportVerdict(report) : null;
+    };
     const sources = registry.listSources();
 
     const cached = new Map<string, { sig: string; source: ExtensionSource; profile: ExtensionProfile }>();
@@ -313,6 +323,7 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
                     tags: profile.tags,
                     hasMv3: isRun,
                     hasReport: row.entry.kind === "run" ? hasReport(row.entry.run) : false,
+                    verdict: row.entry.kind === "run" ? verdictOf(row.entry.run) : null,
                 };
             });
 
