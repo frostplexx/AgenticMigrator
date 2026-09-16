@@ -37,6 +37,7 @@ import {
     type HostController,
 } from "extlens-sdk";
 import { Registry, type RunEntry, type RunRow, type SourceEntry } from "./registry.js";
+import { makeExplainer, runVerificationContext } from "./explain.js";
 
 const MAX_TEXT_FILE = 10 * 1024 * 1024;
 
@@ -251,7 +252,31 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
 
     const nameOf = (row: Row): string => profileOf(row).profile.name;
 
-    return {
+    const explainer = makeExplainer();
+    /**
+     * Why did this run's migration fail? Only a run can be asked: an unmigrated source has no
+     * migration to explain. The model gets the human review, the migrator's own verification, and
+     * the diff between the source tree and out/ — this host is the one place all three exist.
+     */
+    const explainFailure = async (id: string) => {
+        if (!explainer) return null;
+        const run = runById(id);
+        if (!run) return null;
+        const got = await backend.getExtension(id);
+        if (!got) return null;
+        const mv2Path = sourcePath(run);
+        const context = runVerificationContext(run.dir);
+        return explainer.explain({
+            // getExtension's profile carries the mv2 summary the SDK's prompt uses for "before".
+            profile: { ...profileFor(run).profile, mv2: got.profile?.mv2 ?? null },
+            report: await backend.getReport(id),
+            ...(mv2Path && existsSync(join(mv2Path, "manifest.json")) ? { mv2: readTree(mv2Path) } : {}),
+            mv3: got.source.files,
+            ...(context ? { context: [context] } : {}),
+        });
+    };
+
+    const backend: Backend = {
         async listExtensions(params: ListParams): Promise<ListResult> {
             const rows = allRows();
             const search = params.search?.trim().toLowerCase();
@@ -392,5 +417,8 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
             return doc.id;
         },
         ...(host ? { host } : {}),
+        // Left undefined without a model, which is how the SDK knows to answer -32601.
+        ...(explainer ? { explainFailure } : {}),
     };
+    return backend;
 }
