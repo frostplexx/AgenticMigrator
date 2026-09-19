@@ -103,21 +103,55 @@ change, which a load-only verifier cannot see.
 
 Changes tracked: `manifest_version`, `background_service_worker`,
 `background_persistent_removed`, `action_rename`, `host_permissions_split`, `webrequest_to_dnr`,
-`offscreen_document`, `execute_script_api`, `remote_code_removed`,
-`web_accessible_resources_v3`, `csp_object_form`, `commands_execute_action`,
-`storage_over_dom_state` (`src/host/changes.ts`).
+`webrequest_header_modification`, `webrequest_response_inspection`, `offscreen_document`,
+`execute_script_api`, `remote_code_removed`, `web_accessible_resources_v3`, `csp_object_form`,
+`commands_execute_action`, `storage_over_dom_state`, `eval_removed` (`src/host/changes.ts`).
+webRequest is three changes rather than one because MV3 supports them differently: a static
+block/redirect ports to declarativeNetRequest, a header rewrite ports only when the new value is a
+constant (`modifyHeaders`), and reading the response does not port at all. Every change carries
+its MV3 `support` — `full`, `partial` or `none` — with the Chrome documentation URL for anything
+less than full (`CHANGE_SUPPORT`).
 
-Tags (`src/host/tags.ts`) come in four kinds, because they answer different questions:
+`needed` is always measured on the **unconverted original** (`/work/original`), never on the
+converter's output: the converter has already made the mechanical changes there, and measuring
+against it reports every one of them as invented.
+
+Tags (`src/host/tags.ts`) come in five kinds, because they answer different questions:
 
 | kind | example | answers |
 | --- | --- | --- |
 | `applied` | `change.webrequest_to_dnr` | what the pipeline does |
-| `skipped` | `skipped.offscreen_document` | where the pipeline stops |
-| `repair` | `repair.action_rename` | what LLM repair is worth |
-| `misc` | `source.minified`, `surface.context_menu` | what the sample is made of |
+| `skipped` | `skipped.webrequest_header_modification` | where the pipeline stops — and why, see below |
+| `repair` | `repair.storage_over_dom_state`, `repair.background_edited` | what LLM repair is worth |
+| `spurious` | `spurious.background_service_worker` | what the pipeline invents |
+| `misc` | `source.minified`, `source.framework`, `surface.context_menu` | what the sample is made of |
 
-`repair` tags are a diff of the change ledger taken before and after the repair round — the
-output tree alone cannot say when a change appeared.
+**Every skip carries a reason**, because "purposely left out" and "silently dropped" support
+opposite conclusions about the model and used to be the same cell:
+
+| reason | meaning | example |
+| --- | --- | --- |
+| `platform` | MV3 cannot express it at all; the framework purposely ignores it. Evidence carries the citable constraint. | response body inspection, remote code, any HARD compat blocker |
+| `abstained` | the agent's `ABSTAIN.md` names this capability | — |
+| `limited` | MV3 expresses only part of it; the evidence decides whether this instance was portable, and the tag refuses to decide for it | header rewrite, computed block decisions |
+| `unexplained` | nothing accounts for it — the cell that counts against the model | a dropped offscreen document |
+
+`report.json` carries `skipReasons` alongside `tagCounts`, so a corpus table can split "skipped"
+four ways without re-reading evidence.
+
+**Repair** is attributed two ways. The change ledger is diffed before and after the first repair
+prompt (`repair.<change>`: a change the first pass missed and repair made), and the output tree is
+hashed at the same moment so edits that flip no ledger bit — a global-variable fix inside the
+worker — are still counted: `repair.files_edited` with the file list, plus `repair.manifest_edited`,
+`repair.background_edited`, `repair.content_script_edited`, `repair.ui_page_edited` by the file's
+role in the manifest. Both loops count as repair: the load-fix rounds and the behaviour round.
+
+**Misc** covers the UI surfaces the extension exposes (`surface.popup`, `surface.context_menu`,
+`surface.omnibox`, `surface.notifications`, `surface.keyboard_shortcuts`, `surface.side_panel`,
+`surface.devtools`, `surface.new_tab`, `surface.options_page`, `surface.page_interaction`,
+`surface.toolbar_action`, `surface.background`, in extlens's vocabulary), and what the source is
+made of: `source.minified`, `source.bundled`, `source.obfuscated`, `source.large`,
+`source.framework` (react / vue / angular / jquery), `source.wasm`.
 
 **A skipped capability is no longer a failed run.** The framework used to stop and exit non-zero
 when it met something it could not migrate, which removed the extension from the results instead

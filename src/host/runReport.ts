@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChangeRecord } from "./changes.js";
-import type { Tag, TagKind } from "./tags.js";
+import type { SkipReason, Tag, TagKind } from "./tags.js";
 import { HARNESS_ASSIGNABLE } from "./labels.js";
 import type { PromptRef } from "./promptRef.js";
 
@@ -54,6 +54,8 @@ export interface RunReport {
     /** applied / skipped / repair / misc tags, countable across a corpus. */
     tags?: Tag[];
     tagCounts?: Record<TagKind, number>;
+    /** Skipped tags by reason: platform (deliberate), abstained (the agent's), unexplained. */
+    skipReasons?: Record<SkipReason, number>;
     /**
      * Fingerprint of the starting information. Two runs are only a model comparison when their
      * refs match; see promptRef.ts.

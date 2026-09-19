@@ -12,7 +12,7 @@ import { verify, type VerifyReport } from "./verify.js";
 import { checkExtension, formatIssues, isBlocking, type Issue } from "./checks.js";
 import { analyzeCompat, type CompatFinding } from "../host/compat.js";
 import { buildChangeLedger, summarizeLedger, type ChangeRecord } from "../host/changes.js";
-import { buildTags, countByKind, type Tag } from "../host/tags.js";
+import { buildTags, countByKind, countSkipsByReason, snapshotTree, type Tag, type TreeSnapshot } from "../host/tags.js";
 import { promptRef } from "../host/promptRef.js";
 import {
     baselineUnavailable,
@@ -277,6 +277,21 @@ async function main() {
     }
 
     let fixAttempts = 0;
+    /**
+     * Snapshots taken before the FIRST repair prompt, whichever loop sends it. A change or an edit
+     * that appears only afterwards is attributable to LLM repair; the output tree alone cannot say
+     * when something appeared. The ledger is measured against ORIGINAL (where `needed` lives), and
+     * the tree is hashed so repair edits that flip no ledger bit — a global-variable fix in the
+     * worker — are still counted.
+     */
+    let ledgerBeforeRepair: ChangeRecord[] | undefined;
+    let treeBeforeRepair: TreeSnapshot | undefined;
+    const ledgerInput = existsSync(ORIGINAL) ? ORIGINAL : EXT;
+    function snapshotBeforeRepair(): void {
+        if (ledgerBeforeRepair) return;
+        ledgerBeforeRepair = buildChangeLedger(ledgerInput, OUT);
+        treeBeforeRepair = snapshotTree(OUT);
+    }
     // Keep fixing while Chrome rejects the extension OR a load-blocking static error remains.
     // Non-blocking errors (a stray browserAction call, DOM use inside a vendored bundle) still
     // go into every fix prompt, and get ONE dedicated round if nothing else is left — but they
@@ -295,6 +310,7 @@ async function main() {
         fixAttempts = attempt;
         logger.info(`fix attempt ${attempt}/${MAX_FIX}`, { module: "migrate" });
         restoreExcluded();
+        snapshotBeforeRepair();
         await session.prompt(buildFixPrompt(report, issues));
         restoreExcluded();
         ({ report, issues } = await checkAndVerify());
@@ -345,11 +361,8 @@ async function main() {
     // extension loads fine; it just does not work any more), and they are the defects that matter
     // most for the score — but one round only, because each costs two browser sessions and a
     // regression the agent cannot fix must not spin the loop.
-    // Snapshot before repair: a change that appears only after the repair round is attributable
-    // to repair, and the output tree alone cannot say when something appeared.
-    let ledgerBeforeRepair: ChangeRecord[] | undefined;
     if (baseline && post && behaviourScore?.regressions.length && fixAttempts < MAX_FIX) {
-        ledgerBeforeRepair = buildChangeLedger(EXT, OUT);
+        snapshotBeforeRepair();
         logger.info(`behaviour fix round (lost: ${behaviourScore.regressions.join(", ")})`, { module: "migrate" });
         restoreExcluded();
         await session.prompt(
@@ -384,22 +397,35 @@ async function main() {
      * from it. Counting applied changes alone cannot distinguish a pipeline that handles every
      * offscreen case from one that handles half of them.
      */
+    // `needed` is a property of the ORIGINAL; EXT is the converter's output and already carries the
+    // mechanical changes, so measuring against it would report every one of them as spurious.
     const { tags, changes } = buildTags({
-        inputDir: EXT,
+        inputDir: ledgerInput,
         outputDir: OUT,
         beforeRepair: ledgerBeforeRepair,
+        treeBeforeRepair,
+        hardBlockers: (plan.compat?.findings ?? [])
+            .filter((f: CompatFinding) => f.severity === "HARD")
+            .map((f: CompatFinding) => ({ key: f.key, file: f.file, line: f.line, mdnUrl: f.mdnUrl, message: f.message })),
         abstainReason,
     });
     const changeSummary = summarizeLedger(changes);
     const tagCounts = countByKind(tags);
+    const skipReasons = countSkipsByReason(tags);
     logger.info(
         `changes: ${changeSummary.applied}/${changeSummary.needed} applied, ${changeSummary.skipped} skipped` +
-            ` · tags: ${tagCounts.applied} applied, ${tagCounts.skipped} skipped, ` +
-            `${tagCounts.repair} repair, ${tagCounts.spurious} spurious`,
+            ` · tags: ${tagCounts.applied} applied, ${tagCounts.skipped} skipped` +
+            ` (${skipReasons.platform} platform, ${skipReasons.limited} limited, ${skipReasons.abstained} abstained, ${skipReasons.unexplained} unexplained), ` +
+            `${tagCounts.repair} repair, ${tagCounts.spurious} spurious, ${tagCounts.misc} misc`,
         { module: "migrate" },
     );
     for (const tag of tags.filter((t) => t.kind === "skipped")) {
-        logger.warn(`skipped: ${tag.title}`, { module: "migrate" });
+        // A platform skip is the framework doing the right thing; only the others are warnings.
+        const log = tag.reason === "platform" ? logger.info : logger.warn;
+        log(`skipped (${tag.reason}): ${tag.title}`, { module: "migrate" });
+    }
+    for (const tag of tags.filter((t) => t.kind === "repair")) {
+        logger.info(`repair: ${tag.title}`, { module: "migrate" });
     }
     for (const tag of tags.filter((t) => t.kind === "spurious")) {
         logger.warn(`spurious: ${tag.title}`, { module: "migrate" });
@@ -460,6 +486,8 @@ async function main() {
         /** applied / skipped / repair / misc, countable across a corpus. */
         tags,
         tagCounts,
+        /** Skips split by reason: the platform's, the agent's, or nobody's. */
+        skipReasons,
         /** Proof that two runs were given the same starting information. */
         promptRef: reference,
         fixAttempts,
