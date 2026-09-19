@@ -31,7 +31,7 @@
   "devDependencies": {
     "@extlens/analyzer": "file:../extlens/packages/analyzer",
     "@extlens/protocol": "file:../extlens/packages/protocol",
-    "@types/node": "22.10.2",
+    "@types/node": "26.6.2",
     "better-sqlite3": "^13.0.3",
     "extlens-sdk": "file:../extlens/packages/host-sdk",
     "tsx": "^4.23.0",
