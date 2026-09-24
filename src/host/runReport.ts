@@ -1,11 +1,33 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChangeRecord } from "./changes.js";
+import type { AnalysisSummary, Finding, Signal } from "./staticAnalyzer.js";
 import type { SkipReason, Tag, TagKind } from "./tags.js";
 import { HARNESS_ASSIGNABLE } from "./labels.js";
 import type { PromptRef } from "./promptRef.js";
 
 export type RunOutcome = "migrated" | "possible_failure" | "failed";
+
+export type { AnalysisSummary } from "./staticAnalyzer.js";
+
+/**
+ * What the agent actually consumed, as opposed to what it was offered.
+ *
+ * `promptRef` proves two runs were given the same reference documents; it cannot prove both runs
+ * READ them. pi surfaces skills as a name/description/path listing and tells the model to open one
+ * with the `read` tool when the task matches — so a skill is consumed only if the model chooses to
+ * spend a tool call on it, and a model that never does is working from strictly less information
+ * than one that does, on an identical promptRef. That difference is invisible in every current
+ * report, and it is a live explanation for a weak model's results, so it is recorded per run.
+ */
+export interface AgentUsage {
+    /** Skill directory names whose SKILL.md the agent opened (e.g. "mv3-non-trivial"). */
+    skillsRead: string[];
+    /** Calls per tool name, including tools the model attempted and does not have. */
+    toolCalls: Record<string, number>;
+    /** Tool calls in total: the denominator for "did this model act at all". */
+    toolCallCount: number;
+}
 
 /** One behavioural check, run identically against the MV2 baseline and the MV3 result. */
 export interface CheckResult {
@@ -35,6 +57,14 @@ export interface RunReport {
     behaviour?: { loaded: boolean; checks: CheckResult[]; error: string | null } | null;
     /** Fraction of baseline-passing checks preserved, or null when there is no baseline. */
     score?: number | null;
+    /** Difficulty of the input: how much the run was asked to do. See AnalysisSummary. */
+    analysis?: AnalysisSummary;
+    /** A capped sample of the deprecated-API sites. `analysis.findingCount` is the exact total. */
+    findings?: Finding[];
+    /** A capped sample of the non-mechanical signals. `analysis.signalCount` is the exact total. */
+    signals?: Signal[];
+    /** What the agent actually read and called. See AgentUsage. */
+    agentUsage?: AgentUsage;
     scoreDenominator?: number;
     /** Checks the harness could not judge after migration; excluded from the score's denominator. */
     inconclusive?: string[];

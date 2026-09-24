@@ -25,12 +25,14 @@ import { join, basename, resolve } from "node:path";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import {
     computeProfile,
+    matchesListFilter,
     reportVerdict,
     summarizeManifest,
     type Backend,
     type ExtensionProfile,
     type ExtensionVerdict,
     type ExtensionSource,
+    type ExtensionLight,
     type ListParams,
     type ListResult,
     type Report as ExtlensReport,
@@ -39,9 +41,25 @@ import {
     type HostController,
 } from "extlens-sdk";
 import { Registry, type RunEntry, type RunRow, type SourceEntry } from "./registry.js";
+import { readRunReport } from "../host/runReport.js";
+import { summarizeAnalysis, type AnalysisSummary } from "../host/staticAnalyzer.js";
 import { makeExplainer, runVerificationContext } from "./explain.js";
 
 const MAX_TEXT_FILE = 10 * 1024 * 1024;
+
+/**
+ * Difficulty for a run whose report.json predates the `analysis` field.
+ *
+ * plan.json is written before the agent starts and is the same scan the summary is built from, so
+ * a corpus migrated before the field existed can still be exported with its difficulty columns
+ * instead of having to be re-run. Null when the run directory is gone or the plan is unreadable —
+ * which the export renders as blank, never as zero.
+ */
+function analysisFromPlan(runDir: string): AnalysisSummary | null {
+    const plan = readJson(join(runDir, "plan.json")) as { findings?: unknown[]; signals?: unknown[] } | null;
+    if (!plan) return null;
+    return summarizeAnalysis((plan.findings ?? []) as never[], (plan.signals ?? []) as never[]);
+}
 
 /**
  * True when `dir` holds a Chrome extension manifest (declares manifest_version).
@@ -262,6 +280,30 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
 
     const nameOf = (row: Row): string => profileOf(row).profile.name;
 
+    /**
+     * A row as the protocol's ExtensionLight.
+     *
+     * Shared by the filter and the returned page so the two agree by construction: a row filtered
+     * out for being unreviewed and a row rendered as reviewed would be the same extension
+     * described twice, differently.
+     */
+    const lightOf = (row: Row): ExtensionLight => {
+        const { source, profile } = profileOf(row);
+        const manifest = source.manifest as { version?: string; manifest_version?: number } | null;
+        const isRun = row.entry.kind === "run";
+        return {
+            id: row.id,
+            name: profile.name,
+            version: manifest?.version ?? null,
+            manifestVersion: manifest?.manifest_version ?? (isRun ? 3 : 2),
+            score: profile.score,
+            tags: profile.tags,
+            hasMv3: isRun,
+            hasReport: row.entry.kind === "run" ? hasReport(row.entry.run) : false,
+            verdict: row.entry.kind === "run" ? verdictOf(row.entry.run) : null,
+        };
+    };
+
     const explainer = makeExplainer();
     /**
      * Why did this run's migration fail? Only a run can be asked: an unmigrated source has no
@@ -291,6 +333,11 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
             const rows = allRows();
             const search = params.search?.trim().toLowerCase();
             let filtered = rows;
+            // Before paging, and before the statistics: a filtered list has to report the size of
+            // what it is showing, not of the corpus behind it.
+            if (params.filter) {
+                filtered = filtered.filter((r) => matchesListFilter(lightOf(r), params.filter));
+            }
             if (search) {
                 // Extension ids are 32 random characters, so matching only those made the search
                 // box look broken: a reviewer types the name they can see, and the name was the
@@ -310,22 +357,7 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
             const start = (params.page - 1) * params.pageSize;
             const page = filtered.slice(start, start + params.pageSize);
 
-            const extensions = page.map((row) => {
-                const { source, profile } = profileOf(row);
-                const manifest = source.manifest as { version?: string; manifest_version?: number } | null;
-                const isRun = row.entry.kind === "run";
-                return {
-                    id: row.id,
-                    name: profile.name,
-                    version: manifest?.version ?? null,
-                    manifestVersion: manifest?.manifest_version ?? (isRun ? 3 : 2),
-                    score: profile.score,
-                    tags: profile.tags,
-                    hasMv3: isRun,
-                    hasReport: row.entry.kind === "run" ? hasReport(row.entry.run) : false,
-                    verdict: row.entry.kind === "run" ? verdictOf(row.entry.run) : null,
-                };
-            });
+            const extensions = page.map(lightOf);
 
             const scores = filtered.map((r) => profileOf(r).profile.score);
             return {
@@ -363,17 +395,35 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         },
 
         /**
-         * Every manual review, with the extension's current name.
+         * Every manual review, with the extension's current name and the migration's own numbers.
          *
          * Reports that no longer have a run on disk are still returned: a review is evidence about
          * an extension at a moment, and losing it because the run directory was cleaned would
          * quietly shrink the corpus an analysis is computed over.
+         *
+         * `analysis` rides alongside the report for the same reason `name` does — it is a fact
+         * about the extension and the run, not about the review, so it does not belong inside a
+         * document a human wrote. It is what makes a score interpretable: an export of scores with
+         * no difficulty column cannot distinguish a model that preserved everything on twelve
+         * non-mechanical rewrites from one handed an extension that needed none. `agentUsage` is
+         * there for the neighbouring question — whether a weak row is a weak model or a model that
+         * never opened the reference documents it was offered.
+         *
+         * Both are absent for a review whose run directory is gone, which is honest: the review
+         * survives, the run's measurements do not.
          */
         async listReports() {
             return registry.listReports().map((row) => {
                 const run = runById(row.extensionId);
                 const name = run ? profileFor(run).profile.name : row.extensionId;
-                return { name, report: JSON.parse(row.payload) as ExtlensReport };
+                const runReport = run ? readRunReport(run.dir) : null;
+                const analysis = runReport?.analysis ?? (run ? analysisFromPlan(run.dir) : null);
+                return {
+                    name,
+                    report: JSON.parse(row.payload) as ExtlensReport,
+                    ...(analysis ? { analysis } : {}),
+                    ...(runReport?.agentUsage ? { agentUsage: runReport.agentUsage } : {}),
+                };
             });
         },
 

@@ -8,6 +8,7 @@ import { dirname, join, relative, sep } from "node:path";
 import logger, { ensureFileTransport, formatDuration } from "../logger.js";
 import { resolveModel } from "./model.js";
 import { buildPrompt } from "./prompt.js";
+import { sampleSites, summarizeAnalysis } from "../host/staticAnalyzer.js";
 import { verify, type VerifyReport } from "./verify.js";
 import { checkExtension, formatIssues, isBlocking, type Issue } from "./checks.js";
 import { analyzeCompat, type CompatFinding } from "../host/compat.js";
@@ -110,9 +111,34 @@ async function main() {
     // stratum, and pi reports usage per assistant message, so it is accumulated rather than read
     // once at the end (compaction discards messages, and with them their usage).
     const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, costUsd: 0 };
+    /**
+     * What the agent actually consumed, as opposed to what it was offered.
+     *
+     * promptRef proves both runs were given the same reference documents; it cannot prove both
+     * runs READ them. pi surfaces skills as a name/description/path listing and instructs the
+     * model to open one with the `read` tool when the task matches (formatSkillsForPrompt), so a
+     * skill is consumed only if the model chooses to spend a tool call on it. A model that never
+     * does is working from strictly less information than one that does, on an identical
+     * promptRef — and only mv3-migration is inlined, so the other four skills are reachable no
+     * other way. That gap is a live explanation for a weak model's results and it is invisible in
+     * every report we have written so far, so it is recorded here.
+     */
+    const toolCalls: Record<string, number> = {};
+    const skillsRead = new Set<string>();
+    const SKILL_PATH = new RegExp(`${SKILLS_DIR.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([^/]+)/SKILL\\.md`);
     session.subscribe((ev: any) => {
         if (ev.type === "turn_end") { turns++; logger.debug(`turn ${turns}`, { module: "migrate" }); }
-        if (ev.type === "tool_execution_start") logger.debug("tool: " + ev.toolName, { module: "migrate" });
+        if (ev.type === "tool_execution_start") {
+            logger.debug("tool: " + ev.toolName, { module: "migrate" });
+            toolCalls[ev.toolName] = (toolCalls[ev.toolName] ?? 0) + 1;
+            // Match against the arguments as a whole: `read` takes a path, but a model may also
+            // reach a skill by `bash cat`, and both count as having consulted it.
+            const hit = SKILL_PATH.exec(JSON.stringify(ev.args ?? {}));
+            if (hit) {
+                if (!skillsRead.has(hit[1])) logger.info(`skill read: ${hit[1]}`, { module: "migrate" });
+                skillsRead.add(hit[1]);
+            }
+        }
         const u = ev?.message?.usage;
         if (u) {
             usage.input += u.input ?? 0;
@@ -469,6 +495,27 @@ async function main() {
         behaviour: post ? { loaded: post.loaded, checks: post.checks, error: post.error ?? null } : null,
         score: behaviourScore?.score ?? null,
         scoreDenominator: behaviourScore?.denominator ?? 0,
+        /**
+         * Difficulty of the INPUT, and the sites themselves.
+         *
+         * plan.json already holds these, but it lives only as long as the run directory: an
+         * export months later cannot recover how much work the run was handed, which is exactly
+         * the number a score of 1.0 needs beside it to mean anything.
+         */
+        analysis: summarizeAnalysis(plan.findings ?? [], plan.signals ?? []),
+        /**
+         * A bounded sample of the sites, for a human reading this one run. The counts in `analysis`
+         * are exact and are what a corpus table uses; these lists are capped because one bundled
+         * library can produce thousands of near-identical hits (see MAX_RECORDED_SITES).
+         */
+        findings: sampleSites(plan.findings ?? []),
+        signals: sampleSites(plan.signals ?? []),
+        /** What the agent read and called, not merely what it was offered. */
+        agentUsage: {
+            skillsRead: [...skillsRead].sort(),
+            toolCalls,
+            toolCallCount: Object.values(toolCalls).reduce((a, b) => a + b, 0),
+        },
         regressions: behaviourScore?.regressions ?? [],
         inconclusive: behaviourScore?.inconclusive ?? [],
         /** HARD/SOFT compat findings: on the input they bound what is achievable, on the output they are defects. */
@@ -512,6 +559,8 @@ async function main() {
         errorCount: report.errors.length,
         score: behaviourScore?.score ?? null,
         scoreDetail: behaviourScore ? `${behaviourScore.passed}/${behaviourScore.denominator} baseline checks preserved` : null,
+        difficulty: `${result.analysis.findingCount} finding(s), ${result.analysis.signalCount} non-mechanical signal(s)`,
+        skillsRead: result.agentUsage.skillsRead,
         abstained,
         label,
         cost: usage.costUsd,
@@ -551,6 +600,10 @@ function printSummary(s: {
     errorCount: number;
     score: number | null;
     scoreDetail: string | null;
+    /** How much there was to do, so a score is never read without its difficulty. */
+    difficulty: string;
+    /** Which reference documents the agent opened — "none" is the interesting value. */
+    skillsRead: string[];
     abstained: boolean;
     label: string | null;
     cost: number;
@@ -569,6 +622,10 @@ function printSummary(s: {
     if (s.extensionId) rows.push(["extension id", s.extensionId]);
     if (s.errorCount) rows.push(["errors", String(s.errorCount)]);
     if (s.score !== null) rows.push(["score", `${s.score.toFixed(2)}  ${s.scoreDetail ?? ""}`.trim()]);
+    rows.push(["difficulty", s.difficulty]);
+    // Printed even when empty: "the agent opened no reference document" is the finding, and a row
+    // that disappears when it is zero is the one nobody notices is missing.
+    rows.push(["skills read", s.skillsRead.length ? s.skillsRead.join(", ") : "none"]);
     if (s.abstained) rows.push(["abstained", "yes (see ABSTAIN.md)"]);
     if (s.label) rows.push(["label", s.label]);
     if (s.tokens) rows.push(["tokens", `${s.tokens}${s.cost ? ` ($${s.cost.toFixed(4)})` : ""}`]);

@@ -14,8 +14,14 @@ WORKDIR /app
 # revision the image does not contain ("Executable doesn't exist at .../chromium-1243/...").
 # That makes every verify fail, and the failure is reported to the agent as if the EXTENSION
 # were broken. Keep the playwright dependency pinned in step with the FROM tag above.
+#
+# The extlens packages are host-only (src/extlens, the CLI) and declared as `file:../extlens/...`
+# devDependencies. Those directories are outside the build context, so `npm ci` cannot resolve
+# the spec and refuses the lockfile as out of sync. The container never imports them, so drop
+# the entries before installing; the lockfile still satisfies everything that remains.
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm pkg delete 'devDependencies.@extlens/analyzer' 'devDependencies.@extlens/protocol' 'devDependencies.extlens-sdk' \
+    && npm ci --omit=dev
 
 # An MV2-capable Chrome for the behavioural BASELINE.
 #

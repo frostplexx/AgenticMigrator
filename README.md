@@ -205,6 +205,23 @@ criterion — an MV3 port whose every feature is dead still passes it:
   what any model could achieve on that extension.
 - `abstained` — the agent wrote `ABSTAIN.md` instead of migrating. Recorded, never folded into
   the pass rate: models abstain from hard-but-possible work too.
+- `analysis` / `findings` / `signals` — how much there was to get wrong, from the static analyzer's
+  read of the original. `findingCount` is the mechanical half (the prompt hands each site its
+  replacement); `signalCount` and `signalsByCategory` are the work no converter can do. **A score
+  cannot be read without them**: `1.0` on an extension needing twelve non-mechanical rewrites and
+  `1.0` on one needing none are the same cell, and every model comparison turns on telling those
+  apart. The counts are exact; the `findings`/`signals` lists are a bounded sample (one real corpus
+  extension yields 3402 remote-code signals from a bundled library), spread across files so the
+  sample never collapses onto one minified bundle.
+- `agentUsage` — what the agent actually consumed: `skillsRead`, `toolCalls`, `toolCallCount`.
+  `promptRef` proves both runs were *offered* the same documents; it cannot prove both *read* them.
+  pi surfaces skills as a name/description/path listing and tells the model to open one with `read`
+  when the task matches, so a skill is consumed only if the model spends a tool call on it — and
+  only `mv3-migration` is inlined in the prompt, so `mv3-trivial`, `mv3-semi-trivial`,
+  `mv3-non-trivial` and `manifest-csp` are reachable no other way. A model that opens none is
+  working from strictly less information than one that does, on an identical `promptRef`. An empty
+  `skillsRead` on a weak run is therefore a different finding from a low score, and until now the
+  two were indistinguishable.
 - `usage` / `wallTimeMs` — tokens and cost per run.
 
 Every run is also appended to the `outcomes` table in `run/migrator.db` keyed by

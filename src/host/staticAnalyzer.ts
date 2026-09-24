@@ -23,6 +23,86 @@ export interface ScanResult {
     signals: Signal[];
 }
 
+/**
+ * How much there was to get wrong: a scan reduced to the numbers a corpus table needs.
+ *
+ * The score says how much behaviour survived. It does not say how much work the run was handed,
+ * and without that second number two rows at score 1.0 are indistinguishable — one extension that
+ * needed twelve non-mechanical rewrites and one that needed none. Every difficulty question about
+ * a corpus ("do models only diverge on the hard ones?") needs this alongside the score, and
+ * deriving it afterwards means re-running the analyzer against sources that may no longer exist.
+ *
+ * `findings` are the mechanical half: the prompt hands each site its replacement. `signals` are
+ * what the converter cannot do, so the signal count is the difficulty number worth plotting.
+ */
+export interface AnalysisSummary {
+    /** Deprecated-API call sites found in the original. */
+    findingCount: number;
+    /** Non-mechanical migration signals found in the original. */
+    signalCount: number;
+    /** Signals per category, so "hard because of webRequest" stays distinct from "hard because of the DOM". */
+    signalsByCategory: Record<string, number>;
+    /** Distinct files carrying at least one finding or signal. */
+    filesAffected: number;
+}
+
+/**
+ * How many individual sites a report keeps.
+ *
+ * The counts in AnalysisSummary are exact and are what any table is built from; the site lists are
+ * evidence for a human reading one run, and one real corpus extension produces 3400+ remote-code
+ * signals from a bundled library, which would add half a megabyte of near-identical entries to a
+ * report.json that is read on every export. The prompt already shows at most 12 sites per category
+ * for the same reason (MAX_SITES in prompt.ts).
+ */
+export const MAX_RECORDED_SITES = 50;
+
+/**
+ * A bounded sample of sites, spread across files rather than taken from the head.
+ *
+ * A plain `slice(0, n)` on a minified bundle returns fifty hits from one file and hides every other
+ * file the migration had to touch — the opposite of what the sample is for. Taking them round-robin
+ * by file keeps at least one site per file until the budget runs out.
+ */
+export function sampleSites<T extends { file: string }>(sites: T[], max = MAX_RECORDED_SITES): T[] {
+    if (sites.length <= max) return sites;
+    const byFile = new Map<string, T[]>();
+    for (const site of sites) {
+        if (!byFile.has(site.file)) byFile.set(site.file, []);
+        byFile.get(site.file)!.push(site);
+    }
+    const queues = [...byFile.values()];
+    const out: T[] = [];
+    for (let round = 0; out.length < max; round++) {
+        let took = false;
+        for (const queue of queues) {
+            if (round >= queue.length) continue;
+            out.push(queue[round]);
+            took = true;
+            if (out.length === max) break;
+        }
+        if (!took) break;
+    }
+    return out;
+}
+
+/** Reduce a scan to the per-run difficulty columns. Every category is present, zeroed when absent,
+ *  so a corpus export has stable columns whether or not any extension triggered that category. */
+export function summarizeAnalysis(findings: Finding[], signals: Signal[]): AnalysisSummary {
+    const signalsByCategory: Record<string, number> = {};
+    for (const key of Object.keys(CATEGORIES)) signalsByCategory[key] = 0;
+    for (const s of signals) signalsByCategory[s.category] = (signalsByCategory[s.category] ?? 0) + 1;
+    const files = new Set<string>();
+    for (const f of findings) files.add(f.file);
+    for (const s of signals) files.add(s.file);
+    return {
+        findingCount: findings.length,
+        signalCount: signals.length,
+        signalsByCategory,
+        filesAffected: files.size,
+    };
+}
+
 // A single "line" longer than this is almost certainly minified/generated code (e.g. a bundled
 // jQuery). Flagging it is unactionable noise, and dumping it into the prompt as a snippet bloats
 // the model context ~10x. Skip scanning such lines, and hard-cap any snippet we do keep.
