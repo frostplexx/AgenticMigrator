@@ -27,6 +27,7 @@ import {
     computeProfile,
     matchesListFilter,
     reportVerdict,
+    summarizeTranscript,
     summarizeManifest,
     type Backend,
     type ExtensionProfile,
@@ -35,12 +36,15 @@ import {
     type ExtensionLight,
     type ListParams,
     type ListResult,
+    type TranscriptParams,
+    type TranscriptResult,
     type Report as ExtlensReport,
     type ReportDraft,
     type SourceFile,
     type HostController,
 } from "extlens-sdk";
 import { Registry, type RunEntry, type RunRow, type SourceEntry } from "./registry.js";
+import { readTranscript } from "./transcript.js";
 import { readRunReport } from "../host/runReport.js";
 import { summarizeAnalysis, type AnalysisSummary } from "../host/staticAnalyzer.js";
 import { makeExplainer, runVerificationContext } from "./explain.js";
@@ -371,6 +375,43 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
                 page: params.page,
                 pageSize: params.pageSize,
                 totalPages: Math.max(1, Math.ceil(filtered.length / params.pageSize)),
+            };
+        },
+
+        /**
+         * The agent's transcript for one run.
+         *
+         * Only a run has one: an unmigrated source was never handed to an agent, and saying
+         * `available: false` for it is the accurate answer rather than an error. A run whose
+         * transcript.jsonl is missing — a migration from before the agent exported one, or one
+         * killed before it wrote — answers the same way, with the summary left null.
+         *
+         * The summary is computed over every entry and the page is sliced after, so scrolling
+         * never changes the reported cost.
+         */
+        async getTranscript(params: TranscriptParams): Promise<TranscriptResult | null> {
+            const run = runById(params.extensionId);
+            const empty = {
+                available: false,
+                entries: [],
+                total: 0,
+                offset: params.offset,
+                limit: params.limit,
+                summary: null,
+            };
+            if (!run) {
+                // A known source with no run is "nothing recorded"; an unknown id is an error.
+                return sources.some((s) => s.id === params.extensionId) ? empty : null;
+            }
+            const parsed = readTranscript(join(run.dir, "transcript.jsonl"));
+            if (!parsed) return empty;
+            return {
+                available: true,
+                entries: parsed.entries.slice(params.offset, params.offset + params.limit),
+                total: parsed.entries.length,
+                offset: params.offset,
+                limit: params.limit,
+                summary: summarizeTranscript(parsed.entries),
             };
         },
 
