@@ -120,3 +120,8 @@ worker counts.
 thinking blocks that are then re-sent every turn. History is also condensed once it grows
 past a threshold (see `src/agents/migrator.py`). For Ollama, set `LLM_NUM_CTX` to the
 model's real context window so the prompt is not silently truncated.
+
+Not every provider offers every rung. Mistral models accept only `reasoning_effort: none`
+or `high` and reject anything else with a 400, so `src/container/model.ts` declares the
+rungs they lack and the requested level is clamped to the nearest one they have
+(`medium` becomes `high`). Other providers get the level verbatim.

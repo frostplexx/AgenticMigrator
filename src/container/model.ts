@@ -14,6 +14,15 @@ export interface ResolvedModel {
     id: string;
 }
 
+// Mistral's API accepts only `reasoning_effort: none | high` and 400s on anything else, so a
+// plain LLM_THINKING=medium fails against a Mistral model served over an OpenAI-compatible
+// endpoint. Declaring the rungs it does not have as null makes pi clamp a requested level to
+// the nearest one it does (medium -> high) instead of forwarding it verbatim.
+const MISTRAL_THINKING_LEVELS = { off: "none", minimal: null, low: null, medium: null, high: "high" };
+
+const isMistralModel = (id: string): boolean =>
+    /mistral|magistral|ministral|devstral|codestral|pixtral/i.test(id);
+
 export async function resolveModel(): Promise<ResolvedModel> {
     const spec = process.env.LLM_MODEL;
     if (spec === undefined) throw new Error("LLM_MODEL environment variable is required");
@@ -40,6 +49,7 @@ export async function resolveModel(): Promise<ResolvedModel> {
                 id,
                 name: id,
                 reasoning: /^(on|true|yes|low|medium|high|xhigh)$/i.test(process.env.LLM_THINKING ?? ""),
+                ...(isMistralModel(id) ? { thinkingLevelMap: MISTRAL_THINKING_LEVELS } : {}),
                 input: ["text"],
                 cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
                 contextWindow: Number(process.env.LLM_NUM_CTX ?? 65536),
