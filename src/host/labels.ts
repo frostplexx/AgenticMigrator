@@ -77,7 +77,11 @@ export const FAILURE_LABELS: { label: FailureLabel; describe: string; needsConst
         describe: "The original MV2 extension did not work either, so this says nothing about the migration.",
         needsConstraintUrl: false,
     },
-    { label: "HARNESS_FAILURE", describe: "Browser launch, timeout or container error.", needsConstraintUrl: false },
+    {
+        label: "HARNESS_FAILURE",
+        describe: "Browser launch, timeout, container error, or a model endpoint that never answered.",
+        needsConstraintUrl: false,
+    },
 ];
 
 /** Labels the harness itself may assign: facts about the run, not judgements about the platform. */

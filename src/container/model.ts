@@ -23,6 +23,14 @@ const MISTRAL_THINKING_LEVELS = { off: "none", minimal: null, low: null, medium:
 const isMistralModel = (id: string): boolean =>
     /mistral|magistral|ministral|devstral|codestral|pixtral/i.test(id);
 
+/** Normalize LLM_BASE_URL to an OpenAI-compatible /v1 root. */
+export function resolveBaseUrl(): string {
+    let base = process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434";
+    base = base.replace(/\/+$/, "");
+    if (!/\/v1$/.test(base)) base += "/v1";
+    return base;
+}
+
 export async function resolveModel(): Promise<ResolvedModel> {
     const spec = process.env.LLM_MODEL;
     if (spec === undefined) throw new Error("LLM_MODEL environment variable is required");
@@ -30,10 +38,7 @@ export async function resolveModel(): Promise<ResolvedModel> {
     const provider = slash === -1 ? "ollama" : spec.slice(0, slash);
     const id = slash === -1 ? spec : spec.slice(slash + 1);
 
-    // Normalize base URL to an OpenAI-compatible /v1 root.
-    let base = process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434";
-    base = base.replace(/\/+$/, "");
-    if (!/\/v1$/.test(base)) base += "/v1";
+    const base = resolveBaseUrl();
 
     const apiKey = process.env.LLM_API_KEY || (provider === "ollama" ? "ollama" : "");
 

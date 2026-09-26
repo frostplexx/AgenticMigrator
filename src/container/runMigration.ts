@@ -7,6 +7,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statS
 import { dirname, join, relative, sep } from "node:path";
 import logger, { ensureFileTransport, formatDuration } from "../logger.js";
 import { resolveModel } from "./model.js";
+import { installRateLimitHandling } from "./rateLimit.js";
 import { buildPrompt } from "./prompt.js";
 import { sampleSites, summarizeAnalysis } from "../host/staticAnalyzer.js";
 import { verify, type VerifyReport } from "./verify.js";
@@ -76,13 +77,26 @@ async function main() {
     const skillMdPath = join(SKILLS_DIR, "mv3-migration", "SKILL.md");
     const skillMd = existsSync(skillMdPath) ? readFileSync(skillMdPath, "utf8") : "(mv3-migration skill unavailable)";
 
+    // Before any request goes out: the provider tells us when its window reopens, and waiting
+    // that long beats a blind backoff that logs a failed turn per attempt.
+    const rateLimitStats = installRateLimitHandling();
+
     const { model, modelRuntime } = await resolveModel();
     logger.info("model: " + model.id, { module: "migrate" });
 
+    /**
+     * pi's blind 2s·2ⁿ backoff, kept short deliberately.
+     *
+     * Rate limits — the failure this used to be set to 8 for — are now waited out against the
+     * provider's own published reset in rateLimit.ts, which knows when the window reopens
+     * instead of guessing. What is left for pi is the genuinely unpredictable: a dropped
+     * socket, a 5xx, a stream that ended mid-message. Two tries covers those, and every attempt
+     * beyond them multiplies the budget below it rather than adding to it.
+     */
+    const maxRetries = Number(process.env.LLM_NUM_RETRIES ?? 2);
     const settingsManager = SettingsManager.inMemory({
-        // Absorb transient rate limits (the Python side's num_retries fix) and keep history
-        // bounded (the condenser lesson) without stalling — pi's compaction.
-        retry: { enabled: true, maxRetries: Number(process.env.LLM_NUM_RETRIES ?? 8) },
+        // Keep history bounded (the condenser lesson) without stalling — pi's compaction.
+        retry: { enabled: true, maxRetries },
         compaction: { enabled: true },
     });
 
@@ -107,6 +121,21 @@ async function main() {
     logger.info("thinking: " + thinkLevel, { module: "migrate" });
 
     let turns = 0;
+    /**
+     * Provider failures, kept strictly apart from turns.
+     *
+     * A request that dies (`429 status code (no body)` from a rate-limited endpoint, a 5xx, a
+     * dropped socket) ends a pi turn exactly like a real assistant message does, so counting its
+     * turn_end would report an eight-retry rate-limit storm as eight turns of migration work —
+     * and `turns` is a headline number in the report. They are counted here instead, and the
+     * ones pi never recovered from become a HARNESS_FAILURE label rather than silently reading
+     * as a model that produced nothing.
+     */
+    const apiErrors: string[] = [];
+    /** One entry per prompt that pi could not get an answer to, as `<what>: <provider error>`. */
+    const unrecoveredFailures: string[] = [];
+    /** Set at agent_end when pi has given up retrying; cleared before each prompt. */
+    let unrecoveredError: string | null = null;
     // Token/cost accounting. The paper needs cost per run to justify a sampling budget per
     // stratum, and pi reports usage per assistant message, so it is accumulated rather than read
     // once at the end (compaction discards messages, and with them their usage).
@@ -127,7 +156,34 @@ async function main() {
     const skillsRead = new Set<string>();
     const SKILL_PATH = new RegExp(`${SKILLS_DIR.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([^/]+)/SKILL\\.md`);
     session.subscribe((ev: any) => {
-        if (ev.type === "turn_end") { turns++; logger.debug(`turn ${turns}`, { module: "migrate" }); }
+        if (ev.type === "turn_end") {
+            if (ev.message?.stopReason === "error") {
+                const detail = ev.message.errorMessage || "unknown provider error";
+                apiErrors.push(detail);
+                logger.warn(`provider error (#${apiErrors.length}): ${detail}`, { module: "migrate" });
+            } else {
+                turns++;
+                logger.debug(`turn ${turns}`, { module: "migrate" });
+            }
+        }
+        // pi's own backoff. Unlogged, a maxRetries=8 storm is ~8.5 minutes of silence that
+        // reads as a hung run, which is how these went unnoticed in the first place.
+        if (ev.type === "auto_retry_start") {
+            logger.warn(
+                `retrying after provider error (attempt ${ev.attempt}/${ev.maxAttempts}, ` +
+                `waiting ${formatDuration(ev.delayMs)}): ${ev.errorMessage}`,
+                { module: "migrate" },
+            );
+        }
+        if (ev.type === "auto_retry_end" && ev.success) {
+            logger.info(`provider recovered after ${ev.attempt} retr${ev.attempt === 1 ? "y" : "ies"}`, { module: "migrate" });
+        }
+        // The prompt is over and pi is not going to try again: whatever the last assistant
+        // message says is the final word on whether the model ever answered.
+        if (ev.type === "agent_end" && !ev.willRetry) {
+            const last = [...(ev.messages ?? [])].reverse().find((m: any) => m?.role === "assistant");
+            unrecoveredError = last?.stopReason === "error" ? (last.errorMessage || "unknown provider error") : null;
+        }
         if (ev.type === "tool_execution_start") {
             logger.debug("tool: " + ev.toolName, { module: "migrate" });
             toolCalls[ev.toolName] = (toolCalls[ev.toolName] ?? 0) + 1;
@@ -149,6 +205,28 @@ async function main() {
             usage.costUsd += u.cost?.total ?? 0;
         }
     });
+
+    /**
+     * Send one prompt and report whether the model actually answered it.
+     *
+     * `session.prompt` resolves the same way whether the agent worked for twenty turns or the
+     * endpoint 429'd nine times in a row, so a bare await cannot tell a model that failed the
+     * task from a provider that was never reachable — and the second, scored as the first, is a
+     * fabricated data point. Returns false when pi exhausted its retries.
+     */
+    async function promptAgent(text: string, what: string): Promise<boolean> {
+        unrecoveredError = null;
+        await session.prompt(text);
+        if (unrecoveredError === null) return true;
+        const detail = unrecoveredError;
+        unrecoveredFailures.push(`${what}: ${detail}`);
+        logger.error(
+            `${what}: the provider never answered (${detail}) — pi exhausted its ${maxRetries} ` +
+            `retries. This run is a harness failure, not a model result.`,
+            { module: "migrate" },
+        );
+        return false;
+    }
 
     // Restore excluded data files before verify so the extension loads fully.
     const restoreExcluded = () => {
@@ -219,7 +297,7 @@ async function main() {
         originalDir: showOriginal ? ORIGINAL : undefined,
     });
     logger.info("sending migration prompt...", { module: "migrate" });
-    await session.prompt(prompt);
+    const migrated = await promptAgent(prompt, "migration prompt");
 
     restoreExcluded();
 
@@ -332,12 +410,16 @@ async function main() {
         }
         return false;
     };
-    for (let attempt = 1; needsWork(report, issues) && attempt <= MAX_FIX; attempt++) {
+    // A migration prompt that never got an answer leaves nothing to repair: the tree is still
+    // the converter's output, and every fix round would re-describe defects to a provider that
+    // just exhausted its retries. Skip straight to the report, where the run is labelled a
+    // harness failure rather than counted as a model that could not do the job.
+    for (let attempt = 1; migrated && needsWork(report, issues) && attempt <= MAX_FIX; attempt++) {
         fixAttempts = attempt;
         logger.info(`fix attempt ${attempt}/${MAX_FIX}`, { module: "migrate" });
         restoreExcluded();
         snapshotBeforeRepair();
-        await session.prompt(buildFixPrompt(report, issues));
+        await promptAgent(buildFixPrompt(report, issues), `fix attempt ${attempt}`);
         restoreExcluded();
         ({ report, issues } = await checkAndVerify());
         const staticErrs = issues.filter((i) => i.severity === "error").length;
@@ -387,13 +469,14 @@ async function main() {
     // extension loads fine; it just does not work any more), and they are the defects that matter
     // most for the score — but one round only, because each costs two browser sessions and a
     // regression the agent cannot fix must not spin the loop.
-    if (baseline && post && behaviourScore?.regressions.length && fixAttempts < MAX_FIX) {
+    if (migrated && baseline && post && behaviourScore?.regressions.length && fixAttempts < MAX_FIX) {
         snapshotBeforeRepair();
         logger.info(`behaviour fix round (lost: ${behaviourScore.regressions.join(", ")})`, { module: "migrate" });
         restoreExcluded();
-        await session.prompt(
+        await promptAgent(
             `${formatBehaviour(post, baseline)}\nFix the files in ${OUT} so these work again, then stop. ` +
             `Do not run any verification yourself.`,
+            "behaviour fix round",
         );
         restoreExcluded();
         fixAttempts++;
@@ -467,7 +550,12 @@ async function main() {
      * for an annotated one.
      */
     const label: string | null =
-        baseline && baselineUnavailable(baseline)
+        // A provider that never answered is our infrastructure failing, not evidence about the
+        // model or the platform. It outranks the rest: everything downstream of an unanswered
+        // prompt — the verdict, the score, the change ledger — describes a run that did not happen.
+        unrecoveredFailures.length
+            ? "HARNESS_FAILURE"
+            : baseline && baselineUnavailable(baseline)
             ? "HARNESS_FAILURE"
             : baseline && isInvalidInstance(baseline)
             ? "INVALID_INSTANCE"
@@ -488,6 +576,17 @@ async function main() {
         staticWarningCount: issues.length - staticErrors.length,
         issues,
         turns,
+        /**
+         * Provider health for this run, kept out of `turns` and `usage` so neither is inflated
+         * by requests that produced nothing. `unrecoveredFailures` non-empty means the label is
+         * HARNESS_FAILURE and the rest of this report describes a run that never really ran.
+         */
+        provider: {
+            apiErrorCount: apiErrors.length,
+            apiErrors: apiErrors.slice(0, 20),
+            unrecoveredFailures,
+            rateLimit: rateLimitStats(),
+        },
         // --- ceiling / scoring data ---
         baseline: baseline
             ? { loaded: baseline.loaded, checks: baseline.checks, error: baseline.error ?? null }
@@ -563,6 +662,11 @@ async function main() {
         skillsRead: result.agentUsage.skillsRead,
         abstained,
         label,
+        provider: {
+            apiErrorCount: apiErrors.length,
+            unrecoveredFailures,
+            rateLimitWaitedMs: result.provider.rateLimit.waitedMs,
+        },
         cost: usage.costUsd,
         tokens: usage.totalTokens,
         report: REPORT,
@@ -606,6 +710,8 @@ function printSummary(s: {
     skillsRead: string[];
     abstained: boolean;
     label: string | null;
+    /** Requests that failed outright, and the ones nobody ever got an answer to. */
+    provider: { apiErrorCount: number; unrecoveredFailures: string[]; rateLimitWaitedMs: number };
     cost: number;
     tokens: number;
     report: string;
@@ -627,6 +733,18 @@ function printSummary(s: {
     // that disappears when it is zero is the one nobody notices is missing.
     rows.push(["skills read", s.skillsRead.length ? s.skillsRead.join(", ") : "none"]);
     if (s.abstained) rows.push(["abstained", "yes (see ABSTAIN.md)"]);
+    // A run whose provider misbehaved must say so on the banner: these numbers are the
+    // difference between "the model could not do it" and "the model was never asked".
+    if (s.provider.apiErrorCount) {
+        rows.push([
+            "provider errors",
+            `${s.provider.apiErrorCount} failed request(s)` +
+            (s.provider.rateLimitWaitedMs ? `, ${formatDuration(s.provider.rateLimitWaitedMs)} spent rate-limited` : ""),
+        ]);
+    } else if (s.provider.rateLimitWaitedMs) {
+        rows.push(["rate limited", formatDuration(s.provider.rateLimitWaitedMs)]);
+    }
+    for (const failure of s.provider.unrecoveredFailures) rows.push(["NO RESPONSE", failure]);
     if (s.label) rows.push(["label", s.label]);
     if (s.tokens) rows.push(["tokens", `${s.tokens}${s.cost ? ` ($${s.cost.toFixed(4)})` : ""}`]);
     rows.push(["report", s.report], ["transcript", s.transcript]);

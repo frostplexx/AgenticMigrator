@@ -9,6 +9,9 @@ Copy `.env.example` to `.env` and set the variables below.
 | `LLM_BASE_URL` | Base URL. Required for Ollama, e.g. `http://localhost:11434`. Ignored for Zen (the gateway URL is fixed). |
 | `LLM_REASONING_EFFORT` | `low`, `medium`, `high`, `xhigh`, or `none`. Defaults to `low`. |
 | `LLM_TEMPERATURE` | Sampling temperature (≥ 0). Optional; defaults to the provider's default. Overridden by `--temperature`. |
+| `LLM_RATE_LIMIT_BUDGET_MS` | How long an unbroken streak of rate-limited requests may be waited out before the 429 is handed to the agent's own retry. Default 900000 (15 min). |
+| `LLM_RATE_LIMIT_MAX_WAIT_MS` | Ceiling on a single rate-limit wait. Default 180000 (3 min). |
+| `LLM_NUM_RETRIES` | The agent's blind exponential-backoff retries, for dropped sockets and 5xx. Default 2 — rate limits are handled against the provider's published reset instead. |
 | `LLM_INPUT_COST_PER_TOKEN` | Optional, for cost tracking. |
 | `LLM_OUTPUT_COST_PER_TOKEN` | Optional, for cost tracking. |
 | `LLM_NUM_CTX` | Ollama only. Context window size, default 32768. |
@@ -113,6 +116,36 @@ pushes; `MEMORY_GIT_COMMIT=1` additionally auto-commits it after each run/batch 
 stays manual). In parallel batches, updates are serialized but last-writer-wins per
 completed run — fine for a research feature, but expect some lost updates at high
 worker counts.
+
+## Rate limits
+
+SAIA enforces a per-minute request quota (10/minute on a standard key) and answers an
+over-quota request with a bare `429` and no body, publishing the recovery time in the
+response headers (`ratelimit-reset`, `x-ratelimit-remaining-minute`). Nothing in the LLM
+stack reads them: the OpenAI SDK only understands `retry-after`, which Kong does not send,
+so it surfaces `429 status code (no body)` and the agent falls back to a blind exponential
+backoff unrelated to when the window actually reopens — logging a failed assistant turn per
+attempt, which then pollutes the `turns` metric.
+
+`src/container/rateLimit.ts` wraps `fetch` for the model endpoint only and waits out the
+advertised reset instead, retrying in place so the failure never reaches the agent. After a
+response that reports nothing left in the window it holds the *next* request too, which turns
+the common case into one wait rather than one 429 per call. A 429 with no usable header is
+passed through unchanged.
+
+How long it is willing to wait is bounded by wall clock, not by an attempt count:
+`LLM_RATE_LIMIT_BUDGET_MS` starts at the first 429 of a streak and is cleared by the first
+response that is not one. That matters because the agent retries on top of this: a per-request
+attempt count would be multiplied by that layer, and with an exhausted *daily* quota — whose
+reset is an hour out, so every wait expires early and finds the window still shut — the two
+counts together came to hours of re-confirming a number that will not change until tomorrow.
+A shared deadline cannot be nested; whoever retries into it inherits the same one, so the run
+gives up in minutes and is labelled for what it is.
+
+What survives that is recorded rather than ignored: `report.provider` carries the failed
+request count, the rate-limit wait total, and `unrecoveredFailures` — prompts the provider
+never answered at all. A run with any of those is labelled `HARNESS_FAILURE` and leaves the
+denominator, because a model that was never asked is not a model that failed.
 
 ## Keeping requests inside the context window
 
