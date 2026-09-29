@@ -85,16 +85,18 @@ delete what it failed.
 ### Serving a runs root
 
 ```bash
-npx tsx src/extlens/index.ts --runs --run ~/runs --source-dir ~/subset_expanded
+npm run cli -- --out ~/runs --source-dir ~/subset_expanded
+# or, without the migrate CLI around it:
+npx tsx src/extlens/index.ts --run ~/runs --source-dir ~/subset_expanded
 ```
 
-`--run` is the runs root: a directory *of* runs. `--runs` is only needed to claim an empty
-directory; a root that already holds runs is recognised from disk. `--source-dir` is the corpus a new
-run gets when it does not name one.
+`--out` (or `--run`) is the runs root: a directory *of* runs. It does not need to exist — the server
+creates what it needs, and serves no runs until the client makes one. `--source-dir` is the corpus a
+new run gets when it does not name one.
 
-The older flat layout — extension directories directly under the root, which is what every run made
-before this looks like — keeps working untouched: one model from the environment, and `runs.*` answer
-`-32601` so the client hides the run UI.
+There is one layout and no flag for it. A directory of extension folders left over from before runs
+existed is simply not a runs root: pointing at it shows zero runs rather than its old contents, and
+nothing in it is touched.
 
 ### From the client
 
@@ -121,7 +123,7 @@ re-pointing the root under a container writing into it would put two runs' outpu
   20260929-143210-deepseek-v4-flash/     one run
     run.json                             model, corpus, label, settings (never the API key)
     <ext-id>/{out,report.json,transcript.jsonl,plan.json,migrate.jsonl,…}
-    migrator.db
+    migrator.db                          this run's own index
 ```
 
 The id is time-then-model so `ls` and the runs list agree on order. `run.json` records the resolved

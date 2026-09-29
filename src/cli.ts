@@ -249,9 +249,10 @@ async function collectSourcesForCli(sourceDir: string | null, extPath: string | 
 
 async function main() {
     if (process.argv.includes("--help") || process.argv.includes("-h")) {
-        logger.info("usage: migrate [--source-dir <corpus|ext-dir>] [--out <run-dir>] [--port <n>] [<extension-dir>]");
+        logger.info("usage: migrate [--source-dir <corpus|ext-dir>] [--out <runs-dir>] [--port <n>] [<extension-dir>]");
         logger.info("  no positional arg  serve runs (+ sources); wait for host.start from the client");
         logger.info("  <extension-dir>     single extension or a corpus of extensions to migrate");
+        logger.info("  --out <dir>         the runs root; runs are created from the client");
         process.exit(0);
     }
     // Refuse to boot without the vendored MV2->MV3 converter (git submodule).
@@ -299,7 +300,7 @@ async function main() {
         if (extPath) {
             logger.info(`extension ${extPath} registered as pending source (id \"${basename(extPath)}\"); waiting for host.start from the client`, { module: "cli" });
         } else {
-            logger.info(`serving existing runs under ${runDir} (no migration requested)`, { module: "cli" });
+            logger.info(`serving runs under ${runDir}; create one from the client`, { module: "cli" });
         }
         await waitForSignal();
         await server.close();

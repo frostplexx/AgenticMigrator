@@ -7,18 +7,17 @@
  * was which. So a run is now named, described by a manifest beside its output, and created on demand:
  *
  *   <root>/                                  the runs root, what extlens serves
- *     runs.db                                index across runs
  *     blobs/                                 content-addressed store (see blobs.ts)
- *     2026-09-29-1432-deepseek-v4-flash/     one run
+ *     20260929-143210-deepseek-v4-flash/     one run
  *       run.json                             model, corpus, settings, when
  *       <ext-id>/{out,report.json,...}
- *       migrator.db
+ *       migrator.db                          this run's own index
  *
  * A new run always starts empty, even over a corpus and model that have been run before. Seeding it
  * from an earlier run's successes would make the two indistinguishable in the results while being
  * only a time saving, and the whole point of a run is that it is one measurement.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 /** What the client chooses when it creates a run. Everything but the model has a fallback. */
@@ -184,28 +183,6 @@ export function readRunManifest(runDir: string): RunManifest | null {
     } catch {
         return null;
     }
-}
-
-/**
- * Is this a runs root — a directory OF runs — rather than a single flat run directory?
- *
- * The flat layout (extension dirs directly under the root) is what every existing run on disk looks
- * like and it keeps working untouched: the host serves it exactly as before and offers no runs UI.
- * The discriminator is a manifest, not a name, so a root becomes a runs root the moment one run is
- * created in it and never by accident.
- */
-export function isRunsRoot(root: string): boolean {
-    if (!existsSync(root)) return false;
-    if (existsSync(join(root, "runs.db"))) return true;
-    for (const entry of readdirSync(root)) {
-        const dir = join(root, entry);
-        try {
-            if (statSync(dir).isDirectory() && existsSync(join(dir, "run.json"))) return true;
-        } catch {
-            // Raced with a delete; it is simply not evidence either way.
-        }
-    }
-    return false;
 }
 
 /** Every run in a runs root, newest first — the order the list is read in. */
