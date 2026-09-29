@@ -149,10 +149,17 @@ export class Registry {
     private readonly runRoot: string;
     private readonly db: Database.Database;
 
-    constructor(runRoot: string) {
+    /**
+     * `dbFile` names the database inside `runRoot`, defaulting to the index every run root has.
+     *
+     * A cross-run index passes `outcomes.db` instead: its root is a directory OF runs rather than a
+     * run itself, and a `migrator.db` sitting there would be picked up as an empty run index by
+     * anything walking the tree for one. Only the outcomes table is used in that mode.
+     */
+    constructor(runRoot: string, dbFile = "migrator.db") {
         this.runRoot = resolve(runRoot);
         mkdirSync(this.runRoot, { recursive: true });
-        this.db = new Database(join(this.runRoot, "migrator.db"));
+        this.db = new Database(join(this.runRoot, dbFile));
         this.db.pragma("journal_mode = WAL");
         this.db.exec(SCHEMA);
     }
@@ -363,6 +370,16 @@ export class Registry {
             | undefined;
         if (!row) return null;
         return { id: row.id, payload: row.payload, createdAt: row.created_at, updatedAt: row.updated_at };
+    }
+
+    /**
+     * Every recorded attempt, for the cross-model table. Ordered so the output is stable between
+     * reads of the same root: a summary that reshuffles its rows cannot be diffed.
+     */
+    allOutcomes(): OutcomeRow[] {
+        return this.db
+            .prepare("SELECT * FROM outcomes ORDER BY extension, model, run_id")
+            .all() as unknown as OutcomeRow[];
     }
 
     /** Distinct models that have recorded an outcome in this run root. */

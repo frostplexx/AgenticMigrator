@@ -95,6 +95,25 @@ export interface RunReport {
     abstained?: boolean;
     abstainReason?: string | null;
     label?: RunLabel | null;
+    /**
+     * Provider health for the run, as written by the container (see runMigration.ts). Declared
+     * here only as far as the host reads it; the rest is for a human or an export.
+     */
+    provider?: {
+        apiErrorCount?: number;
+        unrecoveredFailures?: string[];
+        rateLimit?: {
+            waitedMs?: number;
+            budgetExhausted?: number;
+            deadlineHits?: number;
+            /**
+             * Epoch ms at which the provider said its window reopens, set only once a run has
+             * proved a LONG window is shut rather than a burst. This is the one fact a batch needs
+             * out of a container it has already given up on — see quotaWallUntil.
+             */
+            closedUntil?: number | null;
+        };
+    };
     turns?: number;
     fixAttempts?: number;
     usage?: { input: number; output: number; cacheRead: number; cacheWrite: number; totalTokens: number; costUsd: number };
@@ -123,6 +142,23 @@ export function classifyRun(jobDir: string, exitCode: number): RunOutcome {
     const report = readRunReport(jobDir);
     if (report && report.passed === false) return "possible_failure";
     return "failed";
+}
+
+/**
+ * When the provider's quota window reopens, if this run hit a wall the next one cannot get past.
+ *
+ * A per-minute burst is absorbed inside the container and never appears here. What does appear is
+ * the case that ruins a batch: a quota window hours wide, discovered after the full wait budget.
+ * Every remaining extension will spend that same budget rediscovering the same number — a corpus
+ * of twenty is five hours of sleeping for twenty reports with no model output in them — so the
+ * batch stops instead, and says when it is worth starting again.
+ *
+ * Null when there is no such wall, or when it has already passed and the window has reopened.
+ */
+export function quotaWallUntil(report: RunReport | null): Date | null {
+    const closedUntil = report?.provider?.rateLimit?.closedUntil;
+    if (typeof closedUntil !== "number" || !Number.isFinite(closedUntil)) return null;
+    return closedUntil > Date.now() ? new Date(closedUntil) : null;
 }
 
 /**

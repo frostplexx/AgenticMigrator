@@ -27,3 +27,21 @@ test("refuses when the root already mixes models, listing them all", () => {
     assert.ok(problem);
     assert.match(problem, /a, b/);
 });
+
+// The guard used to fire on the case it exists to allow: outcomes recorded the bare model id while
+// LLM_MODEL carries the provider, so every resume of a run root with results exited 64 telling you
+// to use a different --out. Rows written now carry the full spec; legacy bare rows still match.
+test("allows resuming a root whose rows predate the provider prefix", () => {
+    assert.equal(mixedModelError(["deepseek-v4-flash-0731"], "saia/deepseek-v4-flash-0731"), null);
+});
+
+test("still refuses two providers serving the same model id", () => {
+    // Tolerating this would let them share a root and overwrite each other, which is the whole loss.
+    const problem = mixedModelError(["ollama/gemma4:31b"], "saia/gemma4:31b");
+    assert.ok(problem);
+    assert.match(problem, /ollama\/gemma4:31b/);
+});
+
+test("does not match a bare row against a different model", () => {
+    assert.ok(mixedModelError(["qwen3.5-122b-a10b"], "saia/deepseek-v4-flash-0731"));
+});

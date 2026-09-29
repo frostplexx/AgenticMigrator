@@ -23,9 +23,10 @@ import { Registry } from "./extlens/registry.js";
 import { mixedModelError } from "./host/runRoot.js";
 import { analyzeCompat } from "./host/compat.js";
 import { convert, emcDir } from "./host/convert.js";
-import { classifyRun, readRunReport } from "./host/runReport.js";
+import { classifyRun, quotaWallUntil, readRunReport } from "./host/runReport.js";
 import { hashDir } from "./host/hashDir.js";
-import logger from "./logger.js";
+import { dedupe } from "./host/blobs.js";
+import logger, { formatDuration } from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJ = resolve(__dirname, "..");
@@ -258,12 +259,13 @@ async function main() {
     // Validate the LLM key on first boot, before starting the server or any run.
     await validateApiKey();
     const args = process.argv.slice(2);
-    const valueFlags = new Set(["--out", "--port", "--extlens-port", "--source-dir"]);
+    const valueFlags = new Set(["--out", "--port", "--extlens-port", "--source-dir", "--blobs"]);
     const extInput = args.find((a, i) => !a.startsWith("--") && a !== "-h" && !(i > 0 && valueFlags.has(args[i - 1])));
     const extPath = extInput ? resolve(extInput) : null;
     const runDir = resolve(arg("--out", "./run"));
     const sourceArg = arg("--source-dir", "");
     const sourceDir = sourceArg || (process.env.EXTLENS_SOURCE_DIR ?? process.env.EXLENS_SOURCE_DIR) || null;
+
     // Internal one-shot mode: the extlens controller (src/extlens/migrator.ts)
     // spawns the migration child with MIGRATOR_ONESHOT=1. Not a user-facing flag.
     const oneShot = process.env.MIGRATOR_ONESHOT === "1";
@@ -323,6 +325,8 @@ async function main() {
     let migrated = 0;
     let possible = 0;
     let failed = 0;
+    /** Set when a run proves the provider's quota is shut for longer than the batch can wait. */
+    let quotaWall: { until: Date; after: string } | null = null;
     for (const target of targets) {
         // A single positional extension keeps the legacy flat layout
         // (<out>/out, <out>/report.json). A corpus writes one subdir per
@@ -349,15 +353,39 @@ async function main() {
             failed += 1;
             logger.error(`extension ${target.id} failed (exit ${code})`, { module: "cli" });
         }
+
+        // Stop on a quota window the next extension cannot get past either. Each container gets a
+        // fresh wait budget, so without this the batch spends it once per remaining extension —
+        // 15 minutes each, for reports with no model output in them — on a number that will not
+        // change until the window reopens.
+        const until = quotaWallUntil(readRunReport(jobDir));
+        if (until) {
+            quotaWall = { until, after: target.id };
+            break;
+        }
+    }
+
+    if (quotaWall) {
+        const left = Math.max(0, quotaWall.until.getTime() - Date.now());
+        const attempted = migrated + possible + failed;
+        logger.error(
+            `stopping after ${quotaWall.after}: the provider's quota window is shut until ` +
+            `${quotaWall.until.toISOString()} (${formatDuration(left)} away). ` +
+            `${targets.length - attempted} extension(s) not attempted — rerun then, and the ` +
+            `already-migrated ones will be skipped.`,
+            { module: "cli" },
+        );
     }
     logger.info(`migration complete: ${migrated} migrated, ${possible} possible failure(s), ${failed} failed`, { module: "cli" });
-    process.exit(failed ? 1 : 0);
+    // 75 is EX_TEMPFAIL: nothing here is wrong, it is worth running again later. Distinct from 1,
+    // which says these extensions failed on their merits.
+    process.exit(quotaWall ? 75 : failed ? 1 : 0);
 }
 
 /** Guard the run root against a second model; see host/runRoot.ts for why. */
-function assertRunRootBelongsToModel(runDir: string): void {
+function assertRunRootBelongsToModel(runDir: string, modelSpec?: string): void {
     if (process.env.ALLOW_MIXED_MODELS === "1") return;
-    const current = process.env.LLM_MODEL ?? "unknown";
+    const current = modelSpec ?? process.env.LLM_MODEL ?? "unknown";
     let existing: string[] = [];
     try {
         const registry = new Registry(runDir);
@@ -378,19 +406,38 @@ function isMigrated(jobDir: string): boolean {
 }
 
 /**
- * Migrate one extension into runDir. The run dir starts fresh. Returns the
- * container/process exit code (0 on success, non-zero on failure).
+ * Everything about one extension that is the same whichever model migrates it.
+ *
+ * Split out from the run itself because it is the same for every model: conversion and static analysis
+ * depend only on the extension. Computing it once per attempt keeps "two runs were given identical
+ * input" a property of the code rather than of the conversion being deterministic and nobody having
+ * touched the corpus in between.
  */
-async function migrateOne(extPath: string, runDir: string): Promise<number> {
-    // Fresh run dir. Clear its CONTENTS rather than removing runDir itself: a shell parked in
-    // runDir (it's the session's working dir) would otherwise be orphaned when the inode is
-    // recreated, and the next command crashes with `ENOENT: uv_cwd`.
+interface PreparedExtension {
+    /** Temp dir holding the converted MV2→MV3 tree. The caller disposes of it. */
+    convertedDir: string;
+    convLog: string;
+    converted: boolean;
+    findings: unknown[];
+    signals: unknown[];
+    compat: Awaited<ReturnType<typeof analyzeCompat>>;
+    compatConverted: Awaited<ReturnType<typeof analyzeCompat>>;
+    analysis: unknown;
+}
+
+/** Fresh run dir for one attempt, plus the pointer the extlens adapter needs to serve MV2 files. */
+function resetRunDir(runDir: string, extPath: string): void {
+    // Clear its CONTENTS rather than removing runDir itself: a shell parked in runDir (it's the
+    // session's working dir) would otherwise be orphaned when the inode is recreated, and the next
+    // command crashes with `ENOENT: uv_cwd`.
     mkdirSync(runDir, { recursive: true });
     for (const entry of readdirSync(runDir)) rmSync(join(runDir, entry), { recursive: true, force: true });
     mkdirSync(join(runDir, "out"), { recursive: true });
-    // Record the source extension path so the extlens adapter can serve MV2 file refs.
     writeFileSync(join(runDir, "source-path.txt"), resolve(extPath));
+}
 
+/** Convert and analyse one extension, without writing into any run dir. */
+async function prepareExtension(extPath: string): Promise<PreparedExtension> {
     // 1. convert (host-side deterministic pre-pass).
     logger.info("converting (extension-manifest-converter)...", { module: "cli" });
     const { dir: convertedDir, log: convLog, converted } = convert(extPath);
@@ -399,9 +446,6 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
     } else {
       logger.info("(no converter output)", { module: "cli" });
     }
-    // Persist the converter outcome next to the run: the fallbacks are silent otherwise, and
-    // an unconverted (still-MV2) extension is the usual cause of "unsupported manifest version".
-    writeFileSync(join(runDir, "convert.log"), `converted=${converted}\n${convLog}\n`);
     if (!converted) {
       logger.warn(`converter did NOT convert ${extPath}; the extension is still MV2 going in`, { module: "cli" });
     }
@@ -427,10 +471,53 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
     if (compat.hasHardBlocker) {
         logger.warn("extension uses capabilities with no MV3 equivalent; a faithful migration may be impossible", { module: "cli" });
     }
-    writeFileSync(join(runDir, "compat.json"), JSON.stringify(compat, null, 2));
-    writeFileSync(join(runDir, "plan.json"), JSON.stringify({ findings, signals, compat: compatConverted }, null, 2));
-    writeFileSync(join(runDir, "analysis.json"), JSON.stringify(buildAnalysis(findings, convertedDir), null, 2));
 
+    return {
+        convertedDir,
+        convLog,
+        converted,
+        findings,
+        signals,
+        compat,
+        compatConverted,
+        analysis: buildAnalysis(findings, convertedDir),
+    };
+}
+
+/**
+ * Write one attempt's starting state into its run dir.
+ *
+ * Every run gets its own copy of these, which is what makes a comparison readable months later: the
+ * plan the agent worked from sits beside its output, not in a shared parent directory that says
+ * nothing about which run saw what.
+ */
+function writePrepared(runDir: string, extPath: string, p: PreparedExtension): void {
+    // Persist the converter outcome next to the run: the fallbacks are silent otherwise, and
+    // an unconverted (still-MV2) extension is the usual cause of "unsupported manifest version".
+    writeFileSync(join(runDir, "convert.log"), `converted=${p.converted}\n${p.convLog}\n`);
+    writeFileSync(join(runDir, "compat.json"), JSON.stringify(p.compat, null, 2));
+    writeFileSync(
+        join(runDir, "plan.json"),
+        JSON.stringify({ findings: p.findings, signals: p.signals, compat: p.compatConverted }, null, 2),
+    );
+    writeFileSync(join(runDir, "analysis.json"), JSON.stringify(p.analysis, null, 2));
+}
+
+/**
+ * Run the migrator container over a prepared extension.
+ *
+ * `env` overrides the process environment per run, so two runs can use different models, endpoints,
+ * context windows or thinking levels under one host. Everything unset falls back to the process env
+ * and then to the same defaults a single run uses, so a run naming only a model behaves exactly as
+ * `LLM_MODEL=<it>` would.
+ */
+async function runMigrationContainer(
+    extPath: string,
+    runDir: string,
+    convertedDir: string,
+    override: Record<string, string> = {},
+): Promise<number> {
+    const env: Record<string, string | undefined> = { ...process.env, ...override };
     // 3. ensure image is current, then docker run the migrator container.
     if (!process.env.MIGRATOR_IMAGE) ensureImage();
     const migratorImage = process.env.MIGRATOR_IMAGE;
@@ -447,58 +534,121 @@ async function migrateOne(extPath: string, runDir: string): Promise<number> {
         // has nothing to compare the migration against and the run cannot be scored.
         "-v", `${extPath}:/work/original:ro`,
         "-v", `${runDir}:/work/run`,
-        "-e", `LLM_MODEL=${process.env.LLM_MODEL ?? "ollama/gemma4:31b-cloud"}`,
-        "-e", `LLM_BASE_URL=${process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434"}`,
-        "-e", `LLM_NUM_CTX=${process.env.LLM_NUM_CTX ?? "65536"}`,
-        "-e", `LLM_TEMPERATURE=${process.env.LLM_TEMPERATURE ?? "1"}`,
-        "-e", `LLM_TOP_P=${process.env.LLM_TOP_P ?? "0.95"}`,
-        "-e", `LLM_TOP_K=${process.env.LLM_TOP_K ?? "20"}`,
-        "-e", `MAX_FIX_ATTEMPTS=${process.env.MAX_FIX_ATTEMPTS ?? "6"}`,
-        "-e", `LLM_THINKING=${process.env.LLM_THINKING ?? "off"}`,
+        "-e", `LLM_MODEL=${env.LLM_MODEL ?? "ollama/gemma4:31b-cloud"}`,
+        "-e", `LLM_BASE_URL=${env.LLM_BASE_URL ?? "http://host.docker.internal:11434"}`,
+        "-e", `LLM_NUM_CTX=${env.LLM_NUM_CTX ?? "65536"}`,
+        "-e", `LLM_TEMPERATURE=${env.LLM_TEMPERATURE ?? "1"}`,
+        "-e", `LLM_TOP_P=${env.LLM_TOP_P ?? "0.95"}`,
+        "-e", `LLM_TOP_K=${env.LLM_TOP_K ?? "20"}`,
+        "-e", `MAX_FIX_ATTEMPTS=${env.MAX_FIX_ATTEMPTS ?? "6"}`,
+        "-e", `LLM_THINKING=${env.LLM_THINKING ?? "off"}`,
         "-e", `LOG_FILE=/work/run/migrate.jsonl`,
         "-e", `ORIGINAL_DIR=/work/original`,
         // The MV2-capable Chrome the image installs, for the behavioural baseline. Overridable so a
         // host with its own build can point at that instead.
-        "-e", `CHROME_OLD=${process.env.CHROME_OLD ?? "/opt/chrome-mv2/chrome"}`,
-        "-e", `BEHAVIOUR_CHECK_TIMEOUT_MS=${process.env.BEHAVIOUR_CHECK_TIMEOUT_MS ?? "30000"}`,
-        "-e", `BEHAVIOUR_SESSION_TIMEOUT_MS=${process.env.BEHAVIOUR_SESSION_TIMEOUT_MS ?? "300000"}`,
-        ...(process.env.ENABLE_VNC === "1" ? [
+        "-e", `CHROME_OLD=${env.CHROME_OLD ?? "/opt/chrome-mv2/chrome"}`,
+        "-e", `BEHAVIOUR_CHECK_TIMEOUT_MS=${env.BEHAVIOUR_CHECK_TIMEOUT_MS ?? "30000"}`,
+        "-e", `BEHAVIOUR_SESSION_TIMEOUT_MS=${env.BEHAVIOUR_SESSION_TIMEOUT_MS ?? "300000"}`,
+        ...(env.ENABLE_VNC === "1" ? [
             "-e", "ENABLE_VNC=1",
             "-p", `${portBase}:6080`,
         ] : []),
-        ...(process.env.LLM_API_KEY ? ["-e", `LLM_API_KEY=${process.env.LLM_API_KEY}`] : []),
+        ...(env.LLM_API_KEY ? ["-e", `LLM_API_KEY=${env.LLM_API_KEY}`] : []),
         migratorImage!,
         "node", "dist/container/runMigration.js",
     ];
     logger.info("docker run " + migratorImage + " ...", { module: "cli" });
-    const code = await new Promise<number>((res) => {
+    return await new Promise<number>((res) => {
         const p = spawn("docker", dockerArgs, { stdio: "inherit" });
         p.on("close", (c) => res(c ?? 1));
     });
+}
 
-    rmSync(convertedDir, { recursive: true, force: true });
-
-    // 4. report.
+/**
+ * Log what a finished attempt produced, and index its outcome.
+ *
+ * `index` is a shared outcomes DB, written IN ADDITION to the run's own. The per-run row is what
+ * extlens reads; a shared row is what would make "which extensions did A pass and B fail" one query
+ * instead of a merge of several databases. Nothing passes it today — the runs UI reads per-run
+ * counts — so it is the seam a cross-run comparison would use, not a feature.
+ */
+async function reportAttempt(
+    extPath: string,
+    runDir: string,
+    code: number,
+    /** The fully-qualified `provider/id` this attempt ran, for the outcomes index. */
+    modelSpec: string,
+    index?: { root: string; runId: string },
+): Promise<void> {
     const reportPath = join(runDir, "report.json");
-    if (existsSync(reportPath)) {
-        const r = JSON.parse(readFileSync(reportPath, "utf8"));
-        if (r.passed) {
-          logger.success(`Migrated extension in ${join(runDir, "out")}`, { module: "cli" });
-        } else {
-          logger.warn(`Possible failure migrating extension in ${join(runDir, "out")}`, { module: "cli" });
-        }
-        if (r.serviceWorker) logger.info(`service worker: ${r.serviceWorker}`, { module: "cli" });
-        if (!r.passed && r.reason) logger.warn(`reason: ${r.reason}`, { module: "cli" });
-        if (typeof r.score === "number") {
-            logger.info(`behaviour score: ${r.score.toFixed(2)} (${r.scoreDenominator} baseline check(s))`, { module: "cli" });
-        }
-        if (r.label) logger.warn(`label: ${r.label}`, { module: "cli" });
-        await recordOutcome(runDir, extPath, r);
-    } else {
+    if (!existsSync(reportPath)) {
         logger.warn(`no report produced (container exit ${code})`, { module: "cli" });
+        return;
     }
+    const r = JSON.parse(readFileSync(reportPath, "utf8"));
+    if (r.passed) {
+      logger.success(`Migrated extension in ${join(runDir, "out")}`, { module: "cli" });
+    } else {
+      logger.warn(`Possible failure migrating extension in ${join(runDir, "out")}`, { module: "cli" });
+    }
+    if (r.serviceWorker) logger.info(`service worker: ${r.serviceWorker}`, { module: "cli" });
+    if (!r.passed && r.reason) logger.warn(`reason: ${r.reason}`, { module: "cli" });
+    if (typeof r.score === "number") {
+        logger.info(`behaviour score: ${r.score.toFixed(2)} (${r.scoreDenominator} baseline check(s))`, { module: "cli" });
+    }
+    if (r.label) logger.warn(`label: ${r.label}`, { module: "cli" });
+    await recordOutcome(runDir, extPath, r, modelSpec);
+    if (index) await recordOutcome(runDir, extPath, r, modelSpec, index);
+}
 
-    return code;
+/**
+ * Migrate one extension into runDir. The run dir starts fresh. Returns the
+ * container/process exit code (0 on success, non-zero on failure).
+ */
+async function migrateOne(extPath: string, runDir: string): Promise<number> {
+    resetRunDir(runDir, extPath);
+    const prepared = await prepareExtension(extPath);
+    try {
+        writePrepared(runDir, extPath, prepared);
+        const code = await runMigrationContainer(extPath, runDir, prepared.convertedDir);
+        await reportAttempt(extPath, runDir, code, process.env.LLM_MODEL ?? "unknown");
+        dedupeFinished(runDir);
+        return code;
+    } finally {
+        rmSync(prepared.convertedDir, { recursive: true, force: true });
+    }
+}
+
+/**
+ * Hardlink this extension's finished output into the run root's blob store.
+ *
+ * Only when `--blobs` says where, which is only when the host is serving a runs root: the store is a
+ * property of that layout. Called after the container has exited and the report is written, never
+ * before — a hardlinked file has no copy-on-write, so linking a tree the agent is still editing would
+ * rewrite the same content inside every earlier run that shared it.
+ *
+ * Best-effort by design. The saving is real but it is an optimisation, and a migration that worked
+ * must not be reported as failed because a link could not be made.
+ */
+function dedupeFinished(runDir: string): void {
+    const store = arg("--blobs", "");
+    if (!store) return;
+    try {
+        const out = join(runDir, "out");
+        const result = dedupe(out, store);
+        if (result.linked > 0) {
+            logger.info(
+                `dedupe: ${result.linked} file(s) linked, ` +
+                `${(result.freedBytes / 1e6).toFixed(1)} MB shared, ${(result.addedBytes / 1e6).toFixed(1)} MB new`,
+                { module: "cli" },
+            );
+        }
+        for (const skip of result.skipped.slice(0, 5)) {
+            logger.debug(`dedupe skipped ${skip.path}: ${skip.reason}`, { module: "cli" });
+        }
+    } catch (e) {
+        logger.warn(`dedupe skipped: ${e instanceof Error ? e.message : String(e)}`, { module: "cli" });
+    }
 }
 
 function waitForSignal(): Promise<void> {
@@ -516,15 +666,37 @@ main().catch((e) => { logger.error("fatal: " + e, { module: "cli" }); process.ex
  * first instead of overwriting it. Best-effort by design: the index is analysis infrastructure,
  * and a migration must not fail because better-sqlite3 is unavailable or the DB is locked.
  */
-async function recordOutcome(runDir: string, extPath: string, report: any): Promise<void> {
+async function recordOutcome(
+    runDir: string,
+    extPath: string,
+    report: any,
+    /**
+     * The `provider/id` spec, recorded in preference to the report's bare `model.id`.
+     *
+     * The report carries only the id, so rows used to read `deepseek-v4-flash-0731` while
+     * LLM_MODEL said `saia/deepseek-v4-flash-0731` — and the run-root guard compared the two and
+     * refused every resume. See host/runRoot.ts, which still matches legacy bare rows.
+     */
+    modelSpec: string,
+    /**
+     * A shared index instead of this run's own root.
+     *
+     * `runId` carries the RUN's id rather than the extension id, because the outcomes primary key is
+     * (extension, model, run_id) and two runs of one model under different settings are a normal
+     * thing to compare. Keyed by model alone those rows collapse into one and a column is lost.
+     */
+    index?: { root: string; runId: string },
+): Promise<void> {
     try {
         const { Registry } = await import("./extlens/registry.js");
-        const registry = new Registry(dirname(resolve(runDir)));
+        const registry = index
+            ? new Registry(index.root, "outcomes.db")
+            : new Registry(dirname(resolve(runDir)));
         try {
             registry.recordOutcome({
                 extension: basename(resolve(extPath)),
-                model: report.model ?? process.env.LLM_MODEL ?? "unknown",
-                runId: basename(resolve(runDir)),
+                model: modelSpec || report.model || "unknown",
+                runId: index ? index.runId : basename(resolve(runDir)),
                 passed: Boolean(report.passed),
                 score: report.score ?? null,
                 label: report.label ?? null,

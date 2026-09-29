@@ -25,6 +25,14 @@
 // It deliberately does not swallow anything else: a 429 carrying no usable reset header, or one
 // still arriving after BUDGET_MS of waiting, is returned untouched for pi's retry to handle as
 // before — and the run is then labelled a harness failure rather than a model result.
+//
+// One consequence of waiting INSIDE fetch has to be paid for explicitly, and it is the reason
+// REQUEST_DEADLINE_MS below exists. The caller is an SDK request with a deadline of its own, and
+// our sleep is spent against it. pi defaults that deadline to its httpIdleTimeoutMs (5 minutes),
+// so two 3-minute waits used to overrun it: the SDK aborted mid-sleep and reported
+// `APIConnectionTimeoutError: Request timed out.` — a phantom turn blamed on the model, for a
+// request that never left the process, spending one of pi's retries per occurrence. The deadline
+// and the wait budget cannot be chosen independently; whoever sets one must know the other.
 import logger, { formatDuration } from "../logger.js";
 import { resolveBaseUrl } from "./model.js";
 
@@ -49,6 +57,31 @@ const BUDGET_MS = Number(process.env.LLM_RATE_LIMIT_BUDGET_MS ?? 900_000);
 const MAX_WAIT_MS = Number(process.env.LLM_RATE_LIMIT_MAX_WAIT_MS ?? 180_000);
 /** Added to every advertised reset: the window boundary is the provider's clock, not ours. */
 const CLOCK_SKEW_MS = 1_000;
+/**
+ * How long the model may take to answer once it is actually being served, on top of any waiting.
+ *
+ * Separate from the waiting so the deadline below reads as what it is: the budget plus one
+ * response. A long agentic turn with thinking is minutes, not seconds.
+ */
+const GENERATION_SLACK_MS = Number(process.env.LLM_GENERATION_SLACK_MS ?? 600_000);
+/**
+ * The per-request deadline the caller must give its SDK, and the one this module waits against.
+ *
+ * It has to exceed BUDGET_MS, or waiting out a published window is not something a single request
+ * can survive: the SDK aborts mid-wait and the run dies of a timeout that describes nothing. So it
+ * is derived from the budget here rather than chosen over there, and runMigration.ts hands this
+ * exact number to pi (`retry.provider.timeoutMs`) instead of inheriting pi's 5-minute default.
+ *
+ * Raising it does NOT make a hung request hang longer. A connection that goes quiet is still cut by
+ * undici's own headersTimeout/bodyTimeout (300s each by default), which is the thing a short
+ * deadline was really protecting against and is independent of this number — note that pi's
+ * httpIdleTimeoutMs is NOT that guard here: pi only installs its dispatcher on its CLI path, and we
+ * embed it as a library. What this deadline bounds is a request that is making progress, or one
+ * legitimately waiting for a quota window with no socket open at all.
+ */
+export const REQUEST_DEADLINE_MS = Number(
+    process.env.LLM_REQUEST_TIMEOUT_MS ?? BUDGET_MS + GENERATION_SLACK_MS,
+);
 
 export interface RateLimitStats {
     /** 429s absorbed here — they never reached pi, so they never became failed turns. */
@@ -61,13 +94,61 @@ export interface RateLimitStats {
     passedThrough: number;
     /** Streaks that ran out the budget — the signal that a longer quota window is shut. */
     budgetExhausted: number;
+    /**
+     * Waits this module refused to start, or cut short, because the caller's request deadline
+     * would have expired first. Non-zero means REQUEST_DEADLINE_MS and the wait budget disagree
+     * — the misconfiguration that used to surface as "Request timed out".
+     */
+    deadlineHits: number;
+    /**
+     * When the provider says the current window reopens, as epoch ms, once a streak has proved a
+     * LONGER window is shut (budget exhausted with a reset still in the future). Null otherwise.
+     *
+     * Read by the caller and reported upward: one container discovering a four-hour quota wall is
+     * the only warning the batch above it will get, and without it every remaining extension pays
+     * the full budget to rediscover the same number.
+     */
+    closedUntil: number | null;
 }
 
-const stats: RateLimitStats = { absorbed: 0, preemptiveWaits: 0, waitedMs: 0, passedThrough: 0, budgetExhausted: 0 };
+const stats: RateLimitStats = {
+    absorbed: 0,
+    preemptiveWaits: 0,
+    waitedMs: 0,
+    passedThrough: 0,
+    budgetExhausted: 0,
+    deadlineHits: 0,
+    closedUntil: null,
+};
 
 export const rateLimitStats = (): RateLimitStats => ({ ...stats });
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/**
+ * Sleep, but wake at once if the caller gives up.
+ *
+ * An abort noticed only when the sleep ends is an abort noticed up to MAX_WAIT_MS late, and in the
+ * meantime the wrapper holds a request its caller has already written off.
+ */
+function sleep(ms: number, signal: AbortSignal | null): Promise<"slept" | "aborted"> {
+    if (signal?.aborted) return Promise.resolve("aborted");
+    if (!signal) return new Promise((resolve) => setTimeout(() => resolve("slept"), ms));
+    return new Promise((resolve) => {
+        const onAbort = (): void => {
+            clearTimeout(timer);
+            resolve("aborted");
+        };
+        const timer = setTimeout(() => {
+            signal.removeEventListener("abort", onAbort);
+            resolve("slept");
+        }, ms);
+        signal.addEventListener("abort", onAbort, { once: true });
+    });
+}
+
+/** The caller's cancellation, from wherever it put it. */
+function signalOf(input: Parameters<typeof fetch>[0], init: RequestInit | undefined): AbortSignal | null {
+    return init?.signal ?? (input instanceof Request ? input.signal : null) ?? null;
+}
 
 /**
  * When the current window reopens, as an epoch ms, or 0 when it is not known to be closed.
@@ -116,12 +197,39 @@ function windowExhausted(headers: Headers): boolean {
     return false;
 }
 
-async function waitFor(ms: number, why: string): Promise<void> {
+/**
+ * Wait, and say whether the wait finished.
+ *
+ * "aborted" means the caller's request deadline expired (or it cancelled) while we slept: there is
+ * no point retrying into a request nobody is waiting for, so the loop hands back what it has.
+ */
+async function waitFor(ms: number, why: string, signal: AbortSignal | null): Promise<"slept" | "aborted"> {
     const capped = Math.min(ms, MAX_WAIT_MS);
-    stats.waitedMs += capped;
     logger.info(`rate limit: ${why}, waiting ${formatDuration(capped)}`, { module: "ratelimit" });
-    await sleep(capped);
+    const startedAt = Date.now();
+    const outcome = await sleep(capped, signal);
+    // Time actually spent, not time intended: an abort cuts the wait short, and a `waitedMs` that
+    // counted the whole sleep would report waiting the run never did.
+    const elapsed = Date.now() - startedAt;
+    stats.waitedMs += elapsed;
+    if (outcome === "aborted") {
+        stats.deadlineHits++;
+        logger.warn(
+            `rate limit: the caller gave up ${formatDuration(elapsed)} into a ${formatDuration(capped)} ` +
+            `wait — its request deadline is shorter than the wait budget (see REQUEST_DEADLINE_MS)`,
+            { module: "ratelimit" },
+        );
+    }
+    return outcome;
 }
+
+/**
+ * The most a wait may last if the caller is to still be listening when it ends.
+ *
+ * A wait longer than this is a wait whose retry can never happen, so it is not worth spending: the
+ * 429 goes back now, with its real reason, instead of in six minutes as a timeout.
+ */
+const roomBeforeDeadline = (deadlineAt: number): number => deadlineAt - Date.now();
 
 /**
  * Wrap globalThis.fetch so requests to the LLM endpoint respect its published limits.
@@ -137,6 +245,12 @@ export function installRateLimitHandling(): () => RateLimitStats {
         const url = input instanceof Request ? input.url : String(input);
         if (!url.startsWith(base)) return inner(input as any, init);
 
+        const signal = signalOf(input, init);
+        // The caller's own deadline, which our waiting is spent against. Taken as REQUEST_DEADLINE_MS
+        // from now because that is the number the caller was told to use (runMigration.ts hands it
+        // to pi); `signal` is what makes this robust if it ever set a different one.
+        const deadlineAt = Date.now() + REQUEST_DEADLINE_MS;
+
         for (;;) {
             // A window we already know to be closed: wait before spending the request, rather
             // than spending it to be told so again. Never past the budget — a hold that outlives
@@ -144,7 +258,10 @@ export function installRateLimitHandling(): () => RateLimitStats {
             const holdMs = Math.min(windowOpensAt - Date.now(), remainingBudget());
             if (holdMs > 0) {
                 stats.preemptiveWaits++;
-                await waitFor(holdMs, "no requests left in this window");
+                // An abort here needs no special case: nothing has been requested yet, so the
+                // attempt below goes out with the aborted signal and fails on its own terms. The
+                // warning waitFor logged is what makes the reason visible either way.
+                await waitFor(holdMs, "no requests left in this window", signal);
             }
             windowOpensAt = 0;
 
@@ -164,14 +281,32 @@ export function installRateLimitHandling(): () => RateLimitStats {
             const resetMs = resetDelayMs(response.headers);
             if (streakEndsAt === 0) streakEndsAt = Date.now() + BUDGET_MS;
 
-            if (resetMs === undefined || remainingBudget() <= 0) {
+            // A wait the caller will not be around for buys nothing, and spending it is how a
+            // plain 429 turned into "Request timed out": the abort landed mid-sleep and the real
+            // reason never reached the log. Better to hand the 429 up now, while it still says why.
+            const room = roomBeforeDeadline(deadlineAt);
+            const noRoom = resetMs !== undefined && Math.min(resetMs, MAX_WAIT_MS) > room;
+
+            if (resetMs === undefined || remainingBudget() <= 0 || noRoom) {
                 stats.passedThrough++;
                 if (resetMs === undefined) {
                     logger.warn("rate limit: 429 with no reset header — leaving it to the agent's retry", {
                         module: "ratelimit",
                     });
+                } else if (noRoom) {
+                    stats.deadlineHits++;
+                    logger.error(
+                        `rate limit: ${formatDuration(Math.min(resetMs, MAX_WAIT_MS))} of waiting left to ` +
+                        `do and only ${formatDuration(Math.max(0, room))} before this request's deadline ` +
+                        `— handing the 429 back rather than sleeping into a timeout. Raise ` +
+                        `LLM_REQUEST_TIMEOUT_MS above the ${formatDuration(BUDGET_MS)} wait budget.`,
+                        { module: "ratelimit" },
+                    );
                 } else {
                     stats.budgetExhausted++;
+                    // The one fact worth carrying out of this container: a window this long is not
+                    // a burst, and every extension after this one will hit the same wall.
+                    stats.closedUntil = Date.now() + resetMs;
                     logger.error(
                         `rate limit: still limited after ${formatDuration(BUDGET_MS)} of waiting ` +
                         `(provider says ${formatDuration(resetMs)} more) — a longer quota window is ` +
@@ -183,10 +318,17 @@ export function installRateLimitHandling(): () => RateLimitStats {
             }
 
             stats.absorbed++;
-            await waitFor(
-                resetMs,
-                `429, window reopens (${formatDuration(remainingBudget())} of budget left)`,
-            );
+            if (
+                (await waitFor(
+                    resetMs,
+                    `429, window reopens (${formatDuration(remainingBudget())} of budget left)`,
+                    signal,
+                )) === "aborted"
+            ) {
+                // The caller is gone. Return the 429 it earned: if anything is still listening, a
+                // rate limit is a far more useful thing to read than a timeout.
+                return response;
+            }
         }
     };
 
@@ -194,8 +336,18 @@ export function installRateLimitHandling(): () => RateLimitStats {
     globalThis.fetch = wrapped;
     logger.info(
         `rate limit handling active for ${base} (${formatDuration(BUDGET_MS)} budget per stuck ` +
-        `streak, ${formatDuration(MAX_WAIT_MS)} max per wait)`,
+        `streak, ${formatDuration(MAX_WAIT_MS)} max per wait, ` +
+        `${formatDuration(REQUEST_DEADLINE_MS)} request deadline)`,
         { module: "ratelimit" },
     );
+    if (REQUEST_DEADLINE_MS <= BUDGET_MS) {
+        // Said at startup rather than discovered six minutes into the first stuck streak.
+        logger.warn(
+            `rate limit: the request deadline (${formatDuration(REQUEST_DEADLINE_MS)}) is not longer ` +
+            `than the wait budget (${formatDuration(BUDGET_MS)}), so a fully used budget cannot ` +
+            `survive one request — expect 429s to surface as timeouts`,
+            { module: "ratelimit" },
+        );
+    }
     return rateLimitStats;
 }

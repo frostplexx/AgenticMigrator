@@ -144,3 +144,99 @@ test("leaves requests to other hosts alone", async () => {
         }
     });
 });
+
+// The bug this pair of tests exists for: waiting inside fetch spends the CALLER's request deadline,
+// and when the wait outlives it the SDK aborts mid-sleep and reports "Request timed out" — a
+// phantom turn blamed on the model, for a request that never reached the provider. A 429 must
+// never be able to disguise itself as a timeout.
+test("refuses to start a wait that would outlive the caller's request deadline", async () => {
+    await withEnv(
+        {
+            LLM_BASE_URL: BASE,
+            LLM_RATE_LIMIT_MAX_WAIT_MS: "5000",
+            LLM_RATE_LIMIT_BUDGET_MS: "60000",
+            // Shorter than the wait: the misconfiguration the run had, stated outright.
+            LLM_REQUEST_TIMEOUT_MS: "100",
+        },
+        async () => {
+            const stub = stubFetch([limited({ "ratelimit-reset": "30" })]);
+            try {
+                const { installRateLimitHandling } = await freshModule();
+                const stats = installRateLimitHandling();
+                const started = Date.now();
+                const response = await fetch(URL_UNDER_TEST);
+                assert.equal(response.status, 429, "the caller gets the real reason, not a timeout");
+                assert.equal(stub.calls.length, 1);
+                assert.equal(stats().deadlineHits, 1);
+                assert.ok(Date.now() - started < 2000, "and gets it now rather than after the wait");
+            } finally {
+                stub.restore();
+            }
+        },
+    );
+});
+
+test("wakes from a wait the moment the caller gives up, rather than when the sleep ends", async () => {
+    await withEnv({ LLM_BASE_URL: BASE, LLM_RATE_LIMIT_MAX_WAIT_MS: "10000" }, async () => {
+        const stub = stubFetch([limited({ "ratelimit-reset": "30" })]);
+        try {
+            const { installRateLimitHandling } = await freshModule();
+            const stats = installRateLimitHandling();
+            const controller = new AbortController();
+            const started = Date.now();
+            setTimeout(() => controller.abort(), 50);
+            const response = await fetch(URL_UNDER_TEST, { signal: controller.signal });
+            const elapsed = Date.now() - started;
+            assert.equal(response.status, 429);
+            assert.ok(elapsed < 5000, `should wake on the abort, not after 10s (took ${elapsed}ms)`);
+            assert.equal(stats().deadlineHits, 1);
+        } finally {
+            stub.restore();
+        }
+    });
+});
+
+// What the batch above reads to decide whether the next extension is worth attempting.
+test("records when the window reopens once a long quota wall is proved", async () => {
+    await withEnv({ LLM_BASE_URL: BASE, LLM_RATE_LIMIT_MAX_WAIT_MS: "20", LLM_RATE_LIMIT_BUDGET_MS: "50" }, async () => {
+        const stub = stubFetch(() => limited({ "ratelimit-reset": "3600" }));
+        try {
+            const { installRateLimitHandling } = await freshModule();
+            const stats = installRateLimitHandling();
+            assert.equal(stats().closedUntil, null, "nothing is known before a streak gives up");
+            await fetch(URL_UNDER_TEST);
+            const closedUntil = stats().closedUntil;
+            assert.ok(closedUntil !== null && closedUntil > Date.now() + 3_000_000, "an hour out, per the header");
+        } finally {
+            stub.restore();
+        }
+    });
+});
+
+// A burst is absorbed and says nothing about the next extension; only a long window is a wall.
+test("leaves closedUntil unset for a burst it waited out successfully", async () => {
+    await withEnv({ LLM_BASE_URL: BASE, LLM_RATE_LIMIT_MAX_WAIT_MS: "20" }, async () => {
+        const stub = stubFetch([limited({ "ratelimit-reset": "30" }), ok()]);
+        try {
+            const { installRateLimitHandling } = await freshModule();
+            const stats = installRateLimitHandling();
+            assert.equal((await fetch(URL_UNDER_TEST)).status, 200);
+            assert.equal(stats().closedUntil, null);
+        } finally {
+            stub.restore();
+        }
+    });
+});
+
+// The invariant the whole fix rests on: a fully spent wait budget has to fit inside one request,
+// or the waiting cannot survive to be retried. Defaults must satisfy it without being asked to.
+test("the default request deadline is longer than the wait budget", async () => {
+    await withEnv({ LLM_BASE_URL: BASE }, async () => {
+        const { REQUEST_DEADLINE_MS } = await freshModule();
+        const budget = Number(process.env.LLM_RATE_LIMIT_BUDGET_MS ?? 900_000);
+        assert.ok(
+            REQUEST_DEADLINE_MS > budget,
+            `deadline ${REQUEST_DEADLINE_MS}ms must exceed the ${budget}ms budget`,
+        );
+    });
+});

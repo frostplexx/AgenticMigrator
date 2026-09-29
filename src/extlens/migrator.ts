@@ -56,6 +56,23 @@ export interface MigratorOptions {
     cwd: string;
     /** Override the migration command (tests). Default: `npx --no-install tsx src/cli.ts`. */
     command?: string[];
+    /**
+     * Environment the migration child gets on top of this process's, naming the model to run.
+     *
+     * Set when the host serves a runs root, from the active run's manifest (see runs.ts). Absent, the
+     * child inherits the environment the host was started with — the flat-layout behaviour this host
+     * has always had.
+     */
+    env?: Record<string, string>;
+    /**
+     * Content-addressed store to hardlink finished output into (host/blobs.ts).
+     *
+     * Passed to the child as `--blobs`, so the dedupe happens where the run is known to be finished
+     * — the agent edits files in place all through a migration, and hardlinking a live run would
+     * rewrite every earlier run that shared a byte-identical file. Absent on the flat layout, which
+     * has no store and keeps full copies as it always has.
+     */
+    blobs?: string;
 }
 
 interface MigrateReport {
@@ -96,6 +113,17 @@ export class MigratorController implements HostController {
     /** When the current batch began, so a client can derive a rate from it. */
     private batchStartedAt: string | null = null;
 
+    /**
+     * The model this controller will actually run, as the reviewer should see it.
+     *
+     * The active run's when the host serves a runs root, otherwise the environment's. Read at call
+     * time rather than captured, because both can change under a long-lived host — the run by
+     * `runs.select`, the environment by whoever started the process.
+     */
+    private model(): string | null {
+        return this.opts.env?.LLM_MODEL ?? configuredModel();
+    }
+
     constructor(
         private readonly opts: MigratorOptions,
         private readonly registry: Registry | null = null,
@@ -110,7 +138,7 @@ export class MigratorController implements HostController {
                 phase: lastRow.phase,
                 startedAt: null,
                 message: clip(lastRow.tail ?? "") || null,
-                model: configuredModel(),
+                model: this.model(),
                 progress: this.progress(),
             };
         }
@@ -125,7 +153,7 @@ export class MigratorController implements HostController {
                 phase: null,
                 startedAt: null,
                 message: null,
-                model: configuredModel(),
+                model: this.model(),
                 progress: null,
             };
         }
@@ -146,7 +174,7 @@ export class MigratorController implements HostController {
             phase,
             startedAt: this.startedAt,
             message: this.tailMessage(),
-            model: configuredModel(),
+            model: this.model(),
             progress: this.progress(),
         };
     }
@@ -190,7 +218,7 @@ export class MigratorController implements HostController {
                 phase: "done",
                 startedAt: null,
                 message: "all extensions already migrated",
-                model: configuredModel(),
+                model: this.model(),
                 progress: this.progress(),
             };
             return this.last;
@@ -203,9 +231,26 @@ export class MigratorController implements HostController {
     }
 
     private assertIdle(): void {
-        if (this.child && this.child.exitCode === null) {
+        if (this.busy()) {
             throw new RpcError(ErrorCodes.HOST_BUSY, `migration already running for ${this.extensionId}`);
         }
+    }
+
+    /**
+     * Is a migration in flight right now?
+     *
+     * Synchronous, unlike getStatus, because the callers that need it must REFUSE rather than wait —
+     * and because getStatus finalizes a finished child and writes to the registry, which is not
+     * something a read-only question should do. See models.ts, which uses it to reject a model
+     * switch that would swap the run root under a running migration.
+     */
+    busy(): boolean {
+        return this.child !== null && this.child.exitCode === null;
+    }
+
+    /** Which extension is running, or null. For a caller explaining why it refused. */
+    runningExtension(): string | null {
+        return this.busy() ? this.extensionId : null;
     }
 
     private resetQueue(): void {
@@ -240,11 +285,15 @@ export class MigratorController implements HostController {
 
         const runDir = join(resolve(this.opts.runRoot), id);
         const [cmd, ...baseArgs] = this.opts.command ?? ["npx", "--no-install", "tsx", "src/cli.ts"];
-        const child = spawn(cmd, [...baseArgs, src.dir, "--out", runDir], {
+        const child = spawn(
+            cmd,
+            [...baseArgs, src.dir, "--out", runDir, ...(this.opts.blobs ? ["--blobs", this.opts.blobs] : [])],
+            {
             cwd: this.opts.cwd,
-            env: { ...process.env, MIGRATOR_ONESHOT: "1" },
+            env: { ...process.env, ...(this.opts.env ?? {}), MIGRATOR_ONESHOT: "1" },
             detached: true,
-        });
+        },
+        );
         this.child = child;
         child.stdout.on("data", (data: Buffer) => this.capture("stdout", data));
         child.stderr.on("data", (data: Buffer) => this.capture("stderr", data));
@@ -416,7 +465,7 @@ export class MigratorController implements HostController {
             phase: terminalPhase,
             startedAt: null,
             message: terminalMessage,
-                model: configuredModel(),
+                model: this.model(),
                 progress: this.progress(),
             };
     }

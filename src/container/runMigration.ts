@@ -7,7 +7,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statS
 import { dirname, join, relative, sep } from "node:path";
 import logger, { ensureFileTransport, formatDuration } from "../logger.js";
 import { resolveModel } from "./model.js";
-import { installRateLimitHandling } from "./rateLimit.js";
+import { installRateLimitHandling, REQUEST_DEADLINE_MS } from "./rateLimit.js";
 import { buildPrompt } from "./prompt.js";
 import { sampleSites, summarizeAnalysis } from "../host/staticAnalyzer.js";
 import { verify, type VerifyReport } from "./verify.js";
@@ -96,9 +96,29 @@ async function main() {
     const maxRetries = Number(process.env.LLM_NUM_RETRIES ?? 2);
     const settingsManager = SettingsManager.inMemory({
         // Keep history bounded (the condenser lesson) without stalling — pi's compaction.
-        retry: { enabled: true, maxRetries },
+        retry: {
+            enabled: true,
+            maxRetries,
+            /**
+             * The per-request deadline, stated instead of inherited.
+             *
+             * pi defaults this to its httpIdleTimeoutMs (5 minutes), which is the right bound for
+             * a connection that has gone quiet and the wrong one for a request that is deliberately
+             * waiting out a published quota window inside our own fetch wrapper. Left at the
+             * default, two 3-minute waits overran it and the abort was reported as
+             * `Request timed out` — a phantom turn blamed on the model, spending a retry, for a
+             * request that never reached the provider. A hung connection is still cut by undici's
+             * 300s headers/body timeouts, which this does not touch; see rateLimit.ts.
+             */
+            provider: { timeoutMs: REQUEST_DEADLINE_MS },
+        },
         compaction: { enabled: true },
     });
+    logger.info(
+        `provider: ${maxRetries} retr${maxRetries === 1 ? "y" : "ies"}, ` +
+        `${formatDuration(REQUEST_DEADLINE_MS)} request deadline`,
+        { module: "migrate" },
+    );
 
     const tools = ["read", "bash", "edit", "write", "ls", "grep", "find"];
 
