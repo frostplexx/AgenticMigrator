@@ -148,6 +148,16 @@ export function derivePhaseFromDir(dir: string): string {
 export class Registry {
     private readonly runRoot: string;
     private readonly db: Database.Database;
+    /**
+     * Prepared statements, kept rather than recompiled.
+     *
+     * Every method here used to call `db.prepare` per invocation, which compiles a fresh native
+     * statement each time. That is invisible on a one-off query and not on the status poll: the
+     * client asks twice a second for as long as a migration runs, and a batch runs for hours, so the
+     * host accumulated statements until it filled a 4GB heap and died. Keyed by SQL text, so the set
+     * is bounded by the number of queries in this file.
+     */
+    private readonly statements = new Map<string, Database.Statement>();
 
     /**
      * `dbFile` names the database inside `runRoot`, defaulting to the index every run root has.
@@ -165,29 +175,40 @@ export class Registry {
     }
 
     close(): void {
+        this.statements.clear();
         this.db.close();
+    }
+
+    /** The prepared statement for this SQL, compiled once. */
+    private stmt(sql: string): Database.Statement {
+        let prepared = this.statements.get(sql);
+        if (!prepared) {
+            prepared = this.db.prepare(sql);
+            this.statements.set(sql, prepared);
+        }
+        return prepared;
     }
 
     /** Replace the source list with the current scan (upsert + prune stale). */
     syncSources(entries: SourceEntry[]): void {
         const now = new Date().toISOString();
-        const upsert = this.db.prepare(
+        const upsert = this.stmt(
             `INSERT INTO sources (dir, id, added_at) VALUES (?, ?, ?)
              ON CONFLICT(dir) DO UPDATE SET id = excluded.id`,
         );
         for (const e of entries) upsert.run(resolve(e.dir), e.id, now);
         if (entries.length === 0) {
-            this.db.prepare("DELETE FROM sources").run();
+            this.stmt("DELETE FROM sources").run();
             return;
         }
         const placeholders = entries.map(() => "?").join(", ");
-        this.db
-            .prepare(`DELETE FROM sources WHERE dir NOT IN (${placeholders})`)
+        this
+            .stmt(`DELETE FROM sources WHERE dir NOT IN (${placeholders})`)
             .run(...entries.map((e) => resolve(e.dir)));
     }
 
     listSources(): SourceEntry[] {
-        const rows = this.db.prepare("SELECT dir, id FROM sources ORDER BY id").all() as {
+        const rows = this.stmt("SELECT dir, id FROM sources ORDER BY id").all() as {
             dir: string;
             id: string;
         }[];
@@ -200,15 +221,15 @@ export class Registry {
      */
     seedRunsFromDisk(): void {
         const now = new Date().toISOString();
-        const insert = this.db.prepare(
+        const insert = this.stmt(
             `INSERT OR IGNORE INTO runs (id, source_dir, state, phase, started_at, ended_at, tail, updated_at)
              VALUES (?, NULL, 'idle', ?, NULL, NULL, NULL, ?)`,
         );
         for (const run of findRunsOnDisk(this.runRoot)) {
             insert.run(run.id, derivePhaseFromDir(run.dir), now);
         }
-        this.db
-            .prepare(
+        this
+            .stmt(
                 `UPDATE runs SET state = 'idle', ended_at = ?, tail = COALESCE(tail, '') || ?
                  WHERE state IN ('running', 'stopping')`,
             )
@@ -217,8 +238,8 @@ export class Registry {
 
     /** Record a job start: the row resets to running/preparing. */
     startRun(id: string, sourceDir: string, startedAt: string): void {
-        this.db
-            .prepare(
+        this
+            .stmt(
                 `INSERT INTO runs (id, source_dir, state, phase, started_at, tail, updated_at)
                  VALUES (?, ?, 'running', 'preparing', ?, '', ?)
                  ON CONFLICT(id) DO UPDATE SET
@@ -248,14 +269,14 @@ export class Registry {
         if (fields.length === 0) return;
         fields.push("updated_at = ?");
         values.push(new Date().toISOString(), id);
-        this.db.prepare(`UPDATE runs SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+        this.stmt(`UPDATE runs SET ${fields.join(", ")} WHERE id = ?`).run(...values);
     }
 
     /** Record a job end: idle state plus the terminal phase and report summary. */
     finishRun(id: string, phase: string, tail: string | null, report: { passed: boolean; reason: string | null } | null): void {
         const now = new Date().toISOString();
-        this.db
-            .prepare(
+        this
+            .stmt(
                 `UPDATE runs SET state = 'idle', phase = ?, ended_at = ?, tail = ?,
                    report_passed = ?, report_reason = ?, updated_at = ?
                  WHERE id = ?`,
@@ -278,8 +299,8 @@ export class Registry {
         costUsd?: number | null;
         wallTimeMs?: number | null;
     }): void {
-        this.db
-            .prepare(
+        this
+            .stmt(
                 `INSERT INTO outcomes
                    (extension, model, run_id, passed, score, label, abstained, has_hard_blocker, cost_usd, wall_time_ms, recorded_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -306,8 +327,8 @@ export class Registry {
 
     /** Every attempt on one extension, newest first. */
     outcomesFor(extension: string): OutcomeRow[] {
-        return this.db
-            .prepare("SELECT * FROM outcomes WHERE extension = ? ORDER BY recorded_at DESC")
+        return this
+            .stmt("SELECT * FROM outcomes WHERE extension = ? ORDER BY recorded_at DESC")
             .all(extension) as unknown as OutcomeRow[];
     }
 
@@ -317,8 +338,8 @@ export class Registry {
      * every later model's failure cannot retract.
      */
     migratedByAnyModel(): string[] {
-        return (this.db
-            .prepare("SELECT DISTINCT extension FROM outcomes WHERE passed = 1 ORDER BY extension")
+        return (this
+            .stmt("SELECT DISTINCT extension FROM outcomes WHERE passed = 1 ORDER BY extension")
             .all() as { extension: string }[]).map((r) => r.extension);
     }
 
@@ -327,8 +348,8 @@ export class Registry {
      * what an impossibility audit should sample from.
      */
     unmigratedSoFar(): string[] {
-        return (this.db
-            .prepare(
+        return (this
+            .stmt(
                 `SELECT DISTINCT extension FROM outcomes
                  WHERE extension NOT IN (SELECT extension FROM outcomes WHERE passed = 1)
                  ORDER BY extension`,
@@ -346,8 +367,8 @@ export class Registry {
         createdAt: string;
         updatedAt: string;
     }): void {
-        this.db
-            .prepare(
+        this
+            .stmt(
                 `INSERT INTO reports (id, extension_id, payload, created_at, updated_at)
                  VALUES (@id, @extensionId, @payload, @createdAt, @updatedAt)
                  ON CONFLICT(id) DO UPDATE SET
@@ -363,8 +384,8 @@ export class Registry {
         createdAt: string;
         updatedAt: string;
     } | null {
-        const row = this.db
-            .prepare("SELECT id, payload, created_at, updated_at FROM reports WHERE extension_id = ?")
+        const row = this
+            .stmt("SELECT id, payload, created_at, updated_at FROM reports WHERE extension_id = ?")
             .get(extensionId) as
             | { id: string; payload: string; created_at: string; updated_at: string }
             | undefined;
@@ -377,21 +398,21 @@ export class Registry {
      * reads of the same root: a summary that reshuffles its rows cannot be diffed.
      */
     allOutcomes(): OutcomeRow[] {
-        return this.db
-            .prepare("SELECT * FROM outcomes ORDER BY extension, model, run_id")
+        return this
+            .stmt("SELECT * FROM outcomes ORDER BY extension, model, run_id")
             .all() as unknown as OutcomeRow[];
     }
 
     /** Distinct models that have recorded an outcome in this run root. */
     outcomeModels(): string[] {
-        const rows = this.db.prepare("SELECT DISTINCT model FROM outcomes ORDER BY model").all() as { model: string }[];
+        const rows = this.stmt("SELECT DISTINCT model FROM outcomes ORDER BY model").all() as { model: string }[];
         return rows.map((r) => r.model);
     }
 
     /** Every stored report, oldest first, for export. */
     listReports(): { id: string; extensionId: string; payload: string; createdAt: string; updatedAt: string }[] {
-        const rows = this.db
-            .prepare("SELECT id, extension_id, payload, created_at, updated_at FROM reports ORDER BY created_at")
+        const rows = this
+            .stmt("SELECT id, extension_id, payload, created_at, updated_at FROM reports ORDER BY created_at")
             .all() as { id: string; extension_id: string; payload: string; created_at: string; updated_at: string }[];
         return rows.map((r) => ({
             id: r.id,
@@ -403,17 +424,17 @@ export class Registry {
     }
 
     getRun(id: string): RunRow | null {
-        const row = this.db.prepare("SELECT * FROM runs WHERE id = ?").get(id) as RunRow | undefined;
+        const row = this.stmt("SELECT * FROM runs WHERE id = ?").get(id) as RunRow | undefined;
         return row ?? null;
     }
 
     listRuns(): RunRow[] {
-        return this.db.prepare("SELECT * FROM runs ORDER BY id").all() as unknown as RunRow[];
+        return this.stmt("SELECT * FROM runs ORDER BY id").all() as unknown as RunRow[];
     }
 
     /** Most recently updated run row (restart continuity for the controller). */
     mostRecentRun(): RunRow | null {
-        const row = this.db.prepare("SELECT * FROM runs ORDER BY updated_at DESC LIMIT 1").get() as RunRow | undefined;
+        const row = this.stmt("SELECT * FROM runs ORDER BY updated_at DESC LIMIT 1").get() as RunRow | undefined;
         return row ?? null;
     }
 }

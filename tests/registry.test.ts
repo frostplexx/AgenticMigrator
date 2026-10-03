@@ -143,3 +143,39 @@ test("abstention and hard blockers round-trip as their own fields", () => {
     // An abstention is not a success: it must never reach the migratable union.
     assert.deepEqual(registry.migratedByAnyModel(), []);
 });
+
+/*
+ * The status poll runs twice a second for as long as a migration does, and every query here used to
+ * compile a fresh native statement. Over a multi-day batch the host filled a 4GB heap and died, so
+ * the invariant is worth pinning: the same query compiles once, however often it is run.
+ */
+test("compiles each query once, however many times it runs", () => {
+    const { registry, dir } = makeRegistry();
+    const statements = (registry as unknown as { statements: Map<string, unknown> }).statements;
+    registry.startRun("ext-a", join(dir, "src"), new Date().toISOString());
+
+    const afterFirst = (() => {
+        registry.updateRun("ext-a", { phase: "migrating", tail: "line" });
+        return statements.size;
+    })();
+
+    for (let n = 0; n < 500; n++) {
+        registry.updateRun("ext-a", { phase: "verifying", tail: `line ${n}` });
+        registry.getRun("ext-a");
+        registry.mostRecentRun();
+    }
+
+    // The three queries above were already compiled by the first iteration; 500 more add nothing.
+    assert.equal(statements.size, afterFirst + 2, "getRun and mostRecentRun are the only new queries");
+    assert.ok(statements.size < 12, `statement cache should stay small, got ${statements.size}`);
+    registry.close();
+});
+
+test("drops its statements when closed, so a switched-away run frees them", () => {
+    const { registry } = makeRegistry();
+    registry.listRuns();
+    const statements = (registry as unknown as { statements: Map<string, unknown> }).statements;
+    assert.ok(statements.size > 0);
+    registry.close();
+    assert.equal(statements.size, 0);
+});
