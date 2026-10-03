@@ -240,3 +240,47 @@ test("the default request deadline is longer than the wait budget", async () => 
         );
     });
 });
+
+// "A longer quota window is shut" was true and useless: a minute is worth waiting out and a month
+// means the key is finished until it resets. The provider says which, so the log should too.
+test("names the quota window that is actually exhausted", async () => {
+    await withEnv({ LLM_BASE_URL: BASE, LLM_RATE_LIMIT_MAX_WAIT_MS: "20", LLM_RATE_LIMIT_BUDGET_MS: "40" }, async () => {
+        const stub = stubFetch(() =>
+            limited({
+                "ratelimit-reset": "2396808",
+                "x-ratelimit-limit-minute": "30",
+                "x-ratelimit-remaining-minute": "30",
+                "x-ratelimit-limit-hour": "200",
+                "x-ratelimit-remaining-hour": "200",
+                "x-ratelimit-limit-day": "1000",
+                "x-ratelimit-remaining-day": "0",
+                "x-ratelimit-limit-month": "3000",
+                "x-ratelimit-remaining-month": "0",
+            }),
+        );
+        try {
+            const { installRateLimitHandling } = await freshModule();
+            const stats = installRateLimitHandling();
+            await fetch(URL_UNDER_TEST);
+            // Spent windows only: the minute and hour had their full allowance.
+            assert.deepEqual(stats().exhaustedWindows, ["day (1000)", "month (3000)"]);
+            assert.ok(stats().closedUntil !== null);
+        } finally {
+            stub.restore();
+        }
+    });
+});
+
+test("says nothing about windows when the provider sends no per-window headers", async () => {
+    await withEnv({ LLM_BASE_URL: BASE, LLM_RATE_LIMIT_MAX_WAIT_MS: "20", LLM_RATE_LIMIT_BUDGET_MS: "40" }, async () => {
+        const stub = stubFetch(() => limited({ "ratelimit-reset": "3600" }));
+        try {
+            const { installRateLimitHandling } = await freshModule();
+            const stats = installRateLimitHandling();
+            await fetch(URL_UNDER_TEST);
+            assert.deepEqual(stats().exhaustedWindows, []);
+        } finally {
+            stub.restore();
+        }
+    });
+});

@@ -29,6 +29,7 @@ import { collectSources, makeAgenticBackend } from "./adapter.js";
 import { MigratorController } from "./migrator.js";
 import { Registry, type SourceEntry } from "./registry.js";
 import { collect } from "../host/blobs.js";
+import { readRunReport } from "../host/runReport.js";
 import { listRunsOnDisk, manifestFor, readRunManifest, writeRunManifest, type RunManifest } from "../host/runs.js";
 import logger from "../logger.js";
 
@@ -178,25 +179,33 @@ export function createRunSwitch(opts: {
     }
 
     /** Progress through one run, counted from disk so it answers for every run, not just the open one. */
-    const counts = (runDir: string): { extensions: number; migrated: number; reviewed: number } => {
+    const counts = (runDir: string): { extensions: number; passed: number; reviewed: number } => {
         let extensions = 0;
-        let migrated = 0;
+        let passed = 0;
         let reviewed = 0;
         let entries: string[] = [];
         try {
             entries = readdirSync(runDir);
         } catch {
-            return { extensions, migrated, reviewed };
+            return { extensions, passed, reviewed };
         }
         for (const entry of entries) {
             const dir = join(runDir, entry);
             if (!existsSync(join(dir, "out", "manifest.json"))) continue;
             extensions++;
-            // report.json is the harness's own verification; report.manual.json is a human's review.
-            if (existsSync(join(dir, "report.json"))) migrated++;
+            /*
+             * Three different facts, and counting the wrong one flatters a run badly.
+             *
+             * `passed` is the harness's own check: Chrome loaded the MV3 build and its service worker
+             * registered. It is NOT a human review, and it is not the mere existence of a report —
+             * counting the file made a run where every verification failed read as fully verified,
+             * which is exactly what a batch killed by a shut quota window looks like on disk.
+             */
+            if (readRunReport(dir)?.passed === true) passed++;
+            // A human's review. submitReport writes it here as well as to the registry.
             if (existsSync(join(dir, "report.manual.json"))) reviewed++;
         }
-        return { extensions, migrated, reviewed };
+        return { extensions, passed, reviewed };
     };
 
     const list = (): RunsListResult => ({

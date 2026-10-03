@@ -257,8 +257,16 @@ async function main() {
     }
     // Refuse to boot without the vendored MV2->MV3 converter (git submodule).
     ensureConverter();
-    // Validate the LLM key on first boot, before starting the server or any run.
-    await validateApiKey();
+    /*
+     * Validate the LLM key on first boot, before serving or running anything.
+     *
+     * Skipped in the one-shot child: the server that spawned it validated the same key at boot, and
+     * the child is spawned once per extension. On a rate-limited endpoint that meant three failing
+     * requests and six seconds of retries before every single migration, against the very quota the
+     * run is short of — and the key is only resolved, never changed, by the check.
+     */
+    if (process.env.MIGRATOR_ONESHOT === "1") await resolveApiKey();
+    else await validateApiKey();
     const args = process.argv.slice(2);
     const valueFlags = new Set(["--out", "--port", "--extlens-port", "--source-dir", "--blobs"]);
     const extInput = args.find((a, i) => !a.startsWith("--") && a !== "-h" && !(i > 0 && valueFlags.has(args[i - 1])));

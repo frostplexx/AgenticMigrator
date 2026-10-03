@@ -227,16 +227,24 @@ test("counts each run's progress from disk, so the list answers for runs it neve
     try {
         const run = h.sw.create({ model: "m" }).runs[0];
         h.sw.create({ model: "other" });
-        const extDir = join(h.root, run.id, "ext-one");
-        mkdirSync(join(extDir, "out"), { recursive: true });
-        writeFileSync(join(extDir, "out", "manifest.json"), "{}");
-        writeFileSync(join(extDir, "report.json"), "{}");
-        writeFileSync(join(extDir, "report.manual.json"), "{}");
+        const built = (id: string, report: unknown, reviewed: boolean) => {
+            const dir = join(h.root, run.id, id);
+            mkdirSync(join(dir, "out"), { recursive: true });
+            writeFileSync(join(dir, "out", "manifest.json"), "{}");
+            if (report) writeFileSync(join(dir, "report.json"), JSON.stringify(report));
+            if (reviewed) writeFileSync(join(dir, "report.manual.json"), "{}");
+        };
+        built("ext-one", { passed: true }, true);
+        // The bug this pins: a verification that FAILED still writes a report, and counting the file
+        // rather than its verdict made a run that migrated nothing read as fully verified.
+        built("ext-two", { passed: false }, false);
+        // Built but never verified at all.
+        built("ext-three", null, false);
 
         const info = h.sw.list().runs.find((r) => r.id === run.id)!;
-        assert.equal(info.extensions, 1);
-        assert.equal(info.migrated, 1);
-        assert.equal(info.reviewed, 1);
+        assert.equal(info.extensions, 3, "every extension with an MV3 build");
+        assert.equal(info.passed, 1, "only the one Chrome actually loaded");
+        assert.equal(info.reviewed, 1, "only the one a human looked at");
         // Zero is the informative value for a run nobody has started.
         assert.equal(h.sw.list().runs.find((r) => r.id !== run.id)!.extensions, 0);
     } finally {

@@ -24,6 +24,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { ErrorCodes, RpcError, type HostController, type HostLogResult, type HostStatus, type LogLine } from "extlens-sdk";
 import { Registry, derivePhaseFromDir, type SourceEntry } from "./registry.js";
+import { quotaWallUntil, readRunReport } from "../host/runReport.js";
 
 const TAIL_MAX = 2000;
 const MESSAGE_MAX = 300;
@@ -112,6 +113,11 @@ export class MigratorController implements HostController {
     private failed = 0;
     /** When the current batch began, so a client can derive a rate from it. */
     private batchStartedAt: string | null = null;
+    /**
+     * When the provider's quota window reopens, once a run has proved it is shut for longer than
+     * waiting can cover. Set from the finished run's report; cleared when a batch starts.
+     */
+    private quotaWall: Date | null = null;
 
     /**
      * The model this controller will actually run, as the reviewer should see it.
@@ -254,6 +260,7 @@ export class MigratorController implements HostController {
     }
 
     private resetQueue(): void {
+        this.quotaWall = null;
         this.queue = [];
         this.queueTotal = 0;
         this.succeeded = 0;
@@ -419,6 +426,23 @@ export class MigratorController implements HostController {
         if (phase === "done") this.succeeded += 1;
         else if (phase === "failed") this.failed += 1;
 
+        /*
+         * A shut quota window stops the batch rather than the extension.
+         *
+         * The container waits out a rate limit against the provider's own published reset and gives
+         * up when the window is wider than the wait budget — hours, or in the monthly case weeks. The
+         * next extension cannot get past that either: it would spend the whole budget to be told the
+         * same thing, fifteen minutes at a time, for the rest of the corpus. The CLI's own batch loop
+         * has stopped on this since the quota fix; the queue here did not, so a client-driven run
+         * marched through the corpus producing nothing but harness failures.
+         */
+        const wall = dir ? quotaWallUntil(readRunReport(dir)) : null;
+        if (wall) {
+            this.quotaWall = wall;
+            this.failed += this.queue.length;
+            this.queue = [];
+        }
+
         // Corpus queue: start the next source with its own startedAt and the
         // same log stream, so the client dock shows the whole run. stopping
         // (host.stop / dispose) drops the remaining queue.
@@ -449,6 +473,12 @@ export class MigratorController implements HostController {
             terminalPhase = "stopped";
             terminalMessage =
                 queued && this.succeeded > 0 ? `stopped by user (${this.succeeded} of ${this.queueTotal} migrated)` : "stopped by user";
+        } else if (this.quotaWall) {
+            // Named rather than counted: "12 failed" invites a retry that cannot work yet.
+            terminalPhase = "failed";
+            terminalMessage =
+                `stopped: the provider's quota is exhausted until ${this.quotaWall.toISOString()}. ` +
+                `${this.succeeded} of ${this.queueTotal || 1} migrated before it ran out.`;
         } else if (queued) {
             terminalPhase = this.failed > 0 ? "failed" : "done";
             terminalMessage =

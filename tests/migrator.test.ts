@@ -130,3 +130,73 @@ test("host.startAll with nothing outstanding reports done immediately", async ()
         rmSync(dir, { recursive: true, force: true });
     }
 });
+/*
+ * The failure this exists for: a quota window shut for weeks, and a queue that walked the whole
+ * corpus anyway. Each extension spends the container's full wait budget (fifteen minutes) to be told
+ * the same thing, so a 200-extension run is two days of producing nothing but harness failures.
+ */
+test("host.startAll stops the queue when a run reports a shut quota window", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "migrator-quota-"));
+    const sources = makeSources(dir, ["ext-a", "ext-b", "ext-c"]);
+    const runRoot = join(dir, "run");
+    const registry = new Registry(runRoot);
+    const reopensAt = Date.now() + 27 * 24 * 3600_000;
+    // The first child writes the report a rate-limited container writes: a failure carrying when the
+    // provider said its window reopens.
+    const report = JSON.stringify({
+        passed: false,
+        reason: "the provider never answered",
+        label: "HARNESS_FAILURE",
+        provider: { rateLimit: { closedUntil: reopensAt } },
+    });
+    const options: MigratorOptions = {
+        runRoot,
+        sources,
+        cwd: process.cwd(),
+        command: ["sh", "-c", `mkdir -p "$2" && printf '%s' '${report}' > "$2/report.json"; exit 1`],
+    };
+    const controller = new MigratorController(options, registry);
+    try {
+        await controller.startAll();
+        const idle = await waitForIdle(controller);
+        assert.equal(idle.phase, "failed");
+        assert.match(idle.message ?? "", /quota is exhausted until/);
+        // The point: b and c were never attempted.
+        assert.equal(registry.getRun("ext-b"), null);
+        assert.equal(registry.getRun("ext-c"), null);
+    } finally {
+        controller.dispose();
+        registry.close();
+        rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test("a quota wall does not poison the next batch, since the window may have reopened", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "migrator-quota-reset-"));
+    const sources = makeSources(dir, ["ext-a", "ext-b"]);
+    const runRoot = join(dir, "run");
+    const registry = new Registry(runRoot);
+    const past = JSON.stringify({ passed: false, provider: { rateLimit: { closedUntil: Date.now() + 3600_000 } } });
+    const controller = new MigratorController(
+        {
+            runRoot,
+            sources,
+            cwd: process.cwd(),
+            command: ["sh", "-c", `mkdir -p "$2" && printf '%s' '${past}' > "$2/report.json"; exit 1`],
+        },
+        registry,
+    );
+    try {
+        await controller.startAll();
+        await waitForIdle(controller);
+        // Starting again is the user saying "try now". It must not inherit the previous verdict.
+        const status = await controller.startAll();
+        assert.equal(status.state, "running", "a new batch starts rather than refusing");
+        // Let it finish: a child still running when the registry closes writes to a closed database.
+        await waitForIdle(controller);
+    } finally {
+        controller.dispose();
+        registry.close();
+        rmSync(dir, { recursive: true, force: true });
+    }
+});

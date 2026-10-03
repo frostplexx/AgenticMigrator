@@ -109,6 +109,11 @@ export interface RateLimitStats {
      * the full budget to rediscover the same number.
      */
     closedUntil: number | null;
+    /**
+     * Which quota windows were spent when the streak gave up, e.g. ["day (1000)", "month (3000)"].
+     * Empty when the provider sends no per-window headers.
+     */
+    exhaustedWindows: string[];
 }
 
 const stats: RateLimitStats = {
@@ -119,9 +124,10 @@ const stats: RateLimitStats = {
     budgetExhausted: 0,
     deadlineHits: 0,
     closedUntil: null,
+    exhaustedWindows: [],
 };
 
-export const rateLimitStats = (): RateLimitStats => ({ ...stats });
+export const rateLimitStats = (): RateLimitStats => ({ ...stats, exhaustedWindows: [...stats.exhaustedWindows] });
 
 /**
  * Sleep, but wake at once if the caller gives up.
@@ -186,6 +192,31 @@ function resetDelayMs(headers: Headers): number | undefined {
         return seconds * 1000 + CLOCK_SKEW_MS;
     }
     return undefined;
+}
+
+/**
+ * Which quota window is actually spent, from the per-window headers SAIA sends.
+ *
+ * `ratelimit-reset` reports whichever window is binding, so a 429 can mean "wait a minute" or "come
+ * back next month" with nothing to tell them apart. These headers do:
+ *
+ *   x-ratelimit-limit-minute: 30     x-ratelimit-remaining-minute: 30
+ *   x-ratelimit-limit-hour:  200     x-ratelimit-remaining-hour:  200
+ *   x-ratelimit-limit-day:  1000     x-ratelimit-remaining-day:     0   <- spent
+ *   x-ratelimit-limit-month:3000     x-ratelimit-remaining-month:   0   <- spent
+ *
+ * Named in the log because the answer changes what to do: a minute is worth waiting out, a month
+ * means this key is finished until it resets and no amount of retrying will help.
+ */
+function exhaustedWindows(headers: Headers): string[] {
+    const spent: string[] = [];
+    for (const window of ["minute", "hour", "day", "month"]) {
+        const remaining = headers.get(`x-ratelimit-remaining-${window}`);
+        if (remaining === null || Number(remaining.trim()) !== 0) continue;
+        const limit = headers.get(`x-ratelimit-limit-${window}`);
+        spent.push(limit ? `${window} (${limit})` : window);
+    }
+    return spent;
 }
 
 /** True when the response says this key has nothing left in the current window. */
@@ -307,10 +338,13 @@ export function installRateLimitHandling(): () => RateLimitStats {
                     // The one fact worth carrying out of this container: a window this long is not
                     // a burst, and every extension after this one will hit the same wall.
                     stats.closedUntil = Date.now() + resetMs;
+                    const spent = exhaustedWindows(response.headers);
+                    stats.exhaustedWindows = spent;
                     logger.error(
-                        `rate limit: still limited after ${formatDuration(BUDGET_MS)} of waiting ` +
-                        `(provider says ${formatDuration(resetMs)} more) — a longer quota window is ` +
-                        `shut, not a burst. Giving up on this request.`,
+                        `rate limit: ${spent.length ? `${spent.join(" and ")} quota exhausted` : "still limited"} ` +
+                        `after ${formatDuration(BUDGET_MS)} of waiting. The window reopens in ` +
+                        `${formatDuration(resetMs)} (${new Date(Date.now() + resetMs).toISOString()}), which is ` +
+                        `longer than waiting can cover, so this request is given up on.`,
                         { module: "ratelimit" },
                     );
                 }
