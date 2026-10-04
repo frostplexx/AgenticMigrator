@@ -26,7 +26,7 @@ import { convert, emcDir } from "./host/convert.js";
 import { classifyRun, quotaWallUntil, readRunReport } from "./host/runReport.js";
 import { hashDir } from "./host/hashDir.js";
 import { dedupe } from "./host/blobs.js";
-import { keepAliveFor } from "./llmKeepAlive.js";
+import { keepAliveFor, startOllamaKeepAlivePinger } from "./llmKeepAlive.js";
 import logger, { formatDuration } from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -308,12 +308,18 @@ async function main() {
 
     // Interactive mode: serve runs and pending sources; wait for the client.
     if (server) {
+        // While the host serves, top the Ollama eviction timer up every 2 min (see llmKeepAlive).
+        const stopKeepAlivePinger = startOllamaKeepAlivePinger(
+            process.env.LLM_MODEL ?? "ollama/gemma4:31b-cloud",
+            process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434",
+        );
         if (extPath) {
             logger.info(`extension ${extPath} registered as pending source (id \"${basename(extPath)}\"); waiting for host.start from the client`, { module: "cli" });
         } else {
             logger.info(`serving runs under ${runDir}; create one from the client`, { module: "cli" });
         }
         await waitForSignal();
+        stopKeepAlivePinger();
         await server.close();
         process.exit(0);
     }
