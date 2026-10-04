@@ -132,15 +132,17 @@ export function readRunReport(jobDir: string): RunReport | null {
 }
 
 /**
- * Classify a finished job. Exit 0 means migrated. A non-zero exit with a
- * report whose passed is false means the migration ran but Chrome could not
- * load the result: a possible failure, not a hard one. No report means the
- * container crashed before verifying.
+ * Classify a finished job. A report whose passed is false means the migration
+ * ran but Chrome could not load the result: a possible failure, not a hard
+ * one. Exit 0 counts as migrated only when a report is actually on disk — a
+ * silent exit 0 with no report is a harness death (e.g. an event loop that
+ * drained while a turn never settled), and recording it as a success would
+ * fabricate a data point.
  */
 export function classifyRun(jobDir: string, exitCode: number): RunOutcome {
-    if (exitCode === 0) return "migrated";
     const report = readRunReport(jobDir);
     if (report && report.passed === false) return "possible_failure";
+    if (exitCode === 0 && report) return "migrated";
     return "failed";
 }
 

@@ -227,16 +227,53 @@ async function main() {
     });
 
     /**
+     * Hard cap on one agent turn. The request deadline stops at the provider's response headers;
+     * after that nothing bounds a body that never arrives. Ollama 0.24 was seen live accepting a
+     * prompt, going GPU-idle, and leaving the connection open for hours — no deadline, no idle
+     * cut, no error ever fired, and the run sat on "sending migration prompt..." for five hours.
+     * 40 minutes is far above the slowest legitimate generation, so this only ever fires on a
+     * genuinely wedged turn.
+     */
+    const TURN_TIMEOUT_MS = Number(process.env.LLM_TURN_TIMEOUT_MS ?? 40 * 60_000);
+
+    /**
      * Send one prompt and report whether the model actually answered it.
      *
      * `session.prompt` resolves the same way whether the agent worked for twenty turns or the
      * endpoint 429'd nine times in a row, so a bare await cannot tell a model that failed the
      * task from a provider that was never reachable — and the second, scored as the first, is a
-     * fabricated data point. Returns false when pi exhausted its retries.
+     * fabricated data point. Returns false when pi exhausted its retries — or when the turn
+     * never settled at all and the watchdog gave up on it.
      */
     async function promptAgent(text: string, what: string): Promise<boolean> {
         unrecoveredError = null;
-        await session.prompt(text);
+        let watchdogFired = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            const watchdog = new Promise<never>((_, reject) => {
+                timer = setTimeout(() => {
+                    watchdogFired = true;
+                    reject(new Error(`turn exceeded ${formatDuration(TURN_TIMEOUT_MS)} without completing`));
+                }, TURN_TIMEOUT_MS);
+                timer.unref();
+            });
+            await Promise.race([session.prompt(text), watchdog]);
+        } catch (err) {
+            if (!watchdogFired) throw err;
+            // A turn that never settles also never fires agent_end, so unrecoveredError stays
+            // null and the success branch below would misread it. Interrupt whatever is still
+            // running and take the harness-failure path here instead.
+            session.abort().catch(() => {});
+            const detail = `turn exceeded ${formatDuration(TURN_TIMEOUT_MS)} without completing (watchdog)`;
+            unrecoveredFailures.push(`${what}: ${detail}`);
+            logger.error(
+                `${what}: ${detail} — treating as a harness failure, not a model result.`,
+                { module: "migrate" },
+            );
+            return false;
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
         if (unrecoveredError === null) return true;
         const detail = unrecoveredError;
         unrecoveredFailures.push(`${what}: ${detail}`);
