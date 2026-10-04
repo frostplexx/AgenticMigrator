@@ -13,12 +13,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createExplainer, explainerConfigured, type Explainer } from "extlens-sdk";
+import { keepAliveFor } from "../llmKeepAlive.js";
 
 /** Plain chat completion against the configured OpenAI-compatible endpoint. */
 async function completeOpenAi(system: string, user: string, model: string): Promise<string> {
     let base = (process.env.LLM_BASE_URL ?? "http://localhost:11434").replace(/\/+$/, "");
     if (!/\/v1$/.test(base)) base += "/v1";
     const apiKey = process.env.LLM_API_KEY || "ollama";
+    const keepAlive = keepAliveFor(process.env.LLM_MODEL ?? model);
     const res = await fetch(`${base}/chat/completions`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -26,6 +28,7 @@ async function completeOpenAi(system: string, user: string, model: string): Prom
             model,
             max_tokens: 1200,
             temperature: 0.2,
+            ...(keepAlive ? { keep_alive: keepAlive } : {}),
             messages: [
                 { role: "system", content: system },
                 { role: "user", content: user },

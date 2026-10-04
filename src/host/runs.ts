@@ -139,6 +139,7 @@ export function resolveRunEnv(
         LLM_TEMPERATURE: num(settings.temperature, processEnv.LLM_TEMPERATURE, 1, "temperature"),
         LLM_TOP_P: num(settings.topP, processEnv.LLM_TOP_P, 0.95, "topP"),
         LLM_TOP_K: num(settings.topK, processEnv.LLM_TOP_K, 20, "topK"),
+        LLM_KEEP_ALIVE: processEnv.LLM_KEEP_ALIVE ?? "30m",
         MAX_FIX_ATTEMPTS: num(settings.maxFixAttempts, processEnv.MAX_FIX_ATTEMPTS, 6, "maxFixAttempts"),
     };
 

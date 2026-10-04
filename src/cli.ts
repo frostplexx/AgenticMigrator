@@ -26,6 +26,7 @@ import { convert, emcDir } from "./host/convert.js";
 import { classifyRun, quotaWallUntil, readRunReport } from "./host/runReport.js";
 import { hashDir } from "./host/hashDir.js";
 import { dedupe } from "./host/blobs.js";
+import { keepAliveFor } from "./llmKeepAlive.js";
 import logger, { formatDuration } from "./logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -89,6 +90,7 @@ async function validateApiKey(): Promise<void> {
     // Strip any provider/ prefix (saia/... or ollama/...) to get the model id
     // the API expects, matching src/container/model.ts.
     const id = model.includes("/") ? model.slice(model.indexOf("/") + 1) : model;
+    const keepAlive = keepAliveFor(model);
     let base = (process.env.LLM_BASE_URL ?? "http://host.docker.internal:11434").replace(/\/+$/, "");
     if (!/\/v1$/.test(base)) base += "/v1";
     const url = `${base}/chat/completions`;
@@ -112,6 +114,7 @@ async function validateApiKey(): Promise<void> {
                     messages: [{ role: "user", content: "ping" }],
                     temperature: 0,
                     max_tokens: 1,
+                    ...(keepAlive ? { keep_alive: keepAlive } : {}),
                 }),
             });
             if (!res.ok) {
@@ -549,6 +552,7 @@ async function runMigrationContainer(
         "-e", `LLM_TEMPERATURE=${env.LLM_TEMPERATURE ?? "1"}`,
         "-e", `LLM_TOP_P=${env.LLM_TOP_P ?? "0.95"}`,
         "-e", `LLM_TOP_K=${env.LLM_TOP_K ?? "20"}`,
+        "-e", `LLM_KEEP_ALIVE=${env.LLM_KEEP_ALIVE ?? "30m"}`,
         "-e", `MAX_FIX_ATTEMPTS=${env.MAX_FIX_ATTEMPTS ?? "6"}`,
         "-e", `LLM_THINKING=${env.LLM_THINKING ?? "off"}`,
         "-e", `LOG_FILE=/work/run/migrate.jsonl`,

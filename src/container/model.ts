@@ -6,6 +6,7 @@
 //   ollama/<id>   -> OpenAI-compatible endpoint at LLM_BASE_URL (default host.docker.internal:11434)
 //   openai/<id>   -> generic OpenAI-compatible endpoint at LLM_BASE_URL, key from LLM_API_KEY
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { keepAliveFor } from "../llmKeepAlive.js";
 
 export interface ResolvedModel {
     model: any;
@@ -39,6 +40,7 @@ export async function resolveModel(): Promise<ResolvedModel> {
     const id = slash === -1 ? spec : spec.slice(slash + 1);
 
     const base = resolveBaseUrl();
+    const keepAlive = keepAliveFor(spec);
 
     const apiKey = process.env.LLM_API_KEY || (provider === "ollama" ? "ollama" : "");
 
@@ -67,6 +69,9 @@ export async function resolveModel(): Promise<ResolvedModel> {
                     temperature: Number(process.env.LLM_TEMPERATURE ?? 1),
                     top_p: Number(process.env.LLM_TOP_P ?? 0.95),
                     top_k: Number(process.env.LLM_TOP_K ?? 20),
+                    // samplingParams are Object.assign'ed verbatim into the request body, so this is
+                    // how Ollama learns keep_alive (ollama-gated in llmKeepAlive).
+                    ...(keepAlive ? { keep_alive: keepAlive } : {}),
                 },
             },
         ],
