@@ -208,6 +208,55 @@ export function matchesSearch(name: string, id: string, query: string): boolean 
     return name.toLowerCase().includes(needle) || id.toLowerCase().includes(needle);
 }
 
+/** Byte budget for one extension cache; two caches exist, so 512MB total worst case. */
+const CACHE_BUDGET_BYTES = 256 * 1024 * 1024;
+/** Entry cap so a handful of giant extensions cannot hide behind the byte budget alone. */
+const CACHE_MAX_ENTRIES = 128;
+
+/**
+ * Byte-budgeted LRU cache for whole-extension trees (source files + profile).
+ *
+ * The dashboard polls status continuously, and every poll profiles extensions, so the
+ * trees are cached to keep that off the filesystem. But an uncapped cache pins each
+ * extension's full file contents for the host's lifetime — over a 499-extension batch
+ * that is the corpus resident in RAM, and the host OOM'd against the 4GB default heap
+ * (fatal NewStringFromUtf8 while reading the next large file) with the dashboard open
+ * for a day. Map iterates in insertion order, so delete+set on a hit refreshes recency
+ * and eviction takes the least recently used entry.
+ */
+function makeSourceCache() {
+    const map = new Map<string, { sig: string; bytes: number; source: ExtensionSource; profile: ExtensionProfile }>();
+    let total = 0;
+    const evict = () => {
+        while (total > CACHE_BUDGET_BYTES || map.size > CACHE_MAX_ENTRIES) {
+            const oldest = map.keys().next().value;
+            if (oldest === undefined) break;
+            total -= map.get(oldest)!.bytes;
+            map.delete(oldest);
+        }
+    };
+    return {
+        get(key: string, sig: string) {
+            const hit = map.get(key);
+            if (!hit || hit.sig !== sig) return null;
+            map.delete(key);
+            map.set(key, hit);
+            return { source: hit.source, profile: hit.profile };
+        },
+        set(key: string, sig: string, source: ExtensionSource, profile: ExtensionProfile) {
+            const previous = map.get(key);
+            if (previous) {
+                total -= previous.bytes;
+                map.delete(key);
+            }
+            const bytes = source.files.reduce((n, f) => n + f.content.length, 0);
+            total += bytes;
+            map.set(key, { sig, bytes, source, profile });
+            evict();
+        },
+    };
+}
+
 export function makeAgenticBackend(runRoot: string, registry: Registry, host?: HostController): Backend {
     runRoot = resolve(runRoot);
     const sourcePath = (run: RunEntry): string | null => {
@@ -241,30 +290,29 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
     };
     const sources = registry.listSources();
 
-    const cached = new Map<string, { sig: string; source: ExtensionSource; profile: ExtensionProfile }>();
+    const cached = makeSourceCache();
     const profileFor = (run: RunEntry) => {
         // Invalidate the cache when out/ changes: the server may run across a
         // whole migration and the manifest mtime changes as the container writes.
         const sig = `${run.id}:${mtimeMs(join(outDir(run), "manifest.json"))}`;
-        const hit = cached.get(run.id);
-        if (hit && hit.sig === sig) return { source: hit.source, profile: hit.profile };
+        const hit = cached.get(run.id, sig);
+        if (hit) return hit;
         const source = extensionSource(run);
         const profile: ExtensionProfile = { ...computeProfile(source), hasMv3: true };
-        cached.set(run.id, { sig, source, profile });
+        cached.set(run.id, sig, source, profile);
         return { source, profile };
     };
 
-    const sourceCached = new Map<string, { sig: string; source: ExtensionSource; profile: ExtensionProfile }>();
+    const sourceCached = makeSourceCache();
     const sourceProfileFor = (src: SourceEntry) => {
         const sig = `${src.id}:${mtimeMs(join(src.dir, "manifest.json"))}`;
-        const hit = sourceCached.get(src.id);
-        if (hit && hit.sig === sig) return { source: hit.source, profile: hit.profile };
+        const hit = sourceCached.get(src.id, sig);
+        if (hit) return hit;
         const manifest = (readJson(join(src.dir, "manifest.json")) ?? {}) as ExtensionSource["manifest"];
         const source: ExtensionSource = { id: src.id, manifest, files: readTree(src.dir) };
         const profile: ExtensionProfile = { ...computeProfile(source), hasMv3: false };
-        const entry = { sig, source, profile };
-        sourceCached.set(src.id, entry);
-        return entry;
+        sourceCached.set(src.id, sig, source, profile);
+        return { source, profile };
     };
 
     type Row = { id: string; entry: { kind: "run"; run: RunEntry } | { kind: "source"; src: SourceEntry } };
