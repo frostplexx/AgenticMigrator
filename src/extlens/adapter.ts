@@ -225,7 +225,7 @@ const CACHE_MAX_ENTRIES = 128;
  * and eviction takes the least recently used entry.
  */
 function makeSourceCache() {
-    const map = new Map<string, { sig: string; bytes: number; source: ExtensionSource; profile: ExtensionProfile }>();
+    const map = new Map<string, { sig: string; bytes: number; source: ExtensionSource }>();
     let total = 0;
     const evict = () => {
         while (total > CACHE_BUDGET_BYTES || map.size > CACHE_MAX_ENTRIES) {
@@ -241,9 +241,9 @@ function makeSourceCache() {
             if (!hit || hit.sig !== sig) return null;
             map.delete(key);
             map.set(key, hit);
-            return { source: hit.source, profile: hit.profile };
+            return { source: hit.source };
         },
-        set(key: string, sig: string, source: ExtensionSource, profile: ExtensionProfile) {
+        set(key: string, sig: string, source: ExtensionSource) {
             const previous = map.get(key);
             if (previous) {
                 total -= previous.bytes;
@@ -251,7 +251,7 @@ function makeSourceCache() {
             }
             const bytes = source.files.reduce((n, f) => n + f.content.length, 0);
             total += bytes;
-            map.set(key, { sig, bytes, source, profile });
+            map.set(key, { sig, bytes, source });
             evict();
         },
     };
@@ -290,34 +290,78 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
     };
     const sources = registry.listSources();
 
+    // Three tiers. Fat trees live only in the byte-budgeted LRU; the derived profile and
+    // the bare manifest are tiny (KBs per extension), so their Maps are deliberately
+    // unbounded. list/sort/filter/search touch the tiny tiers alone — sorting 500 rows
+    // against a 128-entry tree cache re-read the corpus from disk on every click — and a
+    // full tree read happens only on a sig change or a detail view.
     const cached = makeSourceCache();
-    const profileFor = (run: RunEntry) => {
-        // Invalidate the cache when out/ changes: the server may run across a
-        // whole migration and the manifest mtime changes as the container writes.
+    const sourceCached = makeSourceCache();
+    const profiles = new Map<string, { sig: string; profile: ExtensionProfile }>();
+    const manifests = new Map<string, { sig: string; manifest: ExtensionSource["manifest"] }>();
+
+    const sourceForRun = (run: RunEntry): ExtensionSource => {
+        // Invalidate when out/ changes: the manifest mtime moves as the container writes.
         const sig = `${run.id}:${mtimeMs(join(outDir(run), "manifest.json"))}`;
         const hit = cached.get(run.id, sig);
-        if (hit) return hit;
+        if (hit) return hit.source;
         const source = extensionSource(run);
-        const profile: ExtensionProfile = { ...computeProfile(source), hasMv3: true };
-        cached.set(run.id, sig, source, profile);
-        return { source, profile };
+        cached.set(run.id, sig, source);
+        return source;
     };
 
-    const sourceCached = makeSourceCache();
-    const sourceProfileFor = (src: SourceEntry) => {
+    const sourceForSrc = (src: SourceEntry): ExtensionSource => {
         const sig = `${src.id}:${mtimeMs(join(src.dir, "manifest.json"))}`;
         const hit = sourceCached.get(src.id, sig);
-        if (hit) return hit;
+        if (hit) return hit.source;
         const manifest = (readJson(join(src.dir, "manifest.json")) ?? {}) as ExtensionSource["manifest"];
         const source: ExtensionSource = { id: src.id, manifest, files: readTree(src.dir) };
-        const profile: ExtensionProfile = { ...computeProfile(source), hasMv3: false };
-        sourceCached.set(src.id, sig, source, profile);
-        return { source, profile };
+        sourceCached.set(src.id, sig, source);
+        return source;
+    };
+
+    const profileForRun = (run: RunEntry): ExtensionProfile => {
+        const sig = `${run.id}:${mtimeMs(join(outDir(run), "manifest.json"))}`;
+        const hit = profiles.get(run.id);
+        if (hit && hit.sig === sig) return hit.profile;
+        const profile: ExtensionProfile = { ...computeProfile(sourceForRun(run)), hasMv3: true };
+        profiles.set(run.id, { sig, profile });
+        return profile;
+    };
+
+    const profileForSrc = (src: SourceEntry): ExtensionProfile => {
+        const sig = `${src.id}:${mtimeMs(join(src.dir, "manifest.json"))}`;
+        const hit = profiles.get(src.id);
+        if (hit && hit.sig === sig) return hit.profile;
+        const profile: ExtensionProfile = { ...computeProfile(sourceForSrc(src)), hasMv3: false };
+        profiles.set(src.id, { sig, profile });
+        return profile;
+    };
+
+    /** Just the manifest for a row, without materializing the full tree. */
+    const manifestForRun = (run: RunEntry): ExtensionSource["manifest"] => {
+        const sig = `${run.id}:${mtimeMs(join(outDir(run), "manifest.json"))}`;
+        const hit = manifests.get(run.id);
+        if (hit && hit.sig === sig) return hit.manifest;
+        const manifest = (readJson(join(outDir(run), "manifest.json")) ?? {}) as ExtensionSource["manifest"];
+        manifests.set(run.id, { sig, manifest });
+        return manifest;
+    };
+
+    const manifestForSrc = (src: SourceEntry): ExtensionSource["manifest"] => {
+        const sig = `${src.id}:${mtimeMs(join(src.dir, "manifest.json"))}`;
+        const hit = manifests.get(src.id);
+        if (hit && hit.sig === sig) return hit.manifest;
+        const manifest = (readJson(join(src.dir, "manifest.json")) ?? {}) as ExtensionSource["manifest"];
+        manifests.set(src.id, { sig, manifest });
+        return manifest;
     };
 
     type Row = { id: string; entry: { kind: "run"; run: RunEntry } | { kind: "source"; src: SourceEntry } };
-    const profileOf = (row: Row) =>
-        row.entry.kind === "run" ? profileFor(row.entry.run) : sourceProfileFor(row.entry.src);
+    const profileOf = (row: Row): ExtensionProfile =>
+        row.entry.kind === "run" ? profileForRun(row.entry.run) : profileForSrc(row.entry.src);
+    const manifestOf = (row: Row): ExtensionSource["manifest"] =>
+        row.entry.kind === "run" ? manifestForRun(row.entry.run) : manifestForSrc(row.entry.src);
     const allRows = (): Row[] => {
         const runs = registry.listRuns().map(visibleRun).filter((r): r is RunEntry => r !== null);
         // A source extension counts as migrated when a run's source-path.txt
@@ -330,7 +374,7 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         ];
     };
 
-    const nameOf = (row: Row): string => profileOf(row).profile.name;
+    const nameOf = (row: Row): string => profileOf(row).name;
 
     /**
      * A row as the protocol's ExtensionLight.
@@ -340,8 +384,8 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
      * described twice, differently.
      */
     const lightOf = (row: Row): ExtensionLight => {
-        const { source, profile } = profileOf(row);
-        const manifest = source.manifest as { version?: string; manifest_version?: number } | null;
+        const profile = profileOf(row);
+        const manifest = manifestOf(row) as { version?: string; manifest_version?: number } | null;
         const isRun = row.entry.kind === "run";
         return {
             id: row.id,
@@ -372,7 +416,7 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         const context = runVerificationContext(run.dir);
         return explainer.explain({
             // getExtension's profile carries the mv2 summary the SDK's prompt uses for "before".
-            profile: { ...profileFor(run).profile, mv2: got.profile?.mv2 ?? null },
+            profile: { ...profileForRun(run), mv2: got.profile?.mv2 ?? null },
             report: await backend.getReport(id),
             ...(mv2Path && existsSync(join(mv2Path, "manifest.json")) ? { mv2: readTree(mv2Path) } : {}),
             mv3: got.source.files,
@@ -401,9 +445,9 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
                 // indistinguishable from not sorting it.
                 filtered = [...filtered].sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
             } else if (params.sort === "interestingness_asc") {
-                filtered = [...filtered].sort((a, b) => profileOf(a).profile.score - profileOf(b).profile.score);
+                filtered = [...filtered].sort((a, b) => profileOf(a).score - profileOf(b).score);
             } else {
-                filtered = [...filtered].sort((a, b) => profileOf(b).profile.score - profileOf(a).profile.score);
+                filtered = [...filtered].sort((a, b) => profileOf(b).score - profileOf(a).score);
             }
 
             const start = (params.page - 1) * params.pageSize;
@@ -411,7 +455,7 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
 
             const extensions = page.map(lightOf);
 
-            const scores = filtered.map((r) => profileOf(r).profile.score);
+            const scores = filtered.map((r) => profileOf(r).score);
             return {
                 extensions,
                 stats: {
@@ -466,7 +510,8 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         async getExtension(id: string) {
             const run = runById(id);
             if (run) {
-                const { source, profile } = profileFor(run);
+                const source = sourceForRun(run);
+                const profile = profileForRun(run);
                 const mv2Path = sourcePath(run);
                 let mv2: ExtensionProfile["mv2"] = null;
                 if (mv2Path && existsSync(join(mv2Path, "manifest.json"))) {
@@ -477,7 +522,8 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
             }
             const src = sources.find((s) => s.id === id);
             if (src) {
-                const { source, profile } = sourceProfileFor(src);
+                const source = sourceForSrc(src);
+                const profile = profileForSrc(src);
                 return { source, profile };
             }
             return null;
@@ -504,7 +550,7 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         async listReports() {
             return registry.listReports().map((row) => {
                 const run = runById(row.extensionId);
-                const name = run ? profileFor(run).profile.name : row.extensionId;
+                const name = run ? profileForRun(run).name : row.extensionId;
                 const runReport = run ? readRunReport(run.dir) : null;
                 const analysis = runReport?.analysis ?? (run ? analysisFromPlan(run.dir) : null);
                 return {
