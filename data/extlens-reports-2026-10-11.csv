@@ -1,0 +1,1166 @@
+extension_id,name,verdict,score,installs,worked_in_mv2,needs_account,interesting,surface_popup,surface_toolbar_action,surface_options_page,surface_new_tab,surface_side_panel,surface_devtools,surface_context_menu,surface_notifications,surface_keyboard_shortcuts,surface_omnibox,surface_page_interaction,surface_background,note_popup,note_toolbar_action,note_options_page,note_new_tab,note_side_panel,note_devtools,note_context_menu,note_notifications,note_keyboard_shortcuts,note_omnibox,note_page_interaction,note_background,notes,finding_count,signal_count,files_affected,signal_background_dom,signal_background_page_access,signal_blocking_webrequest,signal_remote_code,skills_read,skills_read_count,tool_calls,verification_seconds,created_at,updated_at
+ljjfbdkncogailpjfjjodnjaifklnphb,Fusion Legacy,not_testable,,true,true,true,false,,not_testable,not_testable,,,,not_testable,not_testable,,,,not_testable,,needs an account,needs an account,,,,needs an account,needs an account,,,,needs an account,,15,3788,37,0,0,0,3788,,0,135,52.5,2026-10-07T12:23:36.228Z,2026-10-07T12:23:36.228Z
+onbjfjajekembgebmjmoonbkpgeckape,Easync Product ID Grab Tool for Drop Shipping,partially_working,0.5,true,true,false,false,working,,,,,,,,,,broken,,,,,,,,,,,,,,,11,44,24,0,0,0,44,,0,14,49.588,2026-10-07T12:24:49.767Z,2026-10-07T12:24:49.767Z
+ehhoppehlpohjjbflmffjpoblnfhikbi,Leonardo: Size Fitting for Apparel & Clothing,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,15,86,18,0,0,4,82,,0,29,9.968,2026-10-07T12:26:37.668Z,2026-10-07T12:26:37.668Z
+chlmccdddekohhoocdhhcipbbhccaadp,"香港查書易[圖書館,商店,大學]",working,1,true,true,false,false,working,,,,,,working,,,,working,working,,,,,,,,,,,,,,108,11,6,11,0,0,0,,0,15,35.334,2026-10-07T12:28:24.691Z,2026-10-07T12:28:24.691Z
+kmfkgbembmgpplalpecdfmfflcnagmgg,Offline CodeIgniter,working,1,true,true,false,false,working,,working,,,,,,,,not_testable,,,,,,,,,,,,,,,0,2,2,0,0,0,2,,0,31,24.365,2026-10-07T12:29:04.869Z,2026-10-07T12:29:04.869Z
+lhmliamcnkidjmpkehhdobloflkinjkm,Password Generator,not_working,0,true,true,false,false,broken,,,,,,,,,,,,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The popup is broken because the migration replaced a `<link rel=""import"">` (HTML Imports) with a `<script>` tag in `index.html`. HTML Imports are deprecated and unsupported in Manifest V3/modern Chrome, but the automated replacement of `elements.vulcanized.html` with `elements.vulcanized.js` likely failed to correctly initialize the Polymer components.
+
+### Evidence
+- **Reviewer Report:** The popup window is ""broken.""
+- **Automated Verification:** The `popup_renders` check failed with `TypeError: Cannot read properties of undefined (reading 'scrollable')`. This error typically occurs when a custom element (like `<paper-dialog-scrollable>`) fails to upgrade/define because its definition was not loaded.
+- **Diff (`index.html`):** 
+  - **MV2:** `<link rel=""import"" href=""elements/elements.vulcanized.html""></link>`
+  - **MV3:** `<script src=""elements/elements.vulcanized.js""></script>`
+- The diff shows the migrator attempted to convert the HTML Import to a JS script, but the resulting runtime error confirms the components are still not being registered.
+
+### What would fix it
+The project uses Polymer. The smallest fix is to properly bundle the dependencies into a standard ES module or a single JavaScript file that executes the component registrations, and ensure `index.html` loads this script before `scripts/app.js`. If `elements.vulcanized.js` is already a bundle, ensure it is loaded as a module (`type=""module""`) if it uses ESM, or verify that the vulcanization process produced a valid JS file rather than just a renamed HTML file.",0,16,8,0,0,0,16,,0,44,8.824,2026-10-11T07:00:13.708Z,2026-10-11T07:00:13.708Z
+cboiihjkpoglonpcokofnogklldjanog,SPG - Strong Password Generator,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,39,33,0,0,0,39,,0,9,3.471,2026-10-07T12:29:52.036Z,2026-10-07T12:29:52.036Z
+nneamfdhikhofpcjlekehfdgcjhndafd,Bookmark Visualizer,not_working,0,true,true,false,false,,broken,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The toolbar button is broken because the migration changed the case of a content script filename from `main.js` to `Main.js` in `manifest.json` (line 17). Since the original file is `main.js` (as seen in the MV2 manifest and verified contents), the extension fails to load its core logic.
+
+### Evidence
+- **Reviewer Report**: The toolbar button is ""broken,"" and page interaction is ""not testable.""
+- **Diff**: In `manifest.json`, the `content_scripts` JS array was changed from `""main.js""` to `""Main.js""`.
+- **Verified Contents**: The file list explicitly contains `""main.js""` (lowercase), confirming that `Main.js` does not exist in the package.
+
+### What would fix it
+Change `""Main.js""` back to `""main.js""` in the `content_scripts` section of `manifest.json`.",1,8,8,0,0,0,8,,0,19,1.725,2026-10-11T07:00:35.108Z,2026-10-11T07:00:35.108Z
+coaeeoeibgkgpamkpckcdgaobkjonion,Repeater,working,1,true,true,false,false,,working,,,,working,,,,,,working,,,,,,,,,,,,,,2,1165,380,23,0,10,1132,,0,14,67.957,2026-10-07T12:31:44.913Z,2026-10-07T12:31:44.913Z
+dfjikpibamfdjmbehgmmibhcbjhlleji,Lavaca Developer Tools,partially_working,0.5,true,true,false,false,,,working,,,broken,,,,,not_testable,not_testable,,,,,,,,,,,,,,6,1098,129,0,0,0,1098,,0,32,42.42,2026-10-07T12:32:42.481Z,2026-10-07T12:32:42.481Z
+pahcliklakmemcjblnkkgojbjapleclo,Kramerly,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,28.996,2026-10-07T12:33:28.869Z,2026-10-07T12:33:28.869Z
+cjkdhmpngnpbcdjmmklijgfoincfapcm,QPocket,partially_working,0.25,true,true,false,false,broken,,partial,,,,,not_testable,,,not_testable,not_testable,,,"The ""Hello QPocket"" text is missing",,,,,,,,,,,0,1,1,1,0,0,0,,0,42,50.273,2026-10-07T12:34:28.492Z,2026-10-07T12:34:28.492Z
+kamdgboidomchcpinngjlbcamfhbkhnn,Twitter Filter,not_testable,,true,true,true,false,,not_testable,not_testable,,,,,,,,not_testable,not_testable,,needs an account,needs an account,,,,,,,,needs an account,needs an account,,2,72,41,2,0,0,70,,0,26,2.396,2026-10-07T12:35:16.057Z,2026-10-07T12:35:16.057Z
+jpjgnkoobdjggjknoejleibclddflhhj,新浪微博时区助手 Timezone Helper for Weibo.com,not_working,0,true,true,false,false,broken,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup is broken because the migration changed the `default_popup` filename from `popup/popup.build.html` to `popup/popup.html` (manifest.json line 45).
+
+### Evidence
+- **Reviewer Report**: Explicitly states the ""Popup window"" is **broken**.
+- **Diff**: The `browser_action.default_popup` (MV2) was renamed to `action.default_popup` (MV3), and the file path was changed from `popup/popup.build.html` to `popup/popup.html`.
+- **Context**: The MV2 manifest specifically used a `.build.html` file, suggesting a build process was used. The migrator likely assumed a standard `.html` filename during the automated conversion.
+
+### What would fix it
+Revert the `default_popup` path in `manifest.json` to the original filename:
+`""default_popup"": ""popup/popup.build.html""`",0,9,3,0,0,0,9,,0,21,2.453,2026-10-11T07:01:00.831Z,2026-10-11T07:01:00.831Z
+gmfnhgekmcgknlbnccifbgaolkmfdack,FejoaAuth,not_testable,,true,true,true,false,not_testable,,,,,,,not_testable,,,not_testable,not_testable,needs an account,,,,,,,needs an account,,,needs an account,needs an account,,1,3,4,1,2,0,0,,0,33,33.857,2026-10-07T12:36:35.566Z,2026-10-07T12:36:35.566Z
+emcjdngajkpbakgnkdgcchihghefikao,Turbo Chrome - Navegue mais rápido!,not_testable,,true,false,false,false,not_testable,,,,,,,,,,,not_testable,,,,,,,,,,,,,,3,359,47,0,0,7,352,,0,40,50.536,2026-10-07T12:37:41.757Z,2026-10-07T12:37:41.757Z
+lchgncgkegpocpdbdjnkkjccbggbnaeh,Jamo Automator,not_working,0,true,true,false,false,broken,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup is broken because the background service worker fails to load due to a runtime error. Specifically, `service_worker.js` attempts to use `DOMParser` (via `background.js` or imported scripts), which is not available in Service Workers.
+
+### Evidence
+- **Reviewer Report**: The popup window is explicitly marked as **broken**.
+- **Migrator's Verification**: An error was captured: `service worker uses ""DOMParser"", which does not exist in a worker`.
+- **Diff**: The migration moved the background logic from a background page (`index.html`) to a service worker (`service_worker.js`). While the migrator added a `DOMParserPolyfill` in `service_worker.js`, the automated verification indicates the worker still throws on load, likely because the polyfill is insufficient or the error occurs during the `importScripts` phase before the polyfill is fully effective.
+- **Logic**: If the service worker fails to initialize, the `chrome.runtime.sendMessage` calls in `agent.js` (used to initialize the popup) will never be answered, leaving the popup in a broken/loading state.
+
+### What would fix it
+The `DOMParser` logic must be moved out of the service worker. The best approach is to move the specific DOM-parsing functions into an **offscreen document** (MV3's replacement for background DOM access) and communicate with it via `chrome.runtime.sendMessage`. Alternatively, if the parsing is simple, replace `DOMParser` with a regex-based parser or a lightweight non-DOM library.",0,5,3,0,1,0,4,,0,72,1.923,2026-10-11T07:01:27.732Z,2026-10-11T07:01:27.732Z
+kccnkinkappfjppknffcpjkhkpambgfm,JPwd,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,0,14,6,0,0,0,14,manifest-csp,1,11,122.476,2026-10-07T12:40:23.643Z,2026-10-07T12:40:23.643Z
+dmpcdfoaekmmapemolheegecabijlbmf,Box for tabs,partially_working,0.8333333333333334,true,true,false,false,partial,,working,,,,working,,,,,untested,,,,,,,,,,,,,,1,25,11,0,3,0,22,,0,35,86.244,2026-10-07T12:41:54.615Z,2026-10-07T12:41:54.615Z
+igfbjepcmlgabkgpkpbklmpbbnlagcoj,MoodiModo,working,1,true,true,false,false,working,,working,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,11,328,6,304,0,20,4,,0,58,37.123,2026-10-07T12:42:53.832Z,2026-10-07T12:42:53.832Z
+ennjefgehhmkgbeeckkaamhcohhghilf,Vocabera,not_working,0,true,true,true,false,broken,,not_testable,,,,,,,,,not_testable,needs an account,,needs an account,,,,,,,,,needs an account,"--- model's explanation ---
+### Likely Cause
+The extension is broken due to a **Content Security Policy (CSP) violation** and **Service Worker runtime errors**. The migration removed `'unsafe-eval'` from the CSP (`manifest.json` line 10), but the extension's bundled code (e.g., `popup.js`, `options.js`) relies on `eval()` or `new Function()`. Additionally, `background.js` attempts to access the `window` object, which is unavailable in Manifest V3 Service Workers.
+
+### Evidence
+- **Reviewer Report:** The popup is ""broken,"" and the analyzer confirms it fails to render.
+- **Automated Verification:** 
+    - `popup_renders` failed with: `EvalError: Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script`.
+    - `background.js` threw multiple errors: `service worker uses ""window"", which does not exist in a worker`.
+- **Diff:** The `content_security_policy` was changed from `""script-src 'self' 'unsafe-eval'""` to `""script-src 'self'""` (`manifest.json`).
+
+### What would fix it
+1. **CSP:** Since MV3 strictly forbids `'unsafe-eval'` in extension pages, the code must be re-bundled without `eval()` or `new Function()`. If the `eval` calls are generated by a build tool (like Webpack), change the `devtool` setting to a non-eval source map (e.g., `source-map`).
+2. **Background Script:** Remove all references to `window` in `background.js` (e.g., lines 2532, 2533, 2541). Replace `window.onerror` with `self.onerror` or use `chrome.runtime.onError`.",0,2213,4,14,0,0,2199,,0,53,2.017,2026-10-11T07:02:04.839Z,2026-10-11T07:02:04.839Z
+bafajkcbalfkkdghjpgcaaopfalikmlk,"Omni - tabs, history and bookmarks by Tefter",partially_working,0.3,true,true,false,false,,broken,working,,,,not_testable,,broken,partial,broken,not_testable,,,,,,,,,,,,,,24,3,8,0,0,3,0,,0,20,22.305,2026-10-07T12:46:00.975Z,2026-10-07T12:46:00.975Z
+jicfhkclcbbdonkdapiekgbhggdocdnp,"Web Boost - Wait Less, Browse Faster!",partially_working,0.25,true,true,false,false,partial,,,,,,,,,,,broken,,,,,,,,,,,,,,3,289,37,8,0,7,274,,0,45,68.506,2026-10-07T12:47:23.993Z,2026-10-07T12:47:23.993Z
+iikcdekihignkjbecpckckoidkmjbkoj,MeetInOne Extension for Google Meet,not_working,0,true,true,false,false,broken,,,,,,,,,,not_testable,,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup is broken because the migration removed `'unsafe-eval'` from the Content Security Policy (CSP) in `manifest.json` (lines 31-33). Manifest V3 strictly prohibits `unsafe-eval` in extension pages, and the popup's JavaScript likely relies on `eval()` or a similar function.
+
+### Evidence
+- **Reviewer Report:** The popup window is explicitly marked as **broken**.
+- **Automated Verification:** The `popup_renders` check failed with a specific `EvalError`: *""Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'self'""*.
+- **Diff:** The MV2 manifest allowed `'unsafe-eval'` in the CSP string, but the MV3 manifest changed this to `""extension_pages"": ""script-src 'self'; object-src 'self'""`, removing the permission.
+
+### What would fix it
+Since Manifest V3 does not allow `'unsafe-eval'`, the code in `popup.js` (and any libraries it uses) must be refactored to remove calls to `eval()`, `new Function()`, `setTimeout(string)`, or `setInterval(string)`. The logic must be replaced with standard JavaScript functions or JSON parsing.",0,0,0,0,0,0,0,,0,23,1.563,2026-10-11T07:02:20.659Z,2026-10-11T07:02:20.659Z
+edcmdkajjaphafjijhpebmeaogoeeeam,Issue comment for GitHub,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,needs an account,needs an account,,0,1845,4,3,0,0,1842,,0,43,11.612,2026-10-07T12:48:00.798Z,2026-10-07T12:48:00.798Z
+enobkmonaalllckgcjlpcmjeoihgjfne,PlayGround,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,76,42,0,0,0,76,,0,20,32.215,2026-10-07T12:48:54.572Z,2026-10-07T12:48:54.572Z
+cbdadgfefpgaiiefilhjlbgnjhkffhmo,"VocaDict - Search Once, Remember Forever",not_working,0,true,true,false,false,broken,,broken,broken,,broken,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken because the migration removed `'unsafe-eval'` from the Content Security Policy (CSP) in `manifest.json` (lines 43-45). The extension's bundled JavaScript files (e.g., `js/background.js`, `js/popup.js`) rely heavily on `eval()` for their module loading system, which is now blocked by MV3's stricter security defaults.
+
+### Evidence
+- **Reviewer Report:** All UI surfaces (Popup, Settings, New Tab, DevTools) are reported as **broken**.
+- **Automated Verification:** The migrator explicitly captured `EvalError: Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'self'`.
+- **Diff:** The MV2 manifest allowed `'unsafe-eval'`, but the MV3 manifest changed this to `""extension_pages"": ""script-src 'self'; object-src 'self'""`.
+- **Code:** The provided diff for `js/background.js` shows that almost every module is wrapped in an `eval()` call (e.g., `+E39: function(...) { eval(...) }`).
+
+### What would fix it
+Because Manifest V3 **strictly prohibits** `'unsafe-eval'` for extension pages and service workers, the CSP cannot simply be reverted. The extension must be **re-bundled** using a build tool (like Webpack or Rollup) configured to output code without `eval()` (e.g., by setting `devtool` to `source-map` instead of `eval` in Webpack).",0,2,2,0,0,0,2,,0,30,1.387,2026-10-11T07:02:57.281Z,2026-10-11T07:02:57.281Z
+edfflpconbnjmnejkmeddehoeccenmic,Double Trans,working,1,true,true,false,true,,,,,,,,,,,working,,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,12,217.735,2026-10-07T12:54:22.883Z,2026-10-07T12:54:22.883Z
+jfpffimkffkiffdaonmanonhedlkfenf,Watchspot Chrome,working,1,true,true,false,false,working,,,,,working,,,,,not_testable,,,,,,,,,,,,,,,1,5,4,0,0,0,5,,0,28,29.306,2026-10-07T12:55:03.778Z,2026-10-07T12:55:03.778Z
+pcglcincgpnlidilejlohhoecfbggopn,In The Zone - Productive Club,partially_working,0.5,true,true,false,false,,broken,,working,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,3,49,11,21,0,0,28,,0,73,103.251,2026-10-07T12:56:57.882Z,2026-10-07T12:56:57.882Z
+eihjingefkckjcdlmjidkefbcbbofdhf,June,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,11.091,2026-10-07T12:57:26.846Z,2026-10-07T12:57:26.846Z
+ofoaklobkijcpfchnpmamnkodekhpgla,TYPO3 Workbench,partially_working,0.6666666666666666,true,true,false,false,working,,working,,,,broken,,,,not_testable,not_testable,,,,,,,,,,,,,,0,10,1,10,0,0,0,,0,14,60.503,2026-10-07T12:58:35.743Z,2026-10-07T12:58:35.743Z
+jfpmipfmnoleakbnehmhhoefgofjilba,DeepAli - DeepLink Generator for AliExpress™,working,1,true,true,false,false,working,,working,,,,,,,,,not_testable,,,,,,,,,,,,,,8,6,2,0,6,0,0,,0,28,27.18,2026-10-07T12:59:06.218Z,2026-10-07T12:59:06.218Z
+abnlpgnoijoannioldehkdjfofbpnfad,smarterPod: Simple and Smart Podcast Player,partially_working,0.5,true,true,false,false,partial,,,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,0,275,23,0,1,0,274,mv3-non-trivial,1,34,34.154,2026-10-07T12:59:53.083Z,2026-10-07T12:59:53.083Z
+fmhigajdbogngfaijmnpihcjjojkigjc,DC Metro Tracker,partially_working,0.5,true,true,false,false,broken,,working,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,1,43,6,39,0,0,4,,0,62,112.305,2026-10-07T13:01:48.860Z,2026-10-07T13:01:48.860Z
+beknlgommgoagklgejjlpnhmpaihlgdg,CloudCall Unified Communications for CRM,not_working,0,true,true,false,false,,broken,,,,,not_testable,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The toolbar button is broken because the migration replaced `browser_action` with `action` in `manifest.json`, but the background script (`service_worker.js`) continues to use the deprecated `chrome.browserAction` API.
+
+### Evidence
+- **Reviewer Report**: The toolbar button is explicitly marked as **broken**.
+- **Analyzer Findings**: The analyzer detected calls to `chrome.browserAction.onClicked` and `chrome.browserAction.setBadgeText` in `service_worker.js:2`.
+- **Manifest Diff**: The `browser_action` key was removed and replaced with `action` (lines 10-12 $\rightarrow$ 77-79). In Manifest V3, the `chrome.browserAction` API is replaced by `chrome.action`.
+
+### What would fix it
+Update all occurrences of `chrome.browserAction` to `chrome.action` within `service_worker.js`.",0,0,0,0,0,0,0,manifest-csp,1,21,1.904,2026-10-11T07:03:18.822Z,2026-10-11T07:03:18.822Z
+lhepcaejamkdnoljcjaakmihhmjjjkeh,Chrome To Device,partially_working,0.5,true,true,false,false,broken,,working,,,,,,,,,,,,,,,,,,,,,,,1,17,18,0,0,0,17,,0,17,36.591,2026-10-07T13:04:05.190Z,2026-10-07T13:04:05.190Z
+pchalmfipapbcbncigfeemlhmgpiilal,Salesforce Assistant,not_testable,,true,true,true,false,not_testable,,not_testable,,,,,,,,not_testable,not_testable,needs an account,,needs an account,,,,,,,,needs an account,needs an account,,10,145,22,0,0,0,145,,0,82,14.854,2026-10-07T13:04:36.333Z,2026-10-07T13:04:36.333Z
+kbiaooppehklphpnjgjidkcnkoiakjjm,Cat Solitaire,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,6,6,0,0,0,6,,0,14,470.62,2026-10-07T13:12:45.144Z,2026-10-07T13:12:45.144Z
+oipmhfjfahhabmkhmicdfnejhmdfbhal,Nuke Your Tracks,working,1,true,true,false,false,,working,working,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,4,28,7,2,0,0,26,,0,18,122.328,2026-10-07T13:14:52.248Z,2026-10-07T13:14:52.248Z
+igoojenlmajfglpidhkimplbmcjlponi,Better Network Panel,working,1,true,true,false,false,,,,,,working,,,,,,working,,,,,,,,,,,,,,1,32,10,0,0,0,32,,0,29,77.347,2026-10-07T13:16:14.578Z,2026-10-07T13:16:14.578Z
+kbgaihnlngffdgljpbgbpcphflmmdhpg,code runner,not_working,0,true,false,false,false,broken,,,,,,,,,,,,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The popup is broken because the migration replaced remote script imports with local paths to files that were not correctly bundled or were corrupted during migration. Specifically, `js/lib/walk.js` now contains a ""404 Not Found"" HTML page instead of JavaScript code.
+
+**Evidence**
+- **Reviewer Report:** The popup window is ""broken.""
+- **Automated Verification:** The `popup_renders` check failed with `net::ERR_INVALID_URL`, and the reviewer noted the popup is broken.
+- **Diff:** In `mv3/js/lib/walk.js`, the file content was replaced with an HTML 404 error page from an nginx server.
+- **Diff:** Multiple HTML files (e.g., `requirejs.html`, `merge.html`, `lint.html`) had their `<script src=""..."">` tags changed from CDN URLs (like `cdnjs.cloudflare.com`) to local paths (e.g., `../../js/lib/require.min.js`). If any of these local files are missing or corrupted (like `walk.js`), the popup's JavaScript execution will fail.
+
+**What would fix it**
+1. Restore the original JavaScript content for `js/lib/walk.js` (and any other corrupted library files).
+2. If the local files cannot be restored, revert the changes in the HTML files to use the original CDN URLs, as Manifest V3 allows remote scripts in popups provided the CSP is configured (though bundling is preferred).
+3. Ensure all files referenced in the `../../js/lib/` paths actually exist in the extension package.",0,18,6,0,0,0,18,,0,33,1.33,2026-10-11T07:03:53.122Z,2026-10-11T07:03:53.122Z
+eeoeakefoojbgmmileebfcjgdgpekfae,Wildfire,partially_working,0.3333333333333333,true,true,false,false,working,,,,,,broken,not_testable,not_testable,,broken,not_testable,,,,,,,,,,,,,,33,180,71,33,0,3,144,,0,93,104.47,2026-10-07T13:18:48.481Z,2026-10-07T13:18:48.481Z
+hfcmeikimmjeojjfjkoiblijpllbgpnk,WaterMe,working,1,true,true,false,false,working,,,,,,,,,,,working,,,,,,,,,,,,,,0,5,1,5,0,0,0,,0,16,21.037,2026-10-07T13:19:13.765Z,2026-10-07T13:19:13.765Z
+dkheaplknmplgdcaffadpicnbooojlob,Concept&Go,not_testable,,true,true,true,false,,not_testable,not_testable,,,,,,,,not_testable,not_testable,,needs an account,needs an account,,,,,,,,needs an account,needs an account,,30,277,13,238,0,16,23,,0,74,24.707,2026-10-07T13:19:58.153Z,2026-10-07T13:19:58.153Z
+eknnbnlelphbhliemonijibinfllliad,Codeigniter 2.2 User Guide,partially_working,0.5,true,true,false,false,partial,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,22,8.728,2026-10-07T13:20:22.015Z,2026-10-07T13:20:22.015Z
+cgnpnjmjklfcalnkjadmhakigcmfkeih,ShardEx,not_working,0,true,true,false,false,broken,,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup is broken due to **syntax errors** introduced during the automated removal of `eval()` calls in `js/popup.js`. The migrator incorrectly converted string-encoded JavaScript into raw code, leaving trailing characters (like `\n` and `}`) inside string literals or breaking function closures (e.g., `js/popup.js:1486`, `1500`, `1530`).
+
+### Evidence
+*   **Reviewer Report:** The popup is explicitly marked as **broken**.
+*   **Automated Verification:** The `popup_renders` check failed with `SyntaxError: Unexpected token ')'`.
+*   **Diff Analysis:** In `js/popup.js`, multiple `eval()` blocks were expanded. For example, at line 1486, the migrator left a literal `\n` inside a module path string: `""./node_modules/@babel/runtime/helpers/esm/arrayLikeToArray.js\\n\nfunction...`. At line 1500, a closing brace and newline were accidentally included inside a string: `""this hasn't been initialised - super() hasn't been called\\n }`. These create invalid JavaScript syntax that prevents the popup script from loading.
+
+### What would fix it
+The `js/popup.js` file needs to be restored to a syntactically correct state. The smallest fix is to **revert the automated `eval()` expansions** in `js/popup.js` or manually clean up the corrupted string literals and broken function boundaries introduced by the migrator.",0,1243,3,4,0,0,1239,,0,60,1.998,2026-10-11T07:05:53.842Z,2026-10-11T07:05:53.842Z
+ehbnlikfgampfogacpfebaphikdgcdpd,In-stock Alerts (Beta),not_testable,,true,true,false,false,,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,13,20.966,2026-10-07T13:21:23.963Z,2026-10-07T13:21:23.963Z
+nkldlcgbcefchngadengmjdcapgahgkp,Codeigniter 2 User Guide,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,6,87.296,2026-10-07T13:22:54.063Z,2026-10-07T13:22:54.063Z
+pdkilmlkbegkdppdpolfknnibcdelghl,Brightery Marketing Tool,partially_working,0.5,true,true,true,false,partial,,partial,,,,,not_testable,,,,not_testable,needs an account,,needs an account,,,,,needs an account,,,,needs an account,,6,67,14,0,0,0,67,,0,20,9.182,2026-10-07T13:23:24.154Z,2026-10-07T13:23:24.154Z
+gpjdfganijinlpncdlpcdlphldggdmfc,Information Visualization of Browser History,not_working,0,true,false,false,false,,broken,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The toolbar button is broken because the background script `modules/interface/views/main.js` is now a Service Worker (MV3), but it likely relies on DOM dependencies (like jQuery `$` or `window`) that are unavailable in the worker environment.
+
+**Evidence**
+- The reviewer reports the **Toolbar button** is broken.
+- The diff shows `modules/interface/views/main.js` was moved from a background page to a `service_worker` in `manifest.json`.
+- While the `chrome.action.onClicked` listener was updated correctly (lines 6-8 of `main.js`), the extension's other files (e.g., `mainpage.js`, `zoomable_circles...js`) heavily use jQuery `$.ajax`. If `main.js` imports these modules or shares a common library that expects a DOM environment, the Service Worker will crash on startup.
+- The migrator's verification failed with a `worker_survives_restart` timeout, which often indicates a runtime error during worker initialization.
+
+**What would fix it**
+1. Check `modules/interface/views/main.js` for any imports or code that references `window`, `document`, or jQuery.
+2. Remove DOM-dependent code from the Service Worker.
+3. If the logic is required, move it to the page being opened (`templates/master_page/index.html`) or a separate content script.
+4. Ensure all libraries used in the background worker are compatible with the Service Worker environment.",10,136,61,0,0,0,136,,0,17,1.876,2026-10-11T07:06:19.320Z,2026-10-11T07:06:19.320Z
+hebmopjpmnpcliimdcacdiliomcclfoo,Github Hoverscope,not_testable,,true,true,true,false,,not_testable,,,,,,,,,not_testable,not_testable,,needs an account,,,,,,,,,needs an account,needs an account,,1,4,5,0,0,0,4,,0,26,38.369,2026-10-07T13:25:09.850Z,2026-10-07T13:25:09.850Z
+diggamfbkfkklacaagembohiabdmmigm,Brightery Mega Marketing,not_working,0,true,true,false,false,broken,,broken,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken because the migration deleted `js/jquery.min.js` (see diff), but the popup and settings pages (which rely on `index.html`) likely depend on it. Additionally, the `service_worker.js` attempts to inject this missing file into tabs (line 37), causing runtime failures.
+
+### Evidence
+*   **Reviewer Report:** Both the Popup window and Settings page are ""broken.""
+*   **Automated Verification:** The `options_renders` check failed with `net::ERR_FILE_NOT_FOUND`, confirming that the settings page (`index.html`) cannot load a required resource.
+*   **Diff:** The file `mv2/js/jquery.min.js` was completely removed in the MV3 version.
+*   **Code:** `service_worker.js:37` explicitly calls `chrome.scripting.executeScript` with `files: [""js/jquery.min.js"", ...]`. Since the file is gone, this call will fail.
+
+### What would fix it
+Restore the `js/jquery.min.js` file to the extension package. If the migrator removed it because it was only listed in the MV2 background scripts, it must be kept as a standalone asset to be used by the UI pages and the `executeScript` injection.",6,71,14,4,0,0,67,,0,23,1.543,2026-10-11T07:06:49.270Z,2026-10-11T07:06:49.270Z
+gnapooibnagamngemlkkjmjfkmgbdmcl,hivetips,working,1,true,false,false,false,working,,,,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,0,3602,21,2,0,0,3600,,0,56,33.812,2026-10-07T13:28:59.218Z,2026-10-07T13:28:59.218Z
+ofddaejenmgdfhlbfmfoolpgfnajnmip,Cool Bookmarks,working,1,true,true,false,false,working,,,,,,,,,,working,working,,,,,,,,,,,,,,7,11,9,4,0,0,7,,0,12,26.286,2026-10-07T13:29:29.528Z,2026-10-07T13:29:29.528Z
+bhichmmmceomopnpgjelkhakmacmibmp,Brightery Notes,partially_working,0.5,true,true,true,false,partial,,partial,,,,,not_testable,,,,,needs an account,,needs an account,,,,,needs an account,,,,,,1,66,11,0,0,0,66,,0,17,20.805,2026-10-07T13:30:13.304Z,2026-10-07T13:30:13.304Z
+khneipdgeiofabcjbidcicboeofghjkc,Fast Reader,not_working,0,true,false,false,false,broken,,broken,,,,,,,,broken,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The extension is broken because the `service_worker.js` file is not executing its initialization logic. The `initBackground()` function is called at the top level, but the `chrome.runtime.onMessage` listener is defined *inside* that function, and the worker is likely terminating before it can establish the listener or is failing to maintain state.
+
+### Evidence
+- **Reviewer Report**: All surfaces (Popup, Settings, Page interaction) are broken. These all rely on communication with the background script.
+- **Diff**: The migration moved logic from a persistent background page (`background.js`) to a Service Worker (`service_worker.js`).
+- **Code**: In `service_worker.js`, the `chrome.runtime.onMessage` listener is wrapped inside `initBackground()`. If the worker fails to initialize or restarts (as suggested by the `worker_survives_restart` timeout in the verification report), the listener is not registered.
+- **Logic Error**: `popup.js` now uses `chrome.runtime.sendMessage` to fetch `msg`, but if the service worker is inactive or the listener isn't registered, the popup will never receive a response, leaving it ""broken.""
+
+### What would fix it
+Move the `chrome.runtime.onMessage.addListener` call out of the `initBackground()` function and place it at the top level of `service_worker.js`. This ensures the listener is registered immediately when the service worker starts, which is a requirement for reliable message handling in Manifest V3.",8,8,6,4,1,0,3,,0,26,1.758,2026-10-11T07:07:16.049Z,2026-10-11T07:07:16.049Z
+mknflhinhbbiabecejbgcgpilcfjkfho,Crypto follow,partially_working,0.5,true,true,false,false,partial,,partial,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,41,41,0,0,0,41,,0,18,38.123,2026-10-07T13:31:57.064Z,2026-10-07T13:31:57.064Z
+lcpaogdhkijhbibofdgmcabbgpcdlplm,Highlight&Go,working,1,true,true,false,false,,working,working,,,,not_testable,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,27,176,12,146,0,16,14,,0,53,140.596,2026-10-07T13:34:43.351Z,2026-10-07T13:34:43.351Z
+mflhbpkjffppcgdmalaphfecmfnjannp,TomatoSniper,not_testable,,true,true,false,false,not_testable,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,8,37,4,10,0,0,27,mv3-non-trivial,1,28,21.561,2026-10-07T13:35:07.273Z,2026-10-07T13:35:07.273Z
+ededhhcknlpomfmcoibofbjflechmpmi,TELUS Business Connect for Microsoft 365,not_working,0,true,true,false,false,,broken,broken,,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken because the background service worker crashes on load. It attempts to execute code in `commons.js` that relies on the `window` and `document` objects, which do not exist in a Service Worker environment.
+
+### Evidence
+- **Reviewer Report**: All UI surfaces (Toolbar button, Settings page) are broken, and the extension has a preserved-behaviour score of 0.
+- **Automated Verification**: The migrator explicitly flagged multiple ""sw-banned-global"" errors in `commons.js` (e.g., lines 3016, 3072, 4098) where `window.getComputedStyle` and `window.addEventListener` are called.
+- **Diff**: To bypass these errors, the migrator added ""mock"" `window` and `document` objects to the top of `background.js` (lines 1-37). However, these mocks are insufficient (e.g., `getComputedStyle` returns an empty object), and the `worker_survives_restart` check failed, indicating the worker is still crashing or failing to initialize properly.
+
+### What would fix it
+The DOM-dependent logic in `commons.js` must be decoupled from the background logic. 
+1. **Remove the mocks** from `background.js` as they provide a false sense of compatibility and can hide bugs.
+2. **Refactor `commons.js`** to ensure that any code accessing `window` or `document` is wrapped in a check (e.g., `if (typeof window !== 'undefined')`) or moved to a content script or an **offscreen document** if the DOM API is strictly required for background tasks.",3,12,7,0,0,0,12,,0,25,1.859,2026-10-11T07:07:45.206Z,2026-10-11T07:07:45.206Z
+ifinhiedefieainkbjjjcomcfnjceofd,Meteor,not_testable,,true,true,true,false,not_testable,,not_testable,,,,,,,,not_testable,not_testable,needs an account,,needs an account,,,,,,,,needs an account,needs an account,,0,0,0,0,0,0,0,,0,33,15.023,2026-10-07T13:37:13.785Z,2026-10-07T13:37:13.785Z
+eockakolmhcbpimokdidgpjgemlhajib,Mark&Go,partially_working,0.5,true,true,false,false,,working,broken,,,,not_testable,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,28,247,11,229,0,0,18,,0,59,85.589,2026-10-07T13:38:57.636Z,2026-10-07T13:38:57.636Z
+emegfipbpkljffffokfbefjjmofmdmgn,wekey,not_working,0,true,true,false,false,broken,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken due to a **Content Security Policy (CSP) violation** and **Service Worker runtime errors**. The migration removed `'unsafe-eval'` from the CSP (`manifest.json`), but the extension's bundled code (e.g., `js/content_script.js`) relies heavily on `eval()` for module loading. Additionally, the new service worker (`service_worker.js`) attempts to access the `document` object, which is unavailable in worker contexts.
+
+### Evidence
+- **Reviewer Report:** The popup is broken. The automated verification explicitly fails with: `EvalError: Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script`.
+- **Diff:** The `manifest.json` changed from `""content_security_policy"": ""script-src 'self' 'unsafe-eval'; ...""` to a strict MV3 `extension_pages` policy: `""script-src 'self'; object-src 'self'""`.
+- **Code:** `js/content_script.js` and others contain large `eval(...)` blocks used by the Webpack bundle.
+- **Verification:** The migrator flagged multiple errors in `service_worker.js` (lines 504, 506, 1743) for using `document`, which causes the worker to throw on load and fail to restart.
+
+### What would fix it
+1. **Remove `eval()`:** The extension must be re-bundled without `eval` (e.g., changing the Webpack `devtool` from `eval` to `source-map` or `none`) to comply with MV3 CSP.
+2. **Fix Service Worker:** Remove all references to `document` and `window` in `service_worker.js`. Any required DOM manipulation must be moved to an **offscreen document** or a content script.",0,853,6,8,0,0,845,,0,43,1.814,2026-10-11T07:08:30.634Z,2026-10-11T07:08:30.634Z
+mkpbikojjcjmggnghhhelpphjkailpbf,XDCPay,not_testable,,true,true,true,false,not_testable,,,,,,,not_testable,,,not_testable,not_testable,needs an account,,,,,,,needs an account,,,needs an account,needs an account,,0,250,2,243,0,0,7,,0,53,35.512,2026-10-07T13:40:27.862Z,2026-10-07T13:40:27.862Z
+jdmepaljbmglonfljdlohodkaaakbmjm,Quicker Search,not_working,0,true,true,false,false,broken,,broken,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken because the migrator replaced `eval()` calls in the bundled JavaScript files (e.g., `options/options.js`) with static code, but in doing so, it likely corrupted the syntax or failed to properly handle the Webpack bundle's structure. Additionally, the service worker is crashing because it attempts to access `window` and `localStorage`, which are not available in Manifest V3 service workers.
+
+### Evidence
+- **UI Failure:** The reviewer reports that the popup and settings page are broken. The automated verification confirms this with `SyntaxError: Unexpected token '**'`, indicating the JavaScript files are now syntactically invalid.
+- **Diff Analysis:** The diff for `options/options.js` shows massive replacements where `eval('...')` blocks were expanded into plain text. This process often corrupts bundled code if the string escaping or template literals are not handled perfectly.
+- **Runtime Errors:** The migrator's verification explicitly flags multiple `sw-banned-global` errors in `service_worker.js` (lines 3293, 3296, 4042), noting that `window` and `localStorage` are used, which causes the worker to throw on load.
+
+### What would fix it
+1. **Restore Bundles:** Revert the automated ""de-evaling"" of the bundled JS files (`options/options.js`, `popup/popup.js`). If `eval` is forbidden by CSP, the extension must be re-built from source using a production Webpack configuration that doesn't use `eval` for source maps.
+2. **Fix Service Worker:** 
+   - Replace all instances of `localStorage` with `chrome.storage.local`.
+   - Remove or wrap references to `window` (e.g., use `self` or check `typeof window !== 'undefined'`).",0,657,4,3,0,2,652,,0,76,1.633,2026-10-11T07:09:01.853Z,2026-10-11T07:09:01.853Z
+mcmeaebmnjcpdligmemdlmofjagojedp,ezDeFi,not_working,0,true,true,false,false,broken,,,,,,not_testable,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken because the background script was migrated to a Service Worker (`service_worker.js`), but it contains multiple calls to `XMLHttpRequest` and `alert()`. These APIs are not available in the Service Worker global scope, causing the worker to throw errors on load and fail to initialize.
+
+### Evidence
+- **Reviewer Report**: The popup is ""broken,"" and the analyzer's automated checks for `popup_renders` and `storage_roundtrip` failed with `net::ERR_BLOCKED_BY_CLIENT`. This often happens when the background service worker fails to start, preventing the extension from functioning.
+- **Migrator's Verification**: The automated verification explicitly flagged several ""banned-global"" errors in `service_worker.js`:
+    - `XMLHttpRequest` usage at line 46677.
+    - `alert` usage at lines 85120 and 85126.
+- **Diff**: The `manifest.json` change confirms the shift from a persistent background page (`dist/background.js`) to a service worker (`service_worker.js`).
+
+### What would fix it
+1. **Replace `XMLHttpRequest`**: Update all instances of `XMLHttpRequest` in `service_worker.js` to use the `fetch()` API.
+2. **Remove/Relocate `alert()`**: Service workers cannot trigger UI alerts. Replace `alert()` calls with `chrome.notifications.create()` or move the logic to an offscreen document or the popup UI.",2,368,4,358,0,0,10,,0,35,1.248,2026-10-11T07:09:26.564Z,2026-10-11T07:09:26.564Z
+efifejldhjgaahmmilfjlcnegkghglpl,Hydrawallet,not_working,0,true,true,false,false,broken,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup is broken because the migration replaced a multi-script background page with a single `service_worker.js` that appears to be empty or missing the original logic.
+
+### Evidence
+*   **Reviewer Report:** The popup window is ""broken,"" and the automated check failed with `net::ERR_FILE_NOT_FOUND` when attempting to render the popup.
+*   **Diff:** The `manifest.json` changed from a `background.scripts` array containing 10 files (including `background.js` and several `commons.*` scripts) to a single `service_worker: ""service_worker.js""`.
+*   **Diff:** The provided diff for `mv3/service_worker.js` is empty, indicating that the logic from the original 10 background scripts was not ported into the new service worker.
+*   **Runtime Error:** The `ERR_FILE_NOT_FOUND` suggests that `popup.html` is likely trying to load scripts or resources that are no longer being provided or initialized by the background process.
+
+### What would fix it
+The logic from the original background scripts (`background.js`, `commons.all.js`, etc.) must be bundled or imported into `service_worker.js`. Since MV3 service workers do not support multiple scripts in the manifest, you should use `importScripts()` at the top of `service_worker.js` to load the necessary dependencies in the correct order.",0,690,5,0,0,0,690,,0,30,1.769,2026-10-11T07:10:12.261Z,2026-10-11T07:10:12.261Z
+memokfnkpgdjobpofphcablopgiichff,FGC Lite,not_working,0,true,true,false,false,broken,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The extension is broken because the background service worker crashes on load due to the use of banned globals (`document` and `localStorage`), which are not available in Service Worker contexts.
+
+### Evidence
+- **Reviewer Report**: The popup is broken, and the analyzer reports `popup_renders: fail` with `net::ERR_FILE_NOT_FOUND`. This often occurs when the background worker fails to initialize, preventing the extension from functioning.
+- **Automated Verification**: The migrator explicitly flagged multiple errors in `service_worker.js`:
+    - Line 101861: Use of `document`.
+    - Line 103738 & 103742: Use of `localStorage`.
+- **Diff**: The migration consolidated multiple background scripts into a single `service_worker.js`. Code that previously ran in a background *page* (which had access to a DOM and `localStorage`) now runs in a *worker*, where these APIs throw errors.
+
+### What would fix it
+1. **Replace `localStorage`**: Change all occurrences of `localStorage` in `service_worker.js` to `chrome.storage.local`. Note that `chrome.storage` is asynchronous, so the surrounding logic must be updated to use `async/await` or promises.
+2. **Remove/Move DOM logic**: Remove references to `document` in `service_worker.js`. If DOM access is required for processing, move that specific logic to an **offscreen document** and communicate with it via `chrome.runtime.sendMessage`.",0,618,5,0,0,0,618,,0,55,2.339,2026-10-11T07:11:09.400Z,2026-10-11T07:11:09.400Z
+pgdfklcflknlgdjaaelmnegcfkhoiopi,SAML DevTools extension,working,1,true,true,false,false,,,,,,working,,,,,,working,,,,,,,,,,,,,,7,36,18,0,0,0,36,,0,20,131.251,2026-10-07T13:48:37.402Z,2026-10-07T13:48:37.402Z
+hhbhcggbfgajhepphiabjejhjcdedcpk,grnDBLP,working,1,true,true,false,false,working,,working,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,44,14,4,8,0,0,6,,0,88,110.976,2026-10-07T13:50:42.043Z,2026-10-07T13:50:42.043Z
+kdlldkmdldhhichhafohldmgpicfnfcc,Nicky,not_testable,,true,false,false,false,not_testable,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,162,4,4,0,0,158,,0,40,94.149,2026-10-07T13:52:29.892Z,2026-10-07T13:52:29.892Z
+hnckgnbicnmpdppjnbchkokjinfhfpla,PC Protect Safe Site,not_working,0,true,true,false,false,broken,,,,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken because the background page was migrated to a Service Worker (`service_worker.js`), but the code contains multiple references to the `document` object (e.g., lines 1115, 1121, 1149). Service workers run in a worker context where the DOM is unavailable, causing the script to throw a fatal error on load and preventing the background logic from initializing.
+
+### Evidence
+*   **Reviewer Report:** The popup is broken, and the overall verdict is `not_working`.
+*   **Automated Verification:** The migrator explicitly flagged multiple `sw-banned-global` errors in `service_worker.js` due to the use of `document`.
+*   **Behavioral Failure:** The `worker_survives_restart` check failed, confirming the service worker is crashing.
+*   **Diff:** The `manifest.json` change confirms the shift from a persistent background page (`""persistent"": true`) to a `service_worker`.
+
+### What would fix it
+The DOM-dependent code in `service_worker.js` must be removed or moved. Since the background script appears to be a large bundle of legacy logic, the smallest fix is to:
+1.  Identify the functions using `document` and determine if they are necessary for background operations.
+2.  If the DOM is required (e.g., for parsing or certain APIs), move that specific logic into an **offscreen document** and communicate with it via `chrome.runtime.sendMessage`.
+3.  If the code was only used for debugging or is obsolete in a worker context, delete the offending lines.",2,239,8,217,0,1,21,,0,51,1.531,2026-10-11T07:12:08.738Z,2026-10-11T07:12:08.738Z
+ijcicekfknlachmpfckagnhhoedfoeep,MeetBot,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,15,17.262,2026-10-07T13:53:29.670Z,2026-10-07T13:53:29.670Z
+mkdeccahohlpfjbhmmaaijljjhmfmdfn,Solanatip,not_testable,,true,true,true,false,not_testable,,not_testable,,,not_testable,,,,,not_testable,not_testable,needs an account,,needs an account,,,needs an account,,,,,needs an account,needs an account,,0,335,14,0,0,0,335,,0,78,7.178,2026-10-07T13:53:51.362Z,2026-10-07T13:53:51.362Z
+kngmlmkiapjbjanhjdhcmigpbphdiekm,Shop-in,not_testable,,true,true,false,false,not_testable,,,,,,,,,,,,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,13,17.932,2026-10-07T13:54:28.198Z,2026-10-07T13:54:28.198Z
+holkaimpefmoidkdamcdfogjdbopihoe,蝦皮賣家黑精靈,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,0,1498,12,1,0,0,1497,,0,52,1.987,2026-10-07T13:54:49.535Z,2026-10-07T13:54:49.535Z
+kjmdkeknjohejfgheakglacbddbdibal,Unicart,partially_working,0.5,true,false,false,false,working,,,,,,,,,,broken,not_testable,,,,,,,,,,,,,,4,0,1,0,0,0,0,,0,18,377.392,2026-10-07T14:01:09.675Z,2026-10-07T14:01:09.675Z
+meomojfiombmjonneipeklinaikkokgh,Covfefe,not_working,0,true,true,false,false,broken,,,,,,not_testable,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The popup is broken because the migration removed the script tag for `deweet.bundle.js` from `popup.html` (diff: `mv2/popup.html` line 6), leaving the popup without its logic. Additionally, the background service worker is failing to load due to multiple critical errors, including the use of banned DOM globals (`window`, `document`) and `eval`/`new Function` (migrator report).
+
+### Evidence
+- **Popup:** The reviewer reported the popup is **broken**. The diff shows the `<script src=""deweet.bundle.js""></script>` was deleted from `popup.html`.
+- **Background Worker:** The migrator's automated verification failed `worker_survives_restart` and `popup_renders` (due to a `SyntaxError`). It explicitly flagged:
+    - **Banned Globals:** `window` and `document` used in `service_worker.js` (lines 879, 1133, 1135).
+    - **Eval:** `new Function` used in `service_worker.js` (lines 40880, 61676).
+    - **Deprecated API:** `chrome.tabs.executeScript` is used instead of `chrome.scripting.executeScript`.
+
+### What would fix it
+1. **Restore Popup Logic:** Add `<script src=""deweet.bundle.js""></script>` back to `popup.html`.
+2. **Fix Service Worker:**
+    - Replace all `window` and `document` calls in `service_worker.js` with logic compatible with Service Workers (e.g., using `chrome.offscreen` for DOM tasks).
+    - Replace `new Function` calls with standard JavaScript logic.
+    - Update `chrome.tabs.executeScript` to `chrome.scripting.executeScript` and add the `""scripting""` permission to `manifest.json`.",0,0,0,0,0,0,0,,0,53,1.402,2026-10-11T07:12:48.921Z,2026-10-11T07:12:48.921Z
+dedlkenbgjlkpamjkinfgejljkifmimd,Scrumcoon-trello,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,1,4,4,0,0,0,4,,0,50,21.878,2026-10-07T14:03:26.600Z,2026-10-07T14:03:26.600Z
+mkljmpojnendehckjbagemkkgamnagco,CheXplore JS,not_working,0,true,true,false,false,,broken,,,,,,,not_testable,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The toolbar button is broken because the migration replaced the background page with a service worker, but the original `src/background.js` logic (which handles the `at_startup` function and `chrome.browserAction.onClicked`) was not ported into the new `service_worker.js`. Instead, `service_worker.js` appears to be a bundled file containing only the jQuery library.
+
+**Evidence**
+- **Reviewer Report:** The toolbar button is explicitly marked as **broken**.
+- **Diff:** The `manifest.json` changed from `background.scripts: [""libraries/jquery.min.js"", ""src/background.js""]` to `background.service_worker: ""service_worker.js""`.
+- **Diff:** The `src/background.js` file (containing the core logic for `at_startup` and the `onClicked` listener) was deleted in the MV3 version.
+- **Diff:** The new `service_worker.js` starts with `/*! jQuery v1.11.1 ... */` and contains only the jQuery library source, lacking any of the extension's actual background logic.
+
+**What would fix it**
+The logic from `src/background.js` must be ported to the service worker. Specifically:
+1. Move all functions and event listeners from `src/background.js` into `service_worker.js` (after the jQuery bundle).
+2. Replace `chrome.browserAction` with `chrome.action` (as already partially done in the manifest).
+3. Replace any usage of `window` or `localStorage` in the background logic with `self` and `chrome.storage.local`, as service workers do not have access to the DOM or synchronous local storage.",45,46,6,42,0,0,4,,0,81,1.838,2026-10-11T07:13:39.713Z,2026-10-11T07:13:39.713Z
+pjndiiopiiojbjkgaofbmmmfloejdend,Loving Each Day,working,1,true,true,false,false,,not_testable,,working,,,,,,,,working,,,,,,,,,,,,,,2,0,2,0,0,0,0,,0,17,130.648,2026-10-07T14:06:33.807Z,2026-10-07T14:06:33.807Z
+hmlbbpbfhpdlgfnpdlgkjbkkbfhpaoai,ContentStudio - Social Media Scheduler,not_working,0,true,true,false,false,,not_testable,broken,,,broken,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The Settings page is broken because the migration removed `'unsafe-eval'` from the Content Security Policy (CSP) in `manifest.json` (lines 136-138). The DevTools panel is likely broken because the migrator replaced the background page (`pages/background.html`) with a service worker (`js/background.js`), potentially breaking dependencies required by the DevTools page.
+
+### Evidence
+- **Settings Page:** The migrator's automated verification explicitly failed with an `EvalError`, stating that evaluating a string as JavaScript violates the CSP because `'unsafe-eval'` is not allowed. The diff shows the MV2 CSP `script-src 'self' 'unsafe-eval'` was changed to `script-src 'self'` in MV3.
+- **DevTools Panel:** The reviewer reported this surface as **broken**. In MV2, the extension used a persistent background page; in MV3, it uses a service worker. If `pages/devtools.html` relies on global state or DOM elements from the background page, it will fail.
+- **Background Script:** The diff shows the original `js/background.js` was a Webpack bundle containing `eval()` calls (line 141), which are forbidden in MV3 service workers. While the migrator attempted to extract the logic into a clean script, the underlying architecture change often breaks DevTools integrations.
+
+### What would fix it
+1. **Settings Page:** The CSP cannot be restored to allow `unsafe-eval` in MV3. The code in `pages/options.html` (and its associated JS) must be refactored to remove `eval()`, `new Function()`, or `setTimeout(string)`.
+2. **DevTools Panel:** Verify if `pages/devtools.html` attempts to access the background page. If so, update it to use `chrome.runtime.sendMessage` to communicate with the service worker.",2,488,8,0,0,0,488,,0,17,2.344,2026-10-11T07:14:04.866Z,2026-10-11T07:14:04.866Z
+gdgegpnkjddbcohnegdddhldaeodocaj,LeetHub,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,2,33,17,3,0,0,30,,0,17,6.681,2026-10-07T14:08:42.882Z,2026-10-07T14:08:42.882Z
+ldmndgpabggpklkhngiifmopjbkllfal,#60SECONDRESISTANCE,working,1,true,true,false,false,working,,,,,,,,,,working,not_testable,,,,,,,,,,,,,,8,0,2,0,0,0,0,,0,16,32.087,2026-10-07T14:09:24.775Z,2026-10-07T14:09:24.775Z
+gldgapmekfidghcadcgmcapekmcofipd,Shopee WeAnaly Tool,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,0,552,4,2,0,0,550,,0,47,12.336,2026-10-07T14:09:39.911Z,2026-10-07T14:09:39.911Z
+pgcmocepbpfhmmijbkkbgfeblfcdmmbf,Backstairs Game House,working,1,true,true,false,false,working,,working,,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,7,0,2,0,0,0,0,,0,20,45.948,2026-10-07T14:10:28.149Z,2026-10-07T14:10:28.149Z
+nnfihfihbmgnkeeeebhanhmpojclfpad,OP.GG Extension,working,1,true,true,false,false,working,,,,,,,,,,,not_testable,,,,,,,,,,,,,,26,11,3,10,0,1,0,,0,29,36.582,2026-10-07T14:11:06.603Z,2026-10-07T14:11:06.603Z
+afakeafhcjjglnedecmbhknbhalnelfb,The Element Cycles,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,18,1.456,2026-10-07T14:11:35.930Z,2026-10-07T14:11:35.930Z
+ljibmalhangcmjoodlklooihehgnohei,Highlight,not_testable,,true,true,true,false,not_testable,,,,,,,,not_testable,,not_testable,not_testable,needs an account,,,,,,,,Does not exist,,needs an account,needs an account,,0,385,6,7,0,0,378,,0,47,131.409,2026-10-07T14:14:08.085Z,2026-10-07T14:14:08.085Z
+afijdkapacbnmfjkmipdfgnnbfpmmoad,SeoVisor,working,1,true,true,false,false,working,,,,,,,,,,,working,,,,,,,,,,,,,,12,3,4,2,0,0,1,,0,25,73.81,2026-10-07T14:15:23.951Z,2026-10-07T14:15:23.951Z
+mjhogeibfeflcnldcmiainpdkdmfnhpb,jdd_ik3cloud,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,3,3,1,0,0,2,,0,38,15.934,2026-10-07T14:15:41.685Z,2026-10-07T14:15:41.685Z
+kfoleapoalboppohojocieohemdhajpn,Platar,not_testable,,true,true,true,false,,not_testable,not_testable,,,,,,,,not_testable,not_testable,,needs an account,needs an account,,,,,,,,needs an account,needs an account,,2,377,2,0,0,0,377,,0,24,6.282,2026-10-07T14:16:05.209Z,2026-10-07T14:16:05.209Z
+gmnbooobfpmpneahdodoiddocbbjllga,Orderly,working,1,true,false,false,false,working,,,working,,,,,,,,working,,,,,,,,,,,,,,2,146,82,0,0,0,146,,0,30,30.959,2026-10-07T14:16:53.410Z,2026-10-07T14:16:53.410Z
+mpnokdijeinfkpddhdmkfghedpmbkbok,Cloud Save,partially_working,0.5,true,true,false,false,,,working,,,,broken,not_testable,,,,not_testable,,,,,,,,,,,,,,5,9,6,0,6,0,3,,0,23,64.145,2026-10-07T14:17:59.467Z,2026-10-07T14:17:59.467Z
+aklfgleddjhndofilfinfnlkkondcdke,Intercom Gmail Integration,not_testable,,true,true,true,false,,not_testable,not_testable,,,,,,,,not_testable,not_testable,,needs an account,needs an account,,,,,,,,needs an account,needs an account,,4,4,2,4,0,0,0,,0,10,2.882,2026-10-07T14:18:07.306Z,2026-10-07T14:18:07.306Z
+pgnjcjahahkhppedgijeichfkfgjcfll,GroupRipper,not_testable,,true,true,true,false,not_testable,,not_testable,,,,,,,,not_testable,not_testable,needs an account,,needs an account,,,,,,,,needs an account,needs an account,,6,3,1,3,0,0,0,,0,13,7.967,2026-10-07T14:18:17.554Z,2026-10-07T14:18:17.554Z
+kkaapbjemjdephhmgogljcgadcbkpjmp,New Tab Redux,working,1,true,true,false,false,,,,working,,,,,,working,,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,21,37.145,2026-10-07T14:19:12.272Z,2026-10-07T14:19:12.272Z
+blaghicfklakdeloamnjpaoodkpeglbl,Test the Rest!,not_testable,,true,true,false,false,not_testable,,,,,,,,,,,not_testable,,,,,,,,,,,,,,3,20,5,0,9,11,0,,0,24,20.531,2026-10-07T14:19:35.035Z,2026-10-07T14:19:35.035Z
+blhmbnpjfldjoopigndnecfdkemhbmef,实时行情助手火币版 - 实时查看代币涨跌幅,not_working,0,true,true,false,false,broken,,broken,,,,broken,,,,,not_testable,,,,,,,,,,,,,,0,608,5,4,0,0,604,,0,129,34.104,2026-10-07T14:20:13.417Z,2026-10-07T14:20:13.417Z
+kbbclhhljmpmfgameocdhefdpmlimegi,Wordstat Manager,not_working,0,true,true,false,false,,broken,,,,,,,,,not_testable,untested,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The toolbar button is broken because the migration deleted `js/wsm.main.js` (which contained the `chrome.browserAction.onClicked` listener) and replaced it with a `service_worker.js` that lacks the original logic. While the new worker has a `chrome.action.onClicked` listener (line 88), it only opens a tab, whereas the original script handled critical state initialization and message routing.
+
+### Evidence
+- **Reviewer Report**: The toolbar button is explicitly marked as **broken**.
+- **Diff**: The file `js/wsm.main.js` was completely deleted. This file contained the `onMessageHandler` function, which handled `copy2Clipboard`, `getSettings`, and `saveSettings` requests from the content script.
+- **Automated Verification**: The `worker_survives_restart` check failed, suggesting the new service worker is not maintaining the state (the `settings` object) that was previously held in the MV2 background page.
+
+### What would fix it
+The logic from the deleted `js/wsm.main.js` must be ported into `service_worker.js`. Specifically:
+1. Move the `settings` object and the `onMessageHandler` logic into the service worker.
+2. Replace the `document.execCommand('copy')` logic (which doesn't work in workers) with a call to the newly created `offscreen.js` using `chrome.offscreen.createDocument`.
+3. Ensure `chrome.runtime.onMessage.addListener(onMessageHandler)` is called in the service worker to restore communication with the content scripts.",2,1,2,1,0,0,0,,0,32,2.109,2026-10-11T07:32:53.107Z,2026-10-11T07:32:53.107Z
+blndcbbnjekmjhgeaefcdmjijfmgcnjg,BLAST for Seller Central,not_testable,,true,false,true,false,,,,,,,,,not_testable,,not_testable,not_testable,,,,,,,,,needs an account,,needs an account,needs an account,,0,0,0,0,0,0,0,,0,17,35.495,2026-10-07T14:21:20.346Z,2026-10-07T14:21:20.346Z
+adllocmhjliahdanbfnaijobleemnglo,Punkass Kids!! Get Off My Browser,working,1,true,true,false,false,,,,,,,,,,,working,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,24,77.296,2026-10-08T11:02:33.506Z,2026-10-08T11:02:33.506Z
+hhinchjegkfefcpdhkghcinpkkenjgdf,Login to Community (quickly) for Salesforce,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,11,6.961,2026-10-08T11:02:57.674Z,2026-10-08T11:02:57.674Z
+mafjhggcnknolonfdoiecimogilmgjhm,OlyScraper,not_testable,,true,true,false,false,,not_testable,,,,,,,,,,not_testable,,,,,,,,,,,,,,2,10,2,0,0,0,10,,0,23,24.625,2026-10-08T11:03:26.249Z,2026-10-08T11:03:26.249Z
+jnjmfoocddpeelapkbkkiilpgecmlmci,CADLAB.io,not_testable,,true,true,true,false,,not_testable,,,,,,,,,not_testable,not_testable,,needs an account,,,,,,,,,needs an account,needs an account,,3,1,2,1,0,0,0,,0,52,14.113,2026-10-08T11:03:42.110Z,2026-10-08T11:03:42.110Z
+pgeebkoooblfhhckkccbccmefkaapfik,Appian Dev Tools,not_working,0,true,true,false,false,broken,,,,,,broken,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The migration corrupted the bundled JavaScript files (`service_worker.js`, `content.js`) by attempting to remove `eval()` calls and replacing them with a broken mix of the original code and raw metadata (e.g., `[module] data:application/json...`). This introduced widespread `SyntaxError`s, preventing the background worker and popup from executing.
+
+### Evidence
+- **Reviewer Report**: The popup is broken and the context menu (which relies on the background script) is broken.
+- **Automated Verification**: Specifically failed with `SyntaxError: Invalid left-hand side in assignment` during popup rendering and failed the worker restart check.
+- **Unified Diff**: In `service_worker.js` and `content.js`, the migrator replaced `eval(""..."")` blocks with the un-evaluated string content followed by raw source-map metadata. For example, in `service_worker.js`, it inserted `[module] data:application/json...` directly into the executable code path, which is invalid JavaScript syntax.
+
+### What would fix it
+The automated ""de-eval"" process failed on this Webpack bundle. The fix is to revert the changes to the `.js` files and instead use the original bundled files from the MV2 version, ensuring only the `manifest.json` is updated to MV3. If the `eval` calls were removed to satisfy CSP, the extension must be re-bundled using a Webpack configuration that targets a production environment (which avoids `eval` by default) rather than using an automated text-replacement migrator.",0,503,4,2,0,0,501,,0,87,1.77,2026-10-11T07:33:37.073Z,2026-10-11T07:33:37.073Z
+damliljmlfomcpbidlblngfjgmflpomh,Style's Got Mike,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,2,2,2,0,0,0,2,,0,20,69.027,2026-10-08T11:06:23.358Z,2026-10-08T11:06:23.358Z
+hkiecdebiebblkedibdmjcjnmmikplcl,CMUDirectory,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,23,21.846,2026-10-08T11:06:51.244Z,2026-10-08T11:06:51.244Z
+baoehcinncafahkhefhjanpoiikmfccl,AlphaQuotes Motivational Quotes New Tab,working,1,true,true,false,false,,,,working,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,2,43,5,0,0,0,43,,0,22,22.83,2026-10-08T11:07:16.194Z,2026-10-08T11:07:16.194Z
+elkgdelckkldlcejjamdagmbfghichll,Text Tube,not_working,0,true,true,false,false,broken,,,,,,broken,not_testable,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The migration corrupted the JavaScript files by prepending the contents of `eventPage.js` directly onto the start of `runtime.js` and `service_worker.js`. This creates invalid syntax (e.g., multiple webpack bootstrap headers), preventing the background service worker and popup scripts from executing.
+
+### Evidence
+*   **Reviewer Report:** Both the popup and context menu are broken.
+*   **Automated Verification:** The popup failed with `SyntaxError: Unexpected token '}'`, and the worker failed to restart, confirming the scripts are unparseable.
+*   **Diff Analysis:** 
+    *   In `runtime.js`, the diff shows the entire content of the old `eventPage.js` being inserted at line 1, immediately followed by the original `webpackBootstrap` code on the same line.
+    *   `service_worker.js` follows the same pattern, starting with a `webpackJsonp.push` block and then immediately transitioning into a `webpackBootstrap` function without proper separation or module structure.
+
+### What would fix it
+The `service_worker.js` should be a clean bundle. The smallest fix is to remove the prepended `eventPage` code from `runtime.js` and `service_worker.js`, ensuring each file contains only its intended valid JavaScript source. Specifically, `service_worker.js` should likely be a proper merge of the original `eventPage.js` and `runtime.js` logic rather than a literal text concatenation.",0,3,1,0,0,0,3,,0,35,1.989,2026-10-11T07:33:56.102Z,2026-10-11T07:33:56.102Z
+ldncjdbdafdkhbkbknemallpgjpifodl,My Merrys,partially_working,0.5,true,true,false,false,broken,,working,,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,12,44.207,2026-10-08T11:09:05.833Z,2026-10-08T11:09:05.833Z
+maoineplgnaigekhfopdieiahgdjdkam,Karmabot dashboard,working,1,true,true,false,false,,,,working,,,working,,,,,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,18,2.934,2026-10-08T11:09:26.040Z,2026-10-08T11:09:26.040Z
+fbbfeoonjjfkimagopijninbfdddodfh,招聘助手,not_testable,,true,true,true,false,,not_testable,,,,,,not_testable,,,not_testable,not_testable,,needs an account,,,,,,needs an account,,,needs an account,needs an account,,58,9,5,8,0,1,0,,0,95,13.13,2026-10-08T11:09:41.027Z,2026-10-08T11:09:41.027Z
+kbkaadcbdaiobocnpdocjnihcehemhde,Home Cosmetica - Latest News Update,partially_working,0.25,true,true,false,false,partial,,broken,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,16,1,4,0,0,0,1,,0,33,32.613,2026-10-08T11:10:17.360Z,2026-10-08T11:10:17.360Z
+ccnkhcmepilmneogdbpedlampjacacce,Jelly Party,not_working,0,true,true,false,false,broken,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,Permission buttons don't work in neither Mv2 nor mv3,,"--- model's explanation ---
+### Likely cause
+The popup is broken because the background script (now a service worker) calls `browser.tabs.executeScript`, which was removed in Manifest V3. This is confirmed by the automated verification error: `TypeError: l.browser.tabs.executeScript is not a function`.
+
+### Evidence
+- **Reviewer Report**: The popup window is explicitly marked as **broken**.
+- **Automated Verification**: The `popup_renders` check failed with a `TypeError` specifically citing `browser.tabs.executeScript`.
+- **Code**: In `service_worker.js` (and the original `background.js`), the `Ct` function attempts to inject `js/sidebar.js` using `i[""browser""].tabs.executeScript(o, {file: ""js/sidebar.js""})`. This API does not exist in MV3.
+
+### What would fix it
+Replace the `browser.tabs.executeScript` call in `service_worker.js` with the MV3 `chrome.scripting.executeScript` API. 
+
+1. Add the `""scripting""` permission to `manifest.json`.
+2. Update the call to:
+   ```javascript
+   chrome.scripting.executeScript({
+     target: { tabId: o },
+     files: [""js/sidebar.js""]
+   });
+   ```",0,2,1,0,0,0,2,,0,47,2.449,2026-10-11T07:34:27.867Z,2026-10-11T07:34:27.867Z
+pgikkieojfchgigcakidkphfdbpihgpl,Touremind,partially_working,0.5,true,true,false,false,working,,broken,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,0,10,3,4,5,0,1,mv3-non-trivial,1,25,66.434,2026-10-08T11:12:17.238Z,2026-10-08T11:12:17.238Z
+ffaajihcojdgmniajmgeandigjbdkkgb,Readersourcing 2.0: RS_Rate,not_testable,,true,true,true,false,not_testable,,not_testable,,,,,,,,,not_testable,needs an account,,needs an account,,,,,,,,,needs an account,,0,158,114,0,0,0,158,,0,30,11.373,2026-10-08T11:12:36.635Z,2026-10-08T11:12:36.635Z
+fgafanobdbbmbfaamdffcdfbgopokelk,Symfony2 Profiler shortcut,not_working,0,true,true,false,false,not_testable,,broken,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The settings page is broken because the `underscore.js` library was removed from the extension's file structure (deleted in the diff), but it is still required by `js/configuration.js`. This causes a `ReferenceError: _ is not defined` when the options page attempts to execute its logic.
+
+### Evidence
+- **Reviewer Report:** The settings page is explicitly marked as **broken**.
+- **Automated Verification:** The migrator captured multiple `ReferenceError: _ is not defined` errors and a `net::ERR_FILE_NOT_FOUND` error, specifically noting that `options_renders` failed.
+- **Diff:** The file `js/libs/underscore.js` was completely deleted. However, `js/configuration.js` (which runs on the options page) continues to use Underscore methods like `_.each` (e.g., in `getDefaultValue` and `getConfigurationKey`).
+
+### What would fix it
+Restore the `js/libs/underscore.js` file to the project and ensure it is loaded in the `options.html` page via a `<script>` tag before `js/configuration.js` is loaded.",11,20,3,16,0,2,2,,0,83,2.924,2026-10-11T07:34:55.183Z,2026-10-11T07:34:55.183Z
+eoojigjmgmaifeejbccfhnhedmjmnhdb,KURT Seguros,working,1,true,true,false,false,,working,,,,not_testable,,,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,21,39.038,2026-10-08T11:13:50.322Z,2026-10-08T11:13:50.322Z
+palfmbecnjlbjmnjiflmkpnpjmlcgfke,RD1,partially_working,0.5,true,true,false,false,partial,,,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,6,1,2,0,1,0,0,,0,69,7.599,2026-10-08T11:14:15.769Z,2026-10-08T11:14:15.769Z
+cgjhiddkdoogbpnlkdddodcckhdodfep,閲覧履歴ポップアップ検索,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,8.004,2026-10-08T11:14:40.471Z,2026-10-08T11:14:40.471Z
+hgmdeeoighmhomddlghfjcidkdcpbllf,Tabs Killer,not_working,0,true,true,false,false,broken,,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup is broken because the migration replaced the call to `chrome.extension.getBackgroundPage()` (which is removed in MV3) with a `require(['settings'], ...)` call in `popup.js` (line 1), but the `settings` module is likely not configured or available to the popup's script loader.
+
+### Evidence
+- **Reviewer Report:** The popup window is explicitly marked as **broken**.
+- **Diff:** In `popup.js`, the migrator removed the logic that accessed the background page's `GlobalObject` and replaced it with a dependency on a `settings` module.
+- **Context:** In MV3, background pages are replaced by Service Workers, which cannot be accessed via `getBackgroundPage()`. The migrator attempted to pivot to a module-based approach for settings, but since the popup relies on `require.js` (which is also heavily patched in the diff to avoid MV3 errors), the dependency resolution is likely failing.
+
+### What would fix it
+The `settings` logic needs to be moved to a shared utility file (e.g., `js/settings.js`) that uses `chrome.storage.local` or `chrome.storage.sync` to persist and retrieve data. Both the service worker and the popup should import this shared module to synchronize state, rather than attempting to access a background page object.",0,3,3,0,1,0,2,,0,40,1.921,2026-10-11T07:35:10.028Z,2026-10-11T07:35:10.028Z
+haimmmglahdcjolpldbbjdehfcihjlim,abctx,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,17,22.202,2026-10-08T11:15:55.028Z,2026-10-08T11:15:55.028Z
+ihdanbaefbkjdfpkoaeghlhlojepjjgk,Gist User Script Manager,not_working,0,true,true,false,false,,,,,,broken,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The DevTools panel is broken because the migration removed `'unsafe-eval'` from the Content Security Policy (CSP) in `manifest.json` (line 16). The extension relies on `eval()` for its bundled Monaco Editor language definitions (e.g., `js/9.js`, `js/15.js`), which is now blocked by the stricter MV3 default policy.
+
+### Evidence
+- **Reviewer Report**: The DevTools panel is explicitly marked as **broken**.
+- **Diff**: The `content_security_policy` was changed from `""script-src 'self' 'unsafe-eval' ...""` to `""extension_pages"": ""script-src 'self'""` in `manifest.json`.
+- **Code**: Numerous files (e.g., `js/9.js`, `js/15.js`, `js/25.js`) originally contained `eval()` calls wrapping the language definitions. While the migrator attempted to ""unwrap"" these `eval` calls into plain JavaScript, the underlying bundled code (likely from a Webpack build) still requires `eval` or dynamic code execution for its module loading system.
+
+### What would fix it
+MV3 does not allow `'unsafe-eval'` in the manifest CSP for extension pages. To fix this, the extension's build process must be updated to use a non-eval-based source map or module format (e.g., changing the Webpack `devtool` setting from `eval` to `source-map` or `none`) and then rebuilding the project. A manifest-only change cannot restore `unsafe-eval`.",0,368,9,0,0,0,368,,0,26,2.122,2026-10-11T07:35:47.921Z,2026-10-11T07:35:47.921Z
+lobmpnlkbikhiibppcbicddmldmpofjh,Hottours CRM,working,1,true,true,false,false,working,,,,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,3,0,1,0,0,0,0,,0,39,50.89,2026-10-08T11:18:16.305Z,2026-10-08T11:18:16.305Z
+hhppgklamoagmdbbcbeigekfhhhhbnbb,Tab Manager,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,19,1,0,0,0,19,,0,12,23.926,2026-10-08T11:18:57.555Z,2026-10-08T11:18:57.555Z
+odadhnmcileiicgebapaoignoeggpccb,Weibo Photo Eraser,working,1,true,true,false,false,working,,working,,,,,,,,working,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,118.617,2026-10-08T11:20:57.847Z,2026-10-08T11:20:57.847Z
+iekallpaneiiojokfppnpckdebnkeidj,Codeplug.in [Generic Version],working,1,true,true,false,false,,working,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,7,16.207,2026-10-08T11:21:16.324Z,2026-10-08T11:21:16.324Z
+dfabnoahjnbkpfpadnngfiamnmombjmc,ThingamaTABS,not_working,0,false,true,false,false,broken,,,broken,,,,,,,,,does not install,,,does not install,,,,,,,,,"Failed to load extension from: /private/var/folders/cb/cw_18b2d6fgdfzjwpf7t1bdr0000gn/T/extlens-ssh-XbgNso/dfabnoahjnbkpfpadnngfiamnmombjmc/mv3/out. 'content_security_policy.extension_pages': Insecure CSP value ""'sha256-fkuUI8MmmMWPrnfKUvGyRmAmBEWbgzYr3YBsnvrn6mA='"" in directive 'script-src'.
+
+--- model's explanation ---
+### Likely cause
+The extension fails to load because the `manifest.json` contains an invalid Content Security Policy (CSP). Specifically, it includes a SHA-256 hash in the `script-src` directive, which is not permitted for extension pages in Manifest V3.
+
+### Evidence
+- **Reviewer's Report**: The extension ""does not install"" with the explicit error: `'content_security_policy.extension_pages': Insecure CSP value ""'sha256-fkuUI8MmmMWPrnfKUvGyRmAmBEWbgzYr3YBsnvrn6mA='"" in directive 'script-src'`.
+- **Unified Diff**: The migrator moved the MV2 `content_security_policy` string into the MV3 `content_security_policy.extension_pages` object (lines 17-19), preserving the hash values from the original manifest.
+- **MV3 Specification**: Manifest V3 prohibits the use of hashes or nonces in the CSP for extension pages to prevent the execution of remotely hosted or dynamically generated code.
+
+### What would fix it
+Remove all `'sha256-...'` hash values and `'unsafe-eval'` from the `content_security_policy.extension_pages` directive in `manifest.json`. If the extension relies on these hashes to execute inline scripts, those scripts must be moved into external `.js` files and linked via `<script src=""..."">`.",0,4,4,0,0,0,4,,0,34,2.416,2026-10-11T07:36:13.522Z,2026-10-11T07:36:13.522Z
+hkemkgpbjkglonlpilanmeaoahgkhmcn,Unit Converter,working,1,true,true,false,false,working,,,,,,,,,,,working,,,,,,,,,,,,,,2,2,2,0,2,0,0,,0,15,92.553,2026-10-08T11:23:07.838Z,2026-10-08T11:23:07.838Z
+miflofidoigplobekjhhhjmbopdlbfgl,Betting Calculator,working,1,true,true,false,false,working,,not_testable,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,20,8.583,2026-10-08T11:23:33.229Z,2026-10-08T11:23:33.229Z
+mflhkebbldohmljnahnalenngfmlbble,Hell Rabbits Live,working,1,true,true,false,false,working,,,,,,,not_testable,,,,untested,,,,,,,,,,,,,,4,90,2,90,0,0,0,,0,37,30.242,2026-10-08T11:24:05.547Z,2026-10-08T11:24:05.547Z
+ajiemnfobhbjbjlnlgmidkbnejlffmmi,Noisli,not_working,0,true,true,false,false,broken,,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The popup is broken because the migration removed an inline Google Analytics script from `index.html` (diff lines 1-1) but failed to provide an alternative, and the new `content_security_policy` (diff lines 26-28) strictly forbids inline scripts (`script-src 'self'`).
+
+### Evidence
+*   **Reviewer Report:** The popup window is explicitly marked as **broken**.
+*   **Diff (`index.html`):** The migration stripped a large `<script>` block containing the Google Analytics initialization from the `<head>` of the popup.
+*   **Diff (`manifest.json`):** The MV2 manifest had a CSP that allowed a specific SHA-256 hash for that inline script. The MV3 manifest replaces this with `""script-src 'self'; object-src 'self'""`, which blocks all inline scripts.
+*   **Runtime Error:** While not explicitly listed in the report, the combination of removing the script and tightening the CSP often leads to execution failures if the remaining bundled JS (`runtime-index.ee9c4f9c.js`, etc.) depends on the `ga` object being globally defined.
+
+### What would fix it
+Move the Google Analytics initialization code from the deleted inline block in `index.html` into a separate `.js` file (e.g., `analytics.js`) and include it via a `<script src=""analytics.js""></script>` tag in `index.html`. This complies with the MV3 CSP while restoring the missing functionality.",0,1,1,0,0,0,1,,0,30,2.385,2026-10-11T07:36:35.197Z,2026-10-11T07:36:35.197Z
+mebhnnfdhipfhjaebnboibcdkdipjddj,Screenshot Capture,not_working,0,true,true,false,false,,broken,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The toolbar button is broken because the background script now runs as a Service Worker, which cannot access the `window` object or extension views via `chrome.extension.getViews()`. The migrator attempted to replace this with `chrome.scripting.executeScript` (background.js:16), but this fails because the target is an internal extension page (`screenshot.html`), which is restricted.
+
+### Evidence
+- **Reviewer Report:** The toolbar button is ""broken,"" meaning the primary action (capturing and displaying a screenshot) fails.
+- **Diff:** In `background.js`, the MV2 code used `chrome.extension.getViews()` to find the open `screenshot.html` tab and call `view.setScreenshotUrl(screenshotUrl)` directly.
+- **Diff:** The MV3 version replaces this with `chrome.scripting.executeScript`. However, `chrome.scripting` cannot execute scripts on `chrome-extension://` URLs (internal pages), causing the screenshot URL to never be passed to the display page.
+
+### What would fix it
+The most reliable fix is to use `chrome.runtime.sendMessage` to send the `screenshotUrl` to the `screenshot.html` page.
+
+1. **In `background.js`**: Replace the `chrome.scripting.executeScript` block with:
+   ```javascript
+   chrome.tabs.sendMessage(tabId, {url: screenshotUrl});
+   ```
+2. **In `screenshot.js`** (or the script loaded by `screenshot.html`): Add a listener to receive the message:
+   ```javascript
+   chrome.runtime.onMessage.addListener((message) => {
+     if (message.url) setScreenshotUrl(message.url);
+   });
+   ```",12,155,7,0,0,155,0,,0,29,2.29,2026-10-11T07:37:00.709Z,2026-10-11T07:37:00.709Z
+nlllffpgjfkgoagldkdphnabhndmdfom,Theken Texte,not_working,0,true,true,false,false,broken,,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup crashes because it expects a response object containing `subtitle_url`, but the `service_worker.js` message listener is returning `undefined` or `null` when no data is stored.
+
+### Evidence
+- **Reviewer/Automated Report**: The popup fails with `TypeError: Cannot read properties of null (reading 'subtitle_url')` at `popup.js:273:26`.
+- **Code Change**: In MV2, `background.js` used a local variable `response_obj` which was set during `initExtension`. In MV3, `service_worker.js` (lines 123-129) attempts to retrieve this data from `chrome.storage.local`.
+- **The Bug**: If `chrome.storage.local.get('current_video_data', ...)` finds no data, `res.current_video_data` is `undefined`. The popup receives this `null`/`undefined` value and crashes when trying to access `.subtitle_url`.
+
+### What would fix it
+Modify the message listener in `service_worker.js` to provide a fallback empty object instead of `undefined`:
+
+```javascript
+chrome.runtime.onMessage.addListener((msg, sender, response) => {
+	if (msg.from === 'subtitle_popup' && msg.subject === 'ard_subtitle_data') {
+		chrome.storage.local.get('current_video_data', (res) => {
+			response(res.current_video_data || {}); // Fallback to empty object
+		});
+		return true;
+	}
+});
+```",3,3,2,2,0,1,0,,0,15,2.998,2026-10-11T07:37:21.428Z,2026-10-11T07:37:21.428Z
+gjhomgniaideemmkianiahiffejoiiof,Btools,working,1,true,true,false,false,working,,working,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,20,332.577,2026-10-08T11:31:52.165Z,2026-10-08T11:31:52.165Z
+idjoiihokgcjamodpblidfgcapoganng,«Фабрика объявлений»,partially_working,0.5,true,true,false,false,partial,,,,,,not_testable,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,4,1,2,0,1,0,0,,0,23,96.452,2026-10-08T11:33:30.940Z,2026-10-08T11:33:30.940Z
+dkhleleeagmdkdfcknkdjnmbnlknniaf,Rapid Donor,not_testable,,true,true,true,false,not_testable,,not_testable,,,,,,,,not_testable,not_testable,needs an account,,needs an account,,,,,,,,needs an account,needs an account,,4,1,4,1,0,0,0,,0,24,55.622,2026-10-08T11:34:28.469Z,2026-10-08T11:34:28.469Z
+cfodmpfppkdledadbdaidmgghhgmkdni,Boom Beach Search,not_working,0,true,true,false,false,broken,,,,,,,,,,broken,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup is broken because the migration changed absolute paths to relative paths (e.g., `/js/config.js` to `../js/config.js`) in `html/popup.html`, which are incorrect for the extension's directory structure. Additionally, the content scripts are likely failing because `js/config.js` was stripped of essential configuration properties during migration.
+
+### Evidence
+- **Popup:** The migrator's verification explicitly failed with `net::ERR_FILE_NOT_FOUND` for the popup. The diff shows `html/popup.html` was changed to use `../` prefixes for all CSS and JS files. Since the popup is in the `html/` folder, `../js/config.js` would look for the file in the root, but the MV2 paths (`/js/config.js`) were already correct for Chrome extensions.
+- **Page Interaction:** The reviewer reported page interaction is broken. The diff for `js/config.js` shows that almost the entire `SMAEXT.config` object (including `searchUrl` and `icons`) was deleted, leaving only `injectTimeOut` and `amazon` settings. Any content script relying on the deleted config properties will crash.
+
+### What would fix it
+1. **Restore `html/popup.html` paths:** Revert the changes to the `<link>` and `<script>` tags, removing the `../` prefixes and returning to the original paths (e.g., `js/config.js`).
+2. **Restore `js/config.js`:** Restore the deleted `searchUrl`, `searchBoxPlaceholder`, `logo`, and `icons` properties to the `SMAEXT.config` object.",2,0,2,0,0,0,0,,0,29,3.243,2026-10-11T07:37:43.950Z,2026-10-11T07:37:43.950Z
+bleldoicciehkibfgnpmelglegmmgcnj,Audio Recorder,not_working,0,true,true,false,false,broken,,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The popup is broken because the migration removed the `content_security_policy` (CSP) that allowed external scripts from `cdn.jsdelivr.net`, `apis.google.com`, and others. In MV3, the new CSP (manifest.json:46) restricts scripts to `'self'`, blocking the external libraries the extension relies on.
+
+### Evidence
+- **Reviewer Report**: The popup window is explicitly marked as **broken**.
+- **Diff**: The MV2 manifest contained a broad `content_security_policy` string allowing multiple remote domains (e.g., `https://cdn.jsdelivr.net`, `https://apis.google.com/`). The MV3 manifest replaces this with a strict object: `""extension_pages"": ""script-src 'self'; object-src 'self'""` (manifest.json:46-48).
+- **Code**: The extension uses Firebase and other libraries (seen in `background.js` and the added `lib/` files), which typically require these external connections or were previously loaded via the allowed CSP.
+
+### What would fix it
+MV3 does not allow remote script execution via CSP. To fix this, all external scripts (like those from `jsdelivr` or `google.com`) must be downloaded and bundled locally within the extension package. Once all dependencies are local, the `'self'` policy will allow them to run.",4,53,32,0,0,0,53,,0,40,2.643,2026-10-11T07:38:16.146Z,2026-10-11T07:38:16.146Z
+ffheidicfkochodegnbhiflcllaaefhi,Bättre Nyheter,working,1,true,true,false,false,working,,working,,,,,,,,not_testable,,,,,,,,,,,,,,,1,1,1,0,0,0,1,,0,13,41.334,2026-10-08T11:36:17.846Z,2026-10-08T11:36:17.846Z
+mmkmmgdmglbhgogpaepmhhbecdilgoee,Think Help Desk,working,1,true,true,false,false,working,,working,,,,,,,,,not_testable,,,,,,,,,,,,,,0,15,1,15,0,0,0,,0,52,51.71,2026-10-08T11:37:11.781Z,2026-10-08T11:37:11.781Z
+pimjgeemhpcfodpeklckmhjeodaiggig,Trends v2 for YouTube™,working,1,true,true,false,false,working,,working,,,,working,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,5,1,1,1,0,0,0,,0,18,109.56,2026-10-08T11:39:02.950Z,2026-10-08T11:39:02.950Z
+dedcmfbnakehkhniojlfofffmemedhee,MangoSigns Chrome Player,partially_working,0.5,true,true,false,false,,working,,,,,broken,,,,,not_testable,,,,,,,,,,,,,,2,1,1,1,0,0,0,,0,8,44.982,2026-10-08T11:39:49.681Z,2026-10-08T11:39:49.681Z
+adhdbclaplninpalnlcgaooncbkjocmp,IHeader,partially_working,0.125,true,true,false,false,partial,,broken,,,,broken,not_testable,broken,,not_testable,not_testable,,,,,,,,,,,,,,4,47,4,41,2,4,0,,0,37,143.06,2026-10-08T11:42:14.642Z,2026-10-08T11:42:14.642Z
+adnjlnpdndicafchbglghieljplkhphk,English Words 300+,not_testable,,true,true,true,false,not_testable,,,,,,not_testable,,,,not_testable,not_testable,needs an account,,,,,,needs an account,,,,needs an account,needs an account,,5,0,2,0,0,0,0,,0,135,15.474,2026-10-08T11:42:31.727Z,2026-10-08T11:42:31.727Z
+dfinmoanpfepmadmnihefempeefdekhi,Kick me off,working,1,true,true,false,false,working,,,,,,,,,,,working,,,,,,,,,,,,,,3,0,1,0,0,0,0,,0,8,99.221,2026-10-08T11:44:13.306Z,2026-10-08T11:44:13.306Z
+aedcegbncjgdbpdodemfbimfdilimfda,Avionte Echo,partially_working,0.5,true,true,false,false,partial,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,8,7,4,3,0,4,0,,0,39,29.193,2026-10-08T11:44:44.150Z,2026-10-08T11:44:44.150Z
+fnfpdeaijfjmaehhkpdnoieimohodbcm,Alpaka.express для веб-мастеров,working,1,true,true,false,false,working,,,,,,,,,,,not_testable,,,,,,,,,,,,,,6,1,2,1,0,0,0,,0,12,24.131,2026-10-08T11:45:10.649Z,2026-10-08T11:45:10.649Z
+gamcmmbgkgadkkionimkedkaighlgaga,Keep Colorado Green Facebook Banking,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,50,0,1,0,0,0,0,,0,11,22.599,2026-10-08T11:45:42.012Z,2026-10-08T11:45:42.012Z
+hholgmphhacfggakbffioccbmcnmkckg,cookie快速模拟,working,1,true,true,false,false,working,,,,,,,,,,,not_testable,,,,,,,,,,,,,,5,0,1,0,0,0,0,,0,18,42.615,2026-10-08T11:46:26.570Z,2026-10-08T11:46:26.570Z
+piklbpeioeheblaifhlfhgeegdgkcpga,Firefly,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,18,22.626,2026-10-08T11:47:02.914Z,2026-10-08T11:47:02.914Z
+nildjgafogjpahlklpncffffdnljkgbo,Tesco Groceries TPNB Viewer,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,needs an account,needs an account,,1,0,1,0,0,0,0,,0,9,24.639,2026-10-08T11:47:29.425Z,2026-10-08T11:47:29.425Z
+gdphgdnpciikoelfiganamhapemjhjdb,Chanta,working,1,true,false,false,false,working,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,15,22.956,2026-10-08T11:48:02.128Z,2026-10-08T11:48:02.128Z
+igbaaplkmhfcfempadclobapcobgfnhc,JCT - Login,not_testable,,true,true,true,false,,,not_testable,,,,,,,,not_testable,,,,needs an account,,,,,,,,needs an account,,,2,0,2,0,0,0,0,,0,8,3.682,2026-10-08T11:48:22.586Z,2026-10-08T11:48:22.586Z
+dpnlficaljgoljhpoomkhfnodjnbcklm,FinnPluss - Ekstra funksjoner til finn.no,not_working,0,true,true,false,false,broken,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The popup is crashing due to a `TypeError` in `URI.js` (called by `popup.js`), likely because it is attempting to parse a URL that is now `undefined`. This is often caused by the migration from `chrome.pageAction` to `chrome.action`, which changes how the extension retrieves the current tab's URL or state.
+
+**Evidence**
+- **Reviewer Report:** The popup window is explicitly marked as **broken**.
+- **Automated Verification:** The `popup_renders` check failed with a specific stack trace: `TypeError: undefined is not a valid argument for URI` at `popup.js:39:14` $\rightarrow$ `URI.js:26:454`.
+- **Diff:** The manifest was updated from `page_action` to `action`. While the logic in `popup.js` isn't shown in the diff, the error indicates that a variable expected to be a URI string is now `undefined` when the popup opens.
+
+**What would fix it**
+Inspect `popup.js` around line 39. Ensure that the code used to retrieve the active tab's URL (e.g., `chrome.tabs.query`) is correctly handling the asynchronous response and that the URL is actually defined before passing it to the `URI` constructor. If it relies on `chrome.extension.getActiveTab` (deprecated), it should be updated to `chrome.tabs.query({active: true, currentWindow: true})`.",1,0,1,0,0,0,0,,0,6,3.013,2026-10-11T07:38:34.362Z,2026-10-11T07:38:34.362Z
+bccdohmacgkihojgdefakdhhdccpclpk,Download Images,not_working,0,true,true,false,false,,broken,not_testable,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The toolbar button is broken because the migration deleted `js/save-images.js`, which contained the primary `chrome.runtime.onMessage` listener responsible for handling the extension's core logic (e.g., `get-images`, `save-images`). While the migrator bundled some code into `service_worker.js`, it appears to have omitted the logic from `js/save-images.js` entirely.
+
+### Evidence
+- **Reviewer Report**: The toolbar button is ""broken,"" and the preserved-behaviour score is 0.
+- **Diff**: The file `mv2/js/save-images.js` was completely removed (lines 1-274 deleted), and its contents—specifically the large `chrome.runtime.onMessage` block handling image collection and downloading—are missing from the new `mv3/service_worker.js`.
+- **Automated Verification**: The `worker_survives_restart` check failed, suggesting the service worker may be crashing or missing essential event listeners required to maintain state/functionality.
+
+### What would fix it
+The logic from `mv2/js/save-images.js` must be ported to the MV3 service worker. Specifically:
+1. Re-implement the `chrome.runtime.onMessage` listener from `js/save-images.js` inside `service_worker.js`.
+2. Update any remaining `chrome.tabs.executeScript` calls within that logic to use the `chrome.scripting.executeScript` API (as seen in the `onClicked` handler at `service_worker.js:22`).
+3. Ensure the `JSZip` library remains available to the service worker for the zipping functionality.",8,14,1,14,0,0,0,,0,40,2.371,2026-10-11T07:39:03.663Z,2026-10-11T07:39:03.663Z
+cjfcggncifmbgbmndiplmoebchjfifbn,TabAddict,working,1,true,true,false,false,,working,working,,,,,,,,,not_testable,,,,,,,,,,,,,,6,3,3,0,3,0,0,,0,13,85.113,2026-10-08T11:51:16.280Z,2026-10-08T11:51:16.280Z
+eleicddmliaclipkmdgghdeikiejgpcl,HealthFin Data Collector,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,6,0,1,0,0,0,0,,0,10,9.112,2026-10-08T11:51:36.994Z,2026-10-08T11:51:36.994Z
+hojdaeaggpookhlhhilkbibkfbnmpgpa,Etsy - Export payments,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,122.398,2026-10-08T11:53:55.880Z,2026-10-08T11:53:55.880Z
+gegmhbfkagnmenmbbgghgkdhflmidmga,Indians.com FanMail Extension,working,1,true,true,false,false,,,,,,,,,,,working,not_testable,,,,,,,,,,,,,,3,3,4,1,0,0,2,,0,12,45.964,2026-10-08T11:54:43.558Z,2026-10-08T11:54:43.558Z
+fkbmkefjindoajppnnjoanipjpgehogg,TabHome,not_working,0,true,true,false,false,,broken,not_testable,,,,broken,,broken,broken,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is completely broken because the background script was migrated to a Service Worker, but the original code (a large bundled file) likely relies on a persistent DOM environment or global state that is not supported in MV3. Additionally, the `worker_survives_restart` check failed, indicating the Service Worker is crashing or failing to initialize.
+
+### Evidence
+- **Reviewer Report**: Every single interactive surface (Toolbar button, Context menu, Keyboard shortcuts, Omnibox) is reported as **broken**. This indicates a total failure of the background logic.
+- **Automated Verification**: The `worker_survives_restart` test failed, confirming the background service worker is unstable.
+- **Diff**: The migration replaced `background.js` (MV2 persistent page) with `service_worker.js` (MV3 worker). The code is a massive minified bundle. Such bundles often use `window` or `document` objects, which are unavailable in Service Workers, causing immediate runtime crashes.
+
+### What would fix it
+Since the background logic is a minified bundle, the smallest fix is to:
+1. Check the Service Worker console for `window is not defined` or `document is not defined` errors.
+2. If the bundle requires a DOM, the logic must be refactored to remove DOM dependencies or moved to an offscreen document.
+3. Ensure all event listeners (e.g., `chrome.commands.onCommand`, `chrome.contextMenus.onClicked`) are registered at the top level of `service_worker.js` to prevent them from being garbage collected when the worker goes idle.",0,0,0,0,0,0,0,,0,20,1.907,2026-10-11T07:39:30.887Z,2026-10-11T07:39:30.887Z
+knhjbhkpdfmlmjiaepkppgcijhanmiem,South Schedule,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,23,18.84,2026-10-08T11:57:00.433Z,2026-10-08T11:57:00.433Z
+kclkakodphjhmpeoboogpgipinfmocdk,FullyFeedly,partially_working,0.5,true,true,false,false,,not_testable,working,,,,,,,,broken,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,7,51.831,2026-10-08T11:57:53.968Z,2026-10-08T11:57:53.968Z
+nomgnakdcocgebhibakhmgfknacokffc,Timetable Automator - 025,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,11,12.824,2026-10-08T11:58:08.358Z,2026-10-08T11:58:08.358Z
+lokeeijgkleggipidkdfkflopoolaenn,CanJS DevTools,partially_working,0.5,true,true,false,false,working,,,,,broken,,,,,not_testable,not_testable,,,,,,,,,,,,,,3,96,64,0,0,0,96,,0,40,87.59,2026-10-08T12:00:10.774Z,2026-10-08T12:00:10.774Z
+maefomipmebljabfchjchooccjdhhckb,Lájkvadász stop!,not_working,0,true,true,false,false,,broken,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The toolbar button is broken because the service worker attempts to access `tab.url` in `service_worker.js:4` without the necessary `tabs` host permissions. While the extension has the `tabs` permission, that only grants access to basic tab properties; reading the `url` property requires host permissions for the sites being accessed.
+
+**Evidence**
+- **Reviewer Report:** The toolbar button is explicitly marked as **broken**.
+- **Code:** In `service_worker.js`, the `checkForValidUrl` function relies on `tab.url.match(...)` to determine if the action should be enabled.
+- **Manifest:** The `manifest.json` contains `""permissions"": [""tabs""]` but has no `host_permissions`. In Manifest V3, `tabs` permission does not grant access to the `url` property of the `tabs.Tab` object; host permissions are required for this.
+
+**What would fix it**
+Add the target domains to the `host_permissions` field in `manifest.json`. The simplest fix is to copy the match patterns from the `content_scripts` section into a new `host_permissions` array:
+
+```json
+""host_permissions"": [
+  ""*://*.likeolda.hu/*"",
+  ""*://*.locitrom.hu/*"",
+  ""*://*.lopom.hu/*"",
+  ""*://*.napi5perc.blogspot.hu/*"",
+  ""*://*.hir27.in/*"",
+  ""*://*.ilyennincs.com/*"",
+  ""*://*.mindenegyben.info/*"",
+  ""*://*.ezkutya.eu/*"",
+  ""*://*.bodzaszorp.com/*"",
+  ""*://*.video-perc.net/*"",
+  ""*://*.eszement.com/*""
+]
+```",1,0,1,0,0,0,0,,0,5,2.871,2026-10-11T07:39:48.707Z,2026-10-11T07:39:48.707Z
+liinipoackgjljefijdlcpgloajlldil,Slang - Text to Speech,partially_working,0.5,true,true,false,false,partial,,,,,,not_testable,not_testable,,,,not_testable,,,,,,,,,,,,,,2,3,2,3,0,0,0,,0,20,27.365,2026-10-08T12:01:35.603Z,2026-10-08T12:01:35.603Z
+hdifgcbbielfnleajkgbelepjookhcji,Trilliant - Product Reviews with Pictures,not_testable,,true,true,false,false,,not_testable,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,1,1,2,0,0,0,1,,0,27,12.863,2026-10-08T12:01:51.769Z,2026-10-08T12:01:51.769Z
+gmphmnmdmcdlejpeldlpnkhifppmanca,SNAILPLAY,not_working,0,true,true,false,false,,broken,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The toolbar button is broken because the extension lacks the necessary host permissions to fetch the Twitch status from `snailkick.ru`. While the migrator updated the code to use `fetch` in `background.js`, it did not add the required domain to `host_permissions` in `manifest.json`.
+
+### Evidence
+- **Reviewer Report**: The toolbar button is marked as **broken**.
+- **Diff**: The MV3 `manifest.json` has `""host_permissions"": none` (implied by the absence of the key in the diff's final state).
+- **Code**: `background.js:21` attempts to `fetch('https://snailkick.ru/twitch/twitch.php...')`. In Manifest V3, requests to remote servers require explicit host permissions. Without them, the fetch fails, the offscreen document is never signaled to animate the icon, and the extension's primary logic fails.
+
+### What would fix it
+Add the required host permission to `manifest.json`:
+
+```json
+""host_permissions"": [
+  ""https://snailkick.ru/*""
+]
+```",3,0,1,0,0,0,0,,0,18,8.398,2026-10-11T07:40:11.150Z,2026-10-11T07:40:11.150Z
+pnbfiinedmemhcdgfkniadoeomlgkkbn,YMusic Play,working,1,true,true,false,false,,working,,,,,,not_testable,,,not_testable,untested,,,,,,,,,,,,,,8,0,3,0,0,0,0,,0,19,30.327,2026-10-08T12:02:34.324Z,2026-10-08T12:02:34.324Z
+ifddjhjeeeahbfboonedjbpbfojidadh,HoloPlayer for Facebook,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,6,12.602,2026-10-08T12:02:48.889Z,2026-10-08T12:02:48.889Z
+jmlodgfmibdmnoancjhgdgdgaclokhgi,List Builder for Twitter,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,0,0,0,0,0,0,0,,0,8,6.449,2026-10-08T12:02:56.891Z,2026-10-08T12:02:56.891Z
+mmojfhbllhldeklecnmifbnelpklepin,sc10n bookmarklet,not_testable,,true,true,true,false,not_testable,,,,,,,not_testable,,,,not_testable,needs an account,,,,,,,needs an account,,,,needs an account,,0,0,0,0,0,0,0,,0,26,5.851,2026-10-08T12:03:05.151Z,2026-10-08T12:03:05.151Z
+nkdepmnfhdjfbebdfpahbnhfafmglidi,Word Count,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,7,6.035,2026-10-08T12:03:16.962Z,2026-10-08T12:03:16.962Z
+bndfdncjampimpibnblidhoepkhbpeaa,Tabby Face,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,7.865,2026-10-08T12:03:26.440Z,2026-10-08T12:03:26.440Z
+pmpfhpljobmccilgndcgibmbmjdpapfo,Imieniny. Życzenia na każdą okazję.,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,2.751,2026-10-08T12:03:37.286Z,2026-10-08T12:03:37.286Z
+ajkhhbbojkdghjfdmiekadmeplhehppa,LeadDesk Talk,not_working,0,true,true,false,false,,broken,broken,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken because the `options.html` page no longer loads the necessary logic to initialize the UI, and the `service_worker.js` fails to maintain state (specifically `parsedPatterns`) across restarts.
+
+### Evidence
+1.  **Settings Page**: The diff shows that `<script src=""../js/prefManager.js""></script>` was removed from `html/options.html`. While `prefManager` was moved into the service worker, `options.js` relies on `chrome.runtime.sendMessage` to communicate with it. If the service worker is inactive or crashes, the options page will fail to load.
+2.  **Toolbar Button**: The reviewer reports this is broken. The service worker's `chrome.action.onClicked` handler relies on `prefManager.getCharPref` and `loadDefaultPatterns`.
+3.  **State Loss**: The migrator's verification explicitly failed `worker_survives_restart`. In MV3, service workers are ephemeral. The `parsedPatterns` variable is stored in global memory (`service_worker.js:65`), meaning it is wiped whenever the worker terminates. Any feature relying on these patterns (like the toolbar action or options list) will fail after the worker sleeps.
+
+### What would fix it
+1.  **Persist Patterns**: Move `parsedPatterns` from a global variable to `chrome.storage.local` so it survives service worker termination.
+2.  **Verify Options Logic**: Ensure `options.js` handles cases where the service worker is not yet ready to respond to `sendMessage` calls during page load.
+3.  **Fix Initialization**: Ensure `prefManager.init()` and `loadDefaultPatterns()` are called reliably on worker startup (they are currently in an IIFE, but the data they produce is not persisted).",3,15,4,10,2,3,0,,0,28,1.658,2026-10-11T07:40:59.602Z,2026-10-11T07:40:59.602Z
+neokdbgnoimplhcenmmbjabdhhjbmbdb,TopGrading - JobVite Plugin,not_testable,,true,true,true,false,not_testable,,,,,,,,,,,,needs an account,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,12,1.749,2026-10-08T12:04:19.754Z,2026-10-08T12:04:19.754Z
+gedegpjjmmhgiccmigekiedmhdedgmpi,Find+,working,1,true,true,false,true,working,,working,,,,,,,,working,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,10,36.85,2026-10-08T12:04:58.685Z,2026-10-08T12:04:58.685Z
+bhjpefidnkhmieflmgbjibmkpnaemilo,Github Code Review,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,8,6.038,2026-10-08T12:05:06.405Z,2026-10-08T12:05:06.405Z
+hafpbfgcfiaphbmmagehgpcjkbebfofp,Ticket Master Data,not_testable,,true,true,true,false,not_testable,,,,,,,,,,,,needs an account,,,,,,,,,,,,,1,9,2,0,0,0,9,,0,12,1.936,2026-10-08T12:05:13.377Z,2026-10-08T12:05:13.377Z
+jkkajfdlllklkdogdliiekiifkohbind,Minimalist for Everything,partially_working,0.5,true,true,false,false,working,,broken,,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,43,30,22,15,0,0,15,,0,39,40.42,2026-10-08T12:06:13.156Z,2026-10-08T12:06:13.156Z
+pekjcpfadgjcbjjeajojbpkaifljlglf,SGM+,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,10,1,10,0,0,0,,0,38,9.775,2026-10-08T12:06:25.018Z,2026-10-08T12:06:25.018Z
+ppncdbmpkkfhipeplkdknanbmomaeplo,Vk Promo,working,1,true,true,false,false,,working,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,1,58,30,0,0,0,58,,0,26,14,2026-10-08T12:07:14.769Z,2026-10-08T12:07:14.769Z
+ijanbjhbpglkhncjadppmcnooicdkljd,Page to wireframe,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,3,0,1,0,0,0,0,,0,9,3.802,2026-10-08T12:07:42.916Z,2026-10-08T12:07:42.916Z
+jhblcjicpdjbeinhjbmfjnijncbklclh,Noteletter,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,0,1,1,0,0,0,1,,0,38,5.08,2026-10-08T12:07:52.044Z,2026-10-08T12:07:52.044Z
+nkdlgjklfeekokeeidfelpdhkpbonhho,Whats The Expression,not_testable,,true,true,false,false,,,,,,,,not_testable,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,15,9.434,2026-10-08T12:08:21.070Z,2026-10-08T12:08:21.070Z
+adffhnigbmemfmcgndacjdmpeagmhmhb,Gerador de CPF/CNPJ,working,1,true,false,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,18,10.508,2026-10-08T12:08:48.051Z,2026-10-08T12:08:48.051Z
+dphbcfdndilkgccpjkaihiaoccfmkekn,无错字 - 中文智能校对,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,18,20.161,2026-10-08T12:09:09.962Z,2026-10-08T12:09:09.962Z
+ihmogkmilpcjjflgahkelgnjmcpmbjfm,Diary@AllChk,working,1,true,true,false,false,working,,working,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,26,55,3,54,1,0,0,,0,15,7.95,2026-10-08T12:10:22.844Z,2026-10-08T12:10:22.844Z
+jcklpblmdpnlcojdhpgcaadfjecfbghg,Geography,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,21,11.504,2026-10-08T12:10:38.468Z,2026-10-08T12:10:38.468Z
+felohcdemdbdodhnghflhdbniijjeadg,CompfloUploader,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,2.9,2026-10-08T12:11:00.634Z,2026-10-08T12:11:00.634Z
+lgaankgifdhicdelppjoccifpgmoealk,My Zmanim Monsey,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,25,2.536,2026-10-08T12:11:09.508Z,2026-10-08T12:11:09.508Z
+pknjhbmcfdoebllidlolfnhkooigpeel,Social Media Stopwatch,partially_working,0.25,true,true,false,false,broken,,partial,,,,,,,,,not_testable,,,,,,,,,,,,,,0,3,2,2,1,0,0,,0,28,49.237,2026-10-08T12:12:00.561Z,2026-10-08T12:12:00.561Z
+lifecgkglfdbmpdjibncllkalliakkag,Timer Pro,working,1,true,true,false,false,working,,,,,,,working,,,,working,,,,,,,,,,,,,,4,4,2,3,1,0,0,,0,17,43.235,2026-10-08T12:12:45.906Z,2026-10-08T12:12:45.906Z
+ekgipgiaopkfpcbkjfmkfnnbnkohohkl,H-Header,working,1,true,true,false,false,working,,working,,,,,,,,,working,,,,,,,,,,,,,,2,4,3,0,1,3,0,,0,13,56.206,2026-10-08T12:13:43.692Z,2026-10-08T12:13:43.692Z
+idojlgkdoohgidhpcjamhpdaofafiocj,command-t,working,1,true,true,false,false,,,,working,,,,,,,,working,,,,,,,,,,,,,,0,259,49,0,4,0,255,,0,33,81.717,2026-10-08T12:15:30.785Z,2026-10-08T12:15:30.785Z
+jnldbjecklhlngfiigiffndeaccgnmhp,OneFeed,working,1,true,true,false,false,,,,working,,,,,,,,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,28,64.093,2026-10-08T12:16:37.203Z,2026-10-08T12:16:37.203Z
+nibbmlaaffjnpniijgkpbecddpkpmmlp,✨ Basic Fabulous Tab ✨,working,1,true,true,false,false,working,,,working,,,,,,,,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,15,25.22,2026-10-08T12:17:04.335Z,2026-10-08T12:17:04.335Z
+ppnhhlbhcnnncmpdipllejanjhckjhoh,Huddle.team Scheduler,not_testable,,true,true,true,false,,not_testable,,,,,,,,,not_testable,not_testable,,needs an account,,,,,,,,,needs an account,needs an account,,0,0,0,0,0,0,0,,0,20,19.888,2026-10-08T12:17:26.025Z,2026-10-08T12:17:26.025Z
+pdhcplbcmmaghpboidnooibhfdnpfipm,Tabliner,working,1,true,true,false,false,,working,,,,,,,working,,,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,7,75.288,2026-10-09T13:35:25.846Z,2026-10-09T13:35:25.846Z
+ccfjahpenjnbdmbeonmmclmlhkbomfpa,Aba smart downloader,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,52.531,2026-10-09T13:36:19.738Z,2026-10-09T13:36:19.738Z
+knbpcoimkjgfoefdaoidapccpgelemad,WebSocket King Client,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,2,1,1,1,0,0,0,,0,5,9.238,2026-10-09T13:36:31.175Z,2026-10-09T13:36:31.175Z
+kjkehehijnanbmdnidofledikdppodfh,Night Video Tuner,working,1,true,true,false,false,working,,,,,,,,,,working,working,,,,,,,,,,,,,,3,0,1,0,0,0,0,,0,11,61.456,2026-10-09T13:37:34.304Z,2026-10-09T13:37:34.304Z
+bfmfbnlagkdfnhdeibiaimidhdaonhcm,The Joe Rogan Experience Productivity Podcast,working,1,true,true,false,false,working,,,,,,,,,,,not_testable,,,,,,,,,,,,,,4,1,1,1,0,0,0,,0,10,17.972,2026-10-09T13:37:54.285Z,2026-10-09T13:37:54.285Z
+bkpdohcllhcaejhijbolghcgcdkfacom,Zápisník nabídek práce,not_testable,,true,true,true,false,not_testable,,not_testable,,,,,,,,not_testable,not_testable,needs an account,,needs an account,,,,,,,,needs an account,needs an account,,1,0,1,0,0,0,0,,0,13,7.579,2026-10-09T13:38:03.390Z,2026-10-09T13:38:03.390Z
+mkfoljfaagohdbjmdoecllolaicpjedn,Tocando agora (beta),not_working,0,true,false,false,false,,not_testable,,,,,,not_testable,broken,,broken,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely Cause
+The extension is broken because the migrator bundled the entire logic into `service_worker.js` but failed to include the `assets/js/utils.js` file as a module or separate script. While the code was copied into the worker, the `content_scripts` in `manifest.json` still attempt to load `assets/js/utils.js` (which was deleted or left empty in the MV3 structure), causing the content scripts to fail.
+
+### Evidence
+- **Reviewer Report**: ""Page interaction: **broken**"" and ""Keyboard shortcuts: **broken**"".
+- **Diff**: The migrator deleted `assets/js/background.js` and `assets/lib/async/dist/async.min.js`, merging their contents into `service_worker.js`.
+- **Manifest**: The MV3 `manifest.json` still lists `assets/js/utils.js` as a dependency for content scripts.
+- **Code**: Since the logic from `utils.js` was moved into the `service_worker.js` bundle, the actual file `assets/js/utils.js` is either missing or no longer contains the necessary functions for the content scripts to execute on the page.
+
+### What would fix it
+Restore `assets/js/utils.js` as a standalone file containing the `Utils` object and helper functions, ensuring it is available for both the content scripts and the service worker to import/load.",3,0,1,0,0,0,0,,0,23,1.707,2026-10-11T07:41:26.558Z,2026-10-11T07:41:26.558Z
+ganoilfefbaddeibjpjogbdcjpnjnbji,Da DaBaby Game,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,20,6.35,2026-10-09T13:39:41.890Z,2026-10-09T13:39:41.890Z
+fmnbeaicfincdiiaogkeahdjchflmmoj,Only move,partially_working,0.375,true,true,false,false,partial,,working,,,,,,,,broken,broken,,,,,,,,,,,,,,0,10,4,0,0,0,10,,0,38,134.204,2026-10-09T13:41:58.132Z,2026-10-09T13:41:58.132Z
+noklhnibgehjafjdilhgfpiamldpbokc,QQ邮箱邮件提醒,not_testable,,true,true,true,false,,not_testable,,,,,,not_testable,,,,not_testable,,needs an account,,,,,,needs an account,,,,needs an account,,0,0,0,0,0,0,0,,0,17,9.739,2026-10-09T13:42:09.988Z,2026-10-09T13:42:09.988Z
+bedodokiampcckckeodkpdhchmgbleff,ShopOrama Tool - Eagle Media,not_working,0,true,true,true,false,broken,,not_testable,,,,,not_testable,,,not_testable,not_testable,needs an account,,needs an account,,,,,needs an account,,,needs an account,needs an account,"--- model's explanation ---
+### Likely Cause
+The migration replaced the multi-file background page with a single `service_worker.js` bundle, but this bundle appears to be a minified library (Async.js and jQuery) without the actual extension logic. The original `js/background.js` logic was deleted (see diff: `mv2/js/background.js` $\rightarrow$ `mv3/js/background.js` is empty), and the `init()` function—which handles authentication checks and storage loading—is missing from the worker.
+
+### Evidence
+*   **Reviewer Report:** Every surface is ""broken"" with a ""needs an account"" message. This indicates the authentication/session check (handled by `updateStuff` in the original code) is not running.
+*   **Diff:** The `mv2/js/background.js` file, which contained the `init()` function and a `setInterval` to call `updateStuff()`, was completely removed.
+*   **Diff:** The new `service_worker.js` is a massive bundle of third-party libraries (Async.js and jQuery) but contains no business logic from the original `background.js` or `functions.js`.
+*   **Automated Verification:** The `worker_survives_restart` check failed, suggesting the service worker is not behaving as a functional background script.
+
+### What would fix it
+The logic from `mv2/js/background.js` and the necessary helper functions from `mv2/js/functions.js` must be ported into the `service_worker.js` (or imported as modules). Specifically, the `init()` function and the `setInterval` (converted to `chrome.alarms` for MV3) must be restored to ensure the extension can verify the user's account status.",5,3,2,3,0,0,0,,0,61,1.615,2026-10-11T07:41:51.106Z,2026-10-11T07:41:51.106Z
+dcbilkcifcfhkcfiphobdndfhfbfnmmm,urlcmd,working,1,true,true,false,false,working,,,,,,,,working,working,,working,,,,,,,,,,,,,,2,0,1,0,0,0,0,,0,12,108.239,2026-10-09T13:44:17.046Z,2026-10-09T13:44:17.046Z
+follminpdpghndmaleamimmbdhlgaepo,wino,not_working,0,true,true,false,false,,broken,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The extension is likely failing because the `content_security_policy` was tightened during migration, removing `'unsafe-eval'`. This prevents the extension's pages (like `dist/index.html`) from executing code if they rely on `eval()` or similar functions.
+
+**Evidence**
+- **Reviewer Report:** The toolbar button is ""broken."" While the service worker correctly triggers `chrome.tabs.create` to open `dist/index.html`, the page likely fails to load or execute its logic.
+- **Diff:** In `manifest.json`, the CSP changed from `""script-src 'self' 'unsafe-eval'; object-src 'self';""` to `""extension_pages"": ""script-src 'self'; object-src 'self';""`.
+- **Context:** The extension description mentions it is ""almost written by rust,"" which strongly suggests the use of WebAssembly (Wasm). Wasm typically requires `'unsafe-eval'` in the CSP to function in Chrome extensions.
+
+**What would fix it**
+Restore `'unsafe-eval'` to the `extension_pages` CSP in `manifest.json`:
+
+```json
+""content_security_policy"": {
+  ""extension_pages"": ""script-src 'self' 'unsafe-eval'; object-src 'self';""
+}
+```",1,0,1,0,0,0,0,manifest-csp,1,8,2.332,2026-10-11T07:42:13.451Z,2026-10-11T07:42:13.451Z
+kmjccehdojphpoalkojfmfndbmpmkkod,Reload All Tabs,partially_working,0.6666666666666666,true,true,false,false,working,,broken,,,,not_testable,,,,working,not_testable,,,,,,,,,,,,,,12,0,4,0,0,0,0,,0,29,35.776,2026-10-09T13:45:06.484Z,2026-10-09T13:45:06.484Z
+fnkohfnhjgiepdkecjabmlpfgbgjidji,Skia Buildbot Monitor,working,1,true,true,false,false,working,,working,,,,,,,,,not_testable,,,,,,,,,,,,,,4,2,3,0,2,0,0,,0,19,30.485,2026-10-09T13:45:38.463Z,2026-10-09T13:45:38.463Z
+ebmgagejcifbcebdbiiodjjaamgiamle,Popup Hatebu Comment,partially_working,0.5,true,true,false,false,broken,,working,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,19,8,4,7,1,0,0,,0,21,45.647,2026-10-09T13:46:25.637Z,2026-10-09T13:46:25.637Z
+klngbpegljjdefmebjneckaikgmfjhbm,Công cụ Đặt Hàng Vận chuyển Mdorderchina,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,63,30.498,2026-10-09T13:46:57.867Z,2026-10-09T13:46:57.867Z
+meelgppppibgjlempimbhnlcbmfjdgfi,Disposable Mailbox,partially_working,0.5,true,false,false,false,partial,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,29,9.723,2026-10-09T13:47:17.514Z,2026-10-09T13:47:17.514Z
+idjpogkmgpbfokejnjegjlfniocgfhnp,TIL - Learn something new in every tab,partially_working,0.6666666666666666,true,true,false,false,,broken,,working,,,,,,,,working,,,,,,,,,,,,,,0,2,2,0,0,0,2,,0,28,336.864,2026-10-09T13:52:56.038Z,2026-10-09T13:52:56.038Z
+hljeeelkdfhjpbekcgjnobenjbdeknhb,amCoffee,working,1,true,true,false,false,,,working,,,working,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,20,26.18,2026-10-09T13:53:38.950Z,2026-10-09T13:53:38.950Z
+mhaofkmdpgjdcecgfmainpjgnfmmhlbl,Blinknotes,partially_working,0.5,true,true,false,false,working,,,,,,broken,,,,,not_testable,,,,,,,,,,,,,,2,3,1,3,0,0,0,,0,16,38.779,2026-10-09T13:54:19.532Z,2026-10-09T13:54:19.532Z
+cpddacmhomhmpalfdggoklegadnldpgl,CommenTab,working,1,true,true,false,false,,,,,,,working,,,,,working,,,,,,,,,,,,,,5,0,1,0,0,0,0,,0,9,35.939,2026-10-09T13:54:56.965Z,2026-10-09T13:54:56.965Z
+olpofgjoceeddickmfmomcabjenenigj,TeamBox Alert,not_testable,,true,true,false,false,not_testable,,,,,,,not_testable,,,not_testable,not_testable,,,,,,,,,,,,,,0,1,1,1,0,0,0,mv3-non-trivial,1,30,21.96,2026-10-09T13:55:20.810Z,2026-10-09T13:55:20.810Z
+pecflpnngpkbkpplefofhokbjnehcadb,AcFun Video Download,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,3,4,3,0,0,4,0,,0,9,43.202,2026-10-09T13:56:05.570Z,2026-10-09T13:56:05.570Z
+bbofkffmfiambifonbnhfackhigeodkg,Калькулятор,partially_working,0.75,true,true,false,false,partial,,working,,,,,,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,28,51.693,2026-10-09T13:56:58.940Z,2026-10-09T13:56:58.940Z
+cdaiopnpmkfoeonhcihiagiecjjonfah,mdjs-viewer,not_testable,,true,true,true,false,,not_testable,,,,,,,,,not_testable,not_testable,,needs an account,,,,,,,,,needs an account,needs an account,,2,3,4,0,0,3,0,mv3-non-trivial,1,16,9.303,2026-10-09T13:57:10.147Z,2026-10-09T13:57:10.147Z
+ajnennolgjbadfdclkchpdigabgecmeb,Send Unipos together,not_testable,,true,true,false,false,not_testable,,not_testable,,,,,,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,21,2.604,2026-10-09T13:58:00.479Z,2026-10-09T13:58:00.479Z
+fomboakkmhgboiepipehgiblbpkhicjf,Pinterest画像ダウンローダー,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,0,1,1,0,0,0,1,,0,23,13.097,2026-10-09T13:58:14.768Z,2026-10-09T13:58:14.768Z
+jpejajbhcnbpbknefhfphhlebdfbcfae,PwGen,working,1,true,true,false,false,working,,working,,,,,,,,,,,,,,,,,,,,,,,0,2,2,0,0,0,2,,0,14,31.987,2026-10-09T13:59:03.309Z,2026-10-09T13:59:03.309Z
+lnmkkohgjfjokjoaaebdbconhokeajgp,Quick Tab,working,1,true,true,false,false,working,,working,,,,,,,,,,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,33,19.322,2026-10-09T13:59:40.774Z,2026-10-09T13:59:40.774Z
+pgddhpmoaandkenceenoaahipgjefkbo,infomax-stock,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,6,8,3,8,0,0,0,,0,17,6.43,2026-10-09T13:59:48.940Z,2026-10-09T13:59:48.940Z
+hanjfllnmjomdjconodgalakmmdkcnmk,Grids & Rulers,working,1,true,true,false,false,,,,,,working,,,,,working,working,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,31,57.184,2026-10-09T14:00:47.881Z,2026-10-09T14:00:47.881Z
+kccbikohjealaaeaklknglnonondaiff,WicketSource,partially_working,0.6666666666666666,true,false,false,false,working,,working,,,broken,,,,,,,,,,,,,,,,,,,,0,2,1,0,0,0,2,mv3-non-trivial,1,14,41.968,2026-10-09T14:01:46.537Z,2026-10-09T14:01:46.537Z
+bpikjpiahcghfboceffhojblkpfofbjf,Airbnb Zoning Cross-Reference Extension,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,26,43.879,2026-10-09T14:02:32.310Z,2026-10-09T14:02:32.310Z
+ldigknfdafjbnbdadlfdfampapmdhhfo,YouTube Tab Switch,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,13,66.021,2026-10-09T14:03:41.506Z,2026-10-09T14:03:41.506Z
+ccboopnefeainfgehdojfobhckmhgokb,Start your search with eBay™ + Right Click,working,1,true,true,false,false,working,,,,,,working,,,,,working,,,,,,,,,,,,,,3,0,2,0,0,0,0,,0,17,60.866,2026-10-09T14:04:44.200Z,2026-10-09T14:04:44.200Z
+enkgpigninikpjifapaeakfdmpkblnbl,Stop Tabs 10,partially_working,0.6666666666666666,true,true,false,false,working,,broken,,,,,,,,,working,,,,,,,,,,,,,,3,14,1,14,0,0,0,,0,9,111.751,2026-10-09T14:06:37.451Z,2026-10-09T14:06:37.451Z
+pakpfgooafhnekbimoodbcekeaiabbhe,Title URL Clipboarad,working,1,true,true,false,false,working,,working,,,,,,,,working,working,,,,,,,,,,,,,,5,0,3,0,0,0,0,,0,18,137.738,2026-10-09T14:08:56.706Z,2026-10-09T14:08:56.706Z
+lfogkjopedilanfdgkkdiegmhlbcpelj,拷贝猫,working,1,true,true,false,false,,working,,,,,,,,,working,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,57.609,2026-10-09T14:09:56.880Z,2026-10-09T14:09:56.880Z
+nekhigagdliopghmjflmeemocmekpgin,Younext,working,1,true,true,false,false,working,,,,,,,,,,working,working,,,,,,,,,,,,,,3,0,2,0,0,0,0,,0,13,84.028,2026-10-09T14:11:23.465Z,2026-10-09T14:11:23.465Z
+nbfgffhkoonlbacmmjampnpjejjjdgpg,NIFTY 50,not_working,0,true,true,false,false,,broken,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+1. **Likely cause** — The `goToInbox` function (called by the toolbar button) uses `chrome.tabs.query(undefined, ...)` (background.js:230), which is an invalid call. In MV2, this was `chrome.tabs.getAllInWindow(undefined, ...)`.
+
+2. **Evidence** — The reviewer reports the toolbar button is broken. The diff shows the migrator changed `chrome.tabs.getAllInWindow(undefined, ...)` to `chrome.tabs.query(undefined, ...)` (background.js:230). `chrome.tabs.query` requires a query object (e.g., `{}`) as its first argument; passing `undefined` causes the function to fail, preventing the extension from focusing the NSE tab.
+
+3. **What would fix it** — Change `chrome.tabs.query(undefined, function (tabs) {` to `chrome.tabs.query({}, function (tabs) {` in `background.js`.",9,0,1,0,0,0,0,,0,12,2.046,2026-10-11T07:42:27.817Z,2026-10-11T07:42:27.817Z
+nlkpljkacgmblcgjappckgbekaljfnjk,search popsike.com,not_working,0,true,true,false,false,broken,,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The migration removed `popup.js` from the `content_scripts` declaration in `manifest.json` (lines 11–16), converting it into a host permission instead. This prevents the script from executing in the context of popsike.com pages, causing the popup to crash when it attempts to access expected page data.
+
+**Evidence**
+- **Reviewer Report:** The popup window is ""broken.""
+- **Automated Verification:** The `popup_renders` check failed with `TypeError: Cannot read properties of undefined (reading 'substring')` at `popup.js:32:162`. This error typically occurs when a script expects a DOM element or page variable to exist (which it would if injected as a content script) but finds it `undefined`.
+- **Diff:** The `content_scripts` block was entirely deleted from `manifest.json` and replaced with a `host_permissions` entry for `https://www.popsike.com/*`.
+
+**What would fix it**
+Restore the `content_scripts` section to the `manifest.json` so that `popup.js` is injected into popsike.com pages:
+
+```json
+""content_scripts"": [
+  {
+    ""matches"": [""https://www.popsike.com/*""],
+    ""js"": [""popup.js""]
+  }
+],
+```",0,0,0,0,0,0,0,,0,12,1.613,2026-10-11T07:42:44.423Z,2026-10-11T07:42:44.423Z
+odpmclpmikghiankflfcholkpflbnffa,El Toro,partially_working,0.5,true,true,false,false,,broken,working,,,,,,,,,not_testable,,,,,,,,,,,,,,6,0,2,0,0,0,0,,0,23,68.518,2026-10-09T14:13:06.852Z,2026-10-09T14:13:06.852Z
+efknekcleeppkeihidbeoggjfdenogob,DeRocket Star,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,14,15.985,2026-10-09T14:13:27.723Z,2026-10-09T14:13:27.723Z
+fddcbbjillbfianjobjopaanlbbeclec,Teyz+,working,1,true,true,false,false,working,,,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,2,1,1,1,0,0,0,,0,21,17.534,2026-10-09T14:13:47.161Z,2026-10-09T14:13:47.161Z
+pffkklpbehjpoaeegghbdjfikinmndnd,Pangolin Fake Detector,working,1,true,true,false,false,working,,,,,,,,,,,working,,,,,,,,,,,,,,1,3,2,3,0,0,0,,0,13,62.62,2026-10-09T14:14:51.458Z,2026-10-09T14:14:51.458Z
+imgonkciigiopnpmjhacikppghlemilh,Khaled Keys,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,8.46,2026-10-09T14:15:17.637Z,2026-10-09T14:15:17.637Z
+lkaognfoomlccfpcakpdjnoelbajpjdn,Shoot & Share Auto-Favorite,not_testable,,true,true,false,false,not_testable,,not_testable,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,4,0,2,0,0,0,0,,0,11,42.132,2026-10-09T14:16:01.476Z,2026-10-09T14:16:01.476Z
+cbhgkjdeinacfjhpfcilpneemghgoham,Nuke Dialog,not_testable,,true,true,false,false,not_testable,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,5,1,5,0,0,0,,0,18,37.425,2026-10-09T14:16:40.464Z,2026-10-09T14:16:40.464Z
+ghlijfjnodjnlekkagbjgnkfllahlecc,iidxsdgvtdatasync27,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,site does not load,,,0,2,2,1,0,0,1,,0,24,36.54,2026-10-09T14:17:18.378Z,2026-10-09T14:17:18.378Z
+gpmcjjjajpdjpcogciopbjbnagmdalfd,Twitter Assistant,not_testable,,true,true,true,false,not_testable,,,,,,not_testable,,,not_testable,not_testable,not_testable,needs an account,,,,,,needs an account,,,needs an account,needs an account,needs an account,,8,8,2,5,3,0,0,,0,17,35.851,2026-10-09T14:17:55.732Z,2026-10-09T14:17:55.732Z
+nabmnggkfkaejlalimicclbhgclafkni,Tlushim automation,not_testable,,true,true,true,false,not_testable,,,,,,,not_testable,,,,not_testable,needs an account,,,,,,,needs an account,,,,needs an account,,0,286,63,111,0,0,175,,0,17,7.182,2026-10-09T14:18:09.618Z,2026-10-09T14:18:09.618Z
+baobkpiejapnnmhbpbmmbpkgickpdghh,Just Launched,not_testable,,true,true,false,false,,,,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,16,8.481,2026-10-09T14:18:19.729Z,2026-10-09T14:18:19.729Z
+igehidgmdciajedkhlpekpanbehflipk,4BOSELL HELPER,not_testable,,true,true,true,false,not_testable,,,,,,,not_testable,,,,not_testable,needs an account,,,,,,,needs an account,,,,needs an account,,34,6,3,6,0,0,0,,0,38,9.244,2026-10-09T14:18:30.737Z,2026-10-09T14:18:30.737Z
+ggpflhcnomanmdagjlppmklkiijkkdhd,GauchoMap,not_testable,,true,true,true,false,,not_testable,,,,,,,,,not_testable,not_testable,,needs an account,,,,,,,,,needs an account,needs an account,,1,2,2,1,0,0,1,,0,12,15.405,2026-10-09T14:18:47.503Z,2026-10-09T14:18:47.503Z
+jfkpbpamjphcknbhopogenlabidahcip,Teddy Quick,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,0,4,4,0,0,0,4,,0,22,14.626,2026-10-09T14:19:12.701Z,2026-10-09T14:19:12.701Z
+pkapgokdkgopikfnnmojmodkfihafcni,Payday Loan - Direct Lenders,partially_working,0.5,true,true,false,false,,working,broken,,,,,,,,,not_testable,,,,,,,,,,,,,,2,2,2,2,0,0,0,,0,10,27.195,2026-10-09T14:19:41.284Z,2026-10-09T14:19:41.284Z
+djigkpimlnkmhbimadilgjimhheohmam,TP Weather,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,8,0,3,0,0,0,0,,0,19,27.006,2026-10-09T14:20:09.874Z,2026-10-09T14:20:09.874Z
+kdmfcofnhnllmodanmiegbaolallgmbi,Anti67,working,1,true,true,false,false,,,working,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,19.303,2026-10-09T14:20:45.850Z,2026-10-09T14:20:45.850Z
+npapjhdlcolfebiednaaogkhbmomfcle,RAI Replacer,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,47.748,2026-10-09T14:21:35.146Z,2026-10-09T14:21:35.146Z
+ghfinncbapddodnchdhfjnmgfkaejhmp,FicusJS devtools,not_working,0,true,true,false,false,,,,,,broken,,,,,not_testable,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The DevTools panel is broken because the background logic was moved to a Service Worker, but the `connections` object used to relay messages between content scripts and the DevTools page is stored in global memory. In MV3, Service Workers are ephemeral and terminate when idle, wiping the `connections` state and breaking the communication bridge.
+
+### Evidence
+- **Reviewer Report**: The DevTools panel is explicitly marked as **broken**.
+- **Diff**: The migration moved the background logic from a persistent background page (`mv2/devtools/background/background.js`) to a Service Worker (`mv3/service_worker.js`).
+- **Code**: `service_worker.js` defines `const connections = {}` at the top level. When the Service Worker sleeps, this object is destroyed.
+- **Verification**: The migrator's automated check `worker_survives_restart` timed out, which is a strong indicator that the worker is failing to maintain state or recover after a restart.
+
+### What would fix it
+Since `connections` stores active `port` objects (which cannot be serialized to `chrome.storage`), the extension cannot simply save the object. The architecture must be updated to avoid relying on a persistent background state for relaying. 
+
+The smallest immediate fix to verify the state issue is to use `chrome.runtime.connect` more robustly or move the relay logic to a persistent context if possible, though in MV3, the recommended approach is to have the DevTools page and content scripts communicate via the Service Worker using stateless `chrome.runtime.sendMessage` calls where possible, or re-establishing ports on demand.",0,1,1,0,0,0,1,,0,27,2.004,2026-10-11T07:43:02.218Z,2026-10-11T07:43:02.218Z
+giadkdabdbdhmahngheccinffjjfoiik,Teddy 360,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,0,4,4,0,0,0,4,,0,16,6.516,2026-10-09T14:22:16.573Z,2026-10-09T14:22:16.573Z
+kcbhhbgkmcjefhnnofdjaemfncaclfbc,PulsRadio.com Trance,working,1,true,true,false,false,working,,,,,,,,,,,not_testable,,,,,,,,,,,,,,4,1,1,0,1,0,0,,0,11,12.952,2026-10-09T14:22:31.019Z,2026-10-09T14:22:31.019Z
+hpnknoigkkchlbhimjcncapoilgbkfmo,Gardener Bot,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,,needs an account,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,24,1.628,2026-10-09T14:22:37.981Z,2026-10-09T14:22:37.981Z
+jjoojeldkdnibcdoadogbdefbjlamkpa,Tasks,working,1,true,true,false,false,working,,,,,,,not_testable,,,,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,9,19.078,2026-10-09T14:22:58.587Z,2026-10-09T14:22:58.587Z
+koiicpkkmlnhcnankkllaoadjbnpglbj,GloScreenTags,not_testable,,true,true,true,false,,,,,,not_testable,,,,,,,,,,,,needs an account,,,,,,,,1,0,1,0,0,0,0,,0,13,1.581,2026-10-09T14:23:16.787Z,2026-10-09T14:23:16.787Z
+nnmpkdcdifmlcgikkbcnpdjbpdefeomb,MelvorTrainer,not_testable,,true,true,false,false,not_testable,,,,,,,,,,,not_testable,,,,,,,,,,,,,,57,85,2,56,29,0,0,,0,12,11.921,2026-10-09T14:23:30.225Z,2026-10-09T14:23:30.225Z
+nkhmngpedilcjkmdackogdiiiiakhfgf,Cite Trove,working,1,true,true,false,false,,working,working,,,,working,,,,working,working,,,,,,,,,,,,,,1,3,1,3,0,0,0,,0,11,84.188,2026-10-09T14:24:55.876Z,2026-10-09T14:24:55.876Z
+ibchpjahjhifolbghpjgfciabdcdnpid,Sendroid,not_testable,,true,true,false,false,not_testable,,,,,,not_testable,not_testable,,,,not_testable,,,,,,,,,,,,,,0,1,1,1,0,0,0,,0,14,12.405,2026-10-09T14:25:09.943Z,2026-10-09T14:25:09.943Z
+nfohhgcgdfcifjpjfnaoeookdbgkgbmm,Расширение для football.ua,working,1,true,true,false,false,working,,,,,,,,,,not_testable,,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,16,17.346,2026-10-09T14:25:43.791Z,2026-10-09T14:25:43.791Z
+bhbokemlpmdlelkjliimdldfpamnedlj,TinyOGPViewer,partially_working,0.5,true,true,false,false,partial,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,3.495,2026-10-09T14:26:28.788Z,2026-10-09T14:26:28.788Z
+eibmigfcioanajpaanidbiakcagepmkn,不要通知我,not_working,0,true,true,false,false,broken,,,,,,,,,,,not_testable,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The migration introduced a syntax error in `background.bundle.js` (line 221) where an `eval` call was replaced with a broken string: `evalAllowed = true');`. This prevents the service worker from starting and likely crashes the extension's shared logic.
+
+### Evidence
+- **Reviewer Report**: The popup is broken and the extension is ""not working.""
+- **Automated Verification**: Specifically failed with `SyntaxError: Invalid or unexpected token` during popup rendering and failed the `worker_survives_restart` check.
+- **Diff**: In `background.bundle.js`, the migrator attempted to remove `eval()` wrappers. At line 221, it left a trailing single quote and parenthesis:
+  `evalAllowed = true');` instead of `evalAllowed = true;`.
+
+### What would fix it
+Correct the syntax error in `background.bundle.js` by removing the trailing `')` on line 221:
+
+**Change:**
+`evalAllowed = true');`
+**To:**
+`evalAllowed = true;`",0,283,2,0,0,0,283,,0,89,1.887,2026-10-11T07:43:19.899Z,2026-10-11T07:43:19.899Z
+kndnfbmjopkenghimanimafaijmhibac,CleanLink,working,1,true,true,false,false,working,,,,,,,,,,,not_testable,,,,,,,,,,,,,,3,0,2,0,0,0,0,,0,16,8.759,2026-10-09T14:26:50.744Z,2026-10-09T14:26:50.744Z
+njchepcljhlephnkhpjnggplnjelkdlj,Odete,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,11,22.428,2026-10-09T14:27:14.568Z,2026-10-09T14:27:14.568Z
+njihmgeigicpmhhnnmhhbpfhmilfjhbe,Smart Calc,working,1,true,true,false,false,working,,,,,,,,,,working,working,,,,,,,,,,,,,,10,6,4,1,0,0,5,,0,16,45.41,2026-10-09T14:28:01.491Z,2026-10-09T14:28:01.491Z
+eejhdkkihlmampdfllofghbdlojapfbf,SOLINFO.ro,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,0,0,0,0,0,0,0,,0,8,13.432,2026-10-09T14:28:16.546Z,2026-10-09T14:28:16.546Z
+ibkmmlejbcdiljjbcoibpmkionnjmlbn,Autoreloader: Reload tab on file change (Win),not_testable,,true,true,false,false,,not_testable,not_testable,,,,,,,,,not_testable,,,,,,,,,,,,,needs window,5,1,1,1,0,0,0,,0,7,13.917,2026-10-09T14:28:32.102Z,2026-10-09T14:28:32.102Z
+kkbefhnoidbeeooejpclbloenoglnnoh,Deviato,working,1,true,true,false,false,working,,working,,,,,,,,,working,,,,,,,,,,,,,,1,1,2,0,0,0,1,,0,18,107.663,2026-10-09T14:30:21.255Z,2026-10-09T14:30:21.255Z
+nbfnnejhijoedkcdfghanlcekleahphh,Gendersprache korrigieren,working,1,true,true,false,false,,working,working,,,,,,,,working,working,,,,,,,,,,,,,,17,1,2,0,0,0,1,,0,21,130.412,2026-10-09T14:32:33.244Z,2026-10-09T14:32:33.244Z
+ipjlpmanhledaljkolefpbcmodkhhpik,santango,not_testable,,true,true,false,false,not_testable,,,,,,not_testable,,,,,not_testable,,,,,,,,,,,,,,1,1,2,0,0,0,1,,0,18,24.712,2026-10-09T14:32:59.794Z,2026-10-09T14:32:59.794Z
+alhljceidfdmahgfhjlpbbpcmcbnicfc,SWATHub Recorder,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,2,1,2,0,0,0,,0,10,9.719,2026-10-09T14:33:10.983Z,2026-10-09T14:33:10.983Z
+caccbdlmcdnnimccpgammdabicibcbmp,賽考利克泰雅語翻譯,working,1,true,true,false,false,,,,,,,working,,,,,working,,,,,,,,,,,,,,1,3,2,2,1,0,0,,0,15,18.916,2026-10-09T14:33:31.347Z,2026-10-09T14:33:31.347Z
+giijkkefkpggbpmbccmebloapelhnggk,Toster Stickers,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,11,7.103,2026-10-09T14:33:39.774Z,2026-10-09T14:33:39.774Z
+hgdmkcdlldldkeahjgjejcjhkmidnbfm,Twitter Censor,not_testable,,true,true,true,false,,,not_testable,,,,,,,,not_testable,,,,needs an account,,,,,,,,needs an account,,,2,0,1,0,0,0,0,,0,6,6.278,2026-10-09T14:33:47.359Z,2026-10-09T14:33:47.359Z
+jkhpcjlkalgnhlnbjlmbijpnjadbbcpg,Twitter Sanitizer,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,,needs an account,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,10,3.788,2026-10-09T14:33:57.452Z,2026-10-09T14:33:57.452Z
+dllkogdmbanlppjpgdibfkbblbaahijn,King Crab Party,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,3,0,1,0,0,0,0,,0,12,1.684,2026-10-09T14:34:15.593Z,2026-10-09T14:34:15.593Z
+feclcilnnbhnocajeknbhmjkjfhkehfn,jike.k,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,needs an account,needs an account,,2,1,2,0,1,0,0,,0,22,13.296,2026-10-09T14:34:30.221Z,2026-10-09T14:34:30.221Z
+jpginnjealbknnbgnklknalagkdmlpag,AtCoder VirtualContest-Connect,working,1,true,true,false,false,working,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,0,1,1,0,1,0,0,,0,6,21.742,2026-10-09T14:34:54.233Z,2026-10-09T14:34:54.233Z
+eendnbabcpbjdielmebjfbigakffmhdg,BDWMBBS-BLOCKER(北大未名BBS屏蔽插件),not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,not_testable,needs an account,,,,,,,,,,needs an account,needs an account,,1,0,1,0,0,0,0,,0,22,13.235,2026-10-09T14:35:08.867Z,2026-10-09T14:35:08.867Z
+eipojanlhhffickbpoegkafcpndafgoj,千锋自动测评,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,,needs an account,,,,,,,,,,needs an account,,,0,1,1,0,1,0,0,,0,13,3.954,2026-10-09T14:35:17.143Z,2026-10-09T14:35:17.143Z
+gdpecfemoflcchiminfhcleelcolmopk,Univerzalni Kreditni Kalkulator,not_testable,,true,true,true,false,not_testable,,,,,,,,,,,,needs an account,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,1.512,2026-10-09T14:35:22.892Z,2026-10-09T14:35:22.892Z
+legdfpaiinfkhmddpgcafpffhgjjpgkl,THE PAINTLY,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,2,0,1,0,0,0,0,,0,13,8.749,2026-10-09T14:35:36.519Z,2026-10-09T14:35:36.519Z
+lfdkbfgkbeaacmbimagfneboofhomjpm,Tabmaster,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,3,0,1,0,0,0,0,,0,13,7.225,2026-10-09T14:35:47.851Z,2026-10-09T14:35:47.851Z
+fjlknokoibojegcomobdlanajbkcdhkc,TrustNews,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,29.739,2026-10-09T14:36:34.241Z,2026-10-09T14:36:34.241Z
+eapmdkoepipnkeinhajebnopkgpndlgk,BinHexr,working,1,true,true,false,false,working,,,,,,working,,,,,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,18,73.429,2026-10-09T14:37:49.649Z,2026-10-09T14:37:49.649Z
+kkmmijhhiphhodhinhnpnbnmffnilial,Refresh Specific Tab,working,1,true,true,false,false,,,,,,,,,working,,,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,27.274,2026-10-09T14:38:18.470Z,2026-10-09T14:38:18.470Z
+lcaccbenpmmlggggdcobmnnnpdbmkndh,Hinfly,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,3,1,3,0,0,0,,0,16,6.743,2026-10-09T14:38:27.077Z,2026-10-09T14:38:27.077Z
+oehnnplgoegkmflaekaflbdpbaagjfbe,Rádio Santiago,working,1,true,true,false,false,,working,,,,,,,,,,not_testable,,,,,,,,,,,,,,3,0,1,0,0,0,0,,0,14,15.36,2026-10-09T14:38:44.100Z,2026-10-09T14:38:44.100Z
+opofknelcmapaeiidceffimbngcamhep,Clappify,working,1,true,true,false,false,,working,,,,,working,,,,,working,,,,,,,,,,,,,,0,4,1,4,0,0,0,,0,11,4.534,2026-10-09T14:39:40.441Z,2026-10-09T14:39:40.441Z
+hhhnlfjjgehegpojcilpebhmldcjgjjg,Easy SEO,not_testable,,true,true,false,false,,not_testable,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,5,11.626,2026-10-09T14:39:53.462Z,2026-10-09T14:39:53.462Z
+cdcmkgmpkgcpbciedjgkddedeoeafmlm,YouTube Dislike and IMDb forum restorer,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,needs an account,needs an account,,1,1,1,1,0,0,0,,0,7,3.298,2026-10-10T12:09:24.991Z,2026-10-10T12:09:24.991Z
+hndckmccaaoclfpiagnjocnfclgnfije,Glitch App to Project,not_testable,,true,true,false,false,,not_testable,,,,,not_testable,,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,13.716,2026-10-10T12:09:41.633Z,2026-10-10T12:09:41.633Z
+ennaiiiicpcoamlefkcgdccmjcknnocl,Copernic Desktop Search Connector,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,1,2,1,2,0,0,0,,0,17,11.355,2026-10-10T12:09:54.618Z,2026-10-10T12:09:54.618Z
+fbgikljdagbanfgiimachifckbdnmnlf,OrbitFenix Flash Enabler,not_testable,,true,true,true,false,not_testable,,,,,,,,,,,not_testable,needs an account,,,,,,,,,,,needs an account,,0,0,0,0,0,0,0,,0,7,5.71,2026-10-10T12:10:02.917Z,2026-10-10T12:10:02.917Z
+fidhdfmgfljaobonlfcjeidncgfhlnfi,FCS Tech Deck,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,manifest-csp,1,7,7.258,2026-10-10T12:10:20.542Z,2026-10-10T12:10:20.542Z
+glmniimhlmbfbciijmgppnoodahdhdil,Make Do with zhihu 2,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,needs an account,needs an account,,0,3,2,0,0,3,0,,0,18,18.265,2026-10-10T12:10:41.522Z,2026-10-10T12:10:41.522Z
+gmiaemibdhfgcbalghkphidpfhjkddkm,Bitrise build status indicator,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,needs an account,needs an account,,2,3,1,3,0,0,0,,0,12,63.114,2026-10-10T12:11:50.124Z,2026-10-10T12:11:50.124Z
+doakbobgenagienigbbpliopkckofhcf,mysms - SMS/Text from Computer,not_testable,,true,true,true,false,,not_testable,,,,,,not_testable,,,,not_testable,,needs an account,,,,,,needs an account,,,,needs an account,,2,8,1,8,0,0,0,,0,25,3.253,2026-10-10T12:11:56.617Z,2026-10-10T12:11:56.617Z
+fedagdconefjhabnkfpdlahifhjhffjb,Audio Web,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,20,19.137,2026-10-10T12:12:33.792Z,2026-10-10T12:12:33.792Z
+klekjkocnhkkfbjnkococjilkgemegfk,quickreach,not_testable,,true,true,false,false,,not_testable,,,,,,,,,,not_testable,,,,,,,,,,,,,,3,0,2,0,0,0,0,,0,9,16.284,2026-10-10T12:12:51.997Z,2026-10-10T12:12:51.997Z
+kpkejmeloobaeeopkjdbnebcgebhcboe,ECHOed Links,working,1,true,true,false,false,working,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,5.779,2026-10-10T12:13:15.805Z,2026-10-10T12:13:15.805Z
+omdlklpilnmdfldondodhieojpkodndi,Pitch shifter - HTML5 Video audio FX,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,51.11,2026-10-10T12:14:23.675Z,2026-10-10T12:14:23.675Z
+fhockinabfenfekfoaghjojheocbnegl,Tackle | Todo List,not_testable,,true,true,false,false,,,,not_testable,,,,,,,,,,,,,,,,,,,,,,0,60,28,0,0,0,60,,0,20,4.292,2026-10-10T12:15:44.013Z,2026-10-10T12:15:44.013Z
+ppihcnmdofjgblaahomfdmcnpblcbldn,OmniMemo,working,1,true,true,false,false,,working,,,,,,,,working,,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,14,16.413,2026-10-10T12:16:04.041Z,2026-10-10T12:16:04.041Z
+annmmkpobpkmnmdmcjmbonpmnpmohica,Reload CSS,not_testable,,true,true,false,false,,not_testable,,,,,,,,,,not_testable,,,,,,,,,,,,,,2,0,1,0,0,0,0,,0,10,16.836,2026-10-10T12:16:22.993Z,2026-10-10T12:16:22.993Z
+bjopjmdidokjahnbekjliekbplkhaink,HiTravel PC版安全插件,not_testable,,true,true,false,false,,not_testable,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,72.356,2026-10-10T12:17:51.956Z,2026-10-10T12:17:51.956Z
+ccocombhhhapoooihkdgdlhkcknhndgc,AvJuicy Plugin,not_testable,,true,true,false,false,,not_testable,,,,,,,,,not_testable,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,9,65.214,2026-10-10T12:18:59.674Z,2026-10-10T12:18:59.674Z
+heenegfokphjkmogeccbaindjjnpijck,Kitap.kz Downloader,partially_working,0.5,true,false,false,false,,working,,,,,,,,,broken,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,9,55.72,2026-10-10T12:19:58.050Z,2026-10-10T12:19:58.050Z
+klclbacdcfigjaiceajinkonnkcgnobc,はてブ Fun,working,1,true,true,false,false,working,,,,,,,,,,,not_testable,,,,,,,,,,,,,,1,1,1,1,0,0,0,,0,10,14.092,2026-10-10T12:20:14.898Z,2026-10-10T12:20:14.898Z
+knecnendkbbdmncklbhlgcppjpajaipd,PDF to FB2 Converter,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,2,2,1,2,0,0,0,,0,7,55.021,2026-10-10T12:21:12.151Z,2026-10-10T12:21:12.151Z
+pehpbiaaihdhfpcmkajanemdioaenjjf,AEM Forms shortcuts extension,working,1,true,true,false,false,working,,,,,,,,working,,,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,17,54.674,2026-10-10T12:22:09.106Z,2026-10-10T12:22:09.106Z
+pjcdhklpcmadoldkmojbmlimojgbjdji,Keepclubbing Chrome extension,not_testable,,true,true,true,false,not_testable,,,,,,,,,,not_testable,,needs an account,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,11,1.87,2026-10-10T12:22:27.019Z,2026-10-10T12:22:27.019Z
+kopecoagikhelgkenhicomflchdimnga,Color Palette,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,9.134,2026-10-10T12:22:42.398Z,2026-10-10T12:22:42.398Z
+leghipcfbbgfpibfanpnocmagdadgmeg,BrowseMyTown Netherlands,working,1,true,true,false,false,working,,,,,,,,,,,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,12,74.2,2026-10-10T12:23:58.137Z,2026-10-10T12:23:58.137Z
+lmldjiliodhgfjlfjlliddiohpaelnph,Quick access to Translator,working,1,true,true,false,false,,working,,,,,working,,,,,working,,,,,,,,,,,,,,3,0,1,0,0,0,0,,0,12,140.464,2026-10-10T12:26:20.401Z,2026-10-10T12:26:20.401Z
+nmacnakpmbegfnfgiffoblaflkefjlca,Report-Sample-Injector,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,1,1,0,0,1,0,,0,9,28.862,2026-10-10T12:26:51.116Z,2026-10-10T12:26:51.116Z
+dlgjlpalfblohgbnneomemgednccmgga,Button: Clear Browsing Data,working,1,true,true,false,false,,working,working,,,,not_testable,,,,,working,,,,,,,also does not work in mv2,,,,,,,1,0,1,0,0,0,0,,0,10,106.048,2026-10-10T12:28:39.464Z,2026-10-10T12:28:39.464Z
+ekghhlpfokopajdolpolpcanmhmpghom,GoldenWert,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,11,1,11,0,0,0,,0,9,8.022,2026-10-10T12:28:50.490Z,2026-10-10T12:28:50.490Z
+foffoiohhalpfaoglaoebgjjmnklnhkk,Dipshit Donnie,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,2.735,2026-10-10T12:29:10.280Z,2026-10-10T12:29:10.280Z
+glmmbajndnlkglndcdnkiehomjkpkihn,Mapsy,working,1,true,true,false,false,,,,,,,working,,,,,working,,,,,,,,,,,,,,2,0,1,0,0,0,0,,0,13,98.327,2026-10-10T12:30:52.632Z,2026-10-10T12:30:52.632Z
+kajdnjdbjjnkpjcbekfcolcdjccjmdhb,Warn Me,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,16,54.842,2026-10-10T12:32:05.204Z,2026-10-10T12:32:05.204Z
+mjcgkhlnnegnikoahjmpomldacbngfcp,ES5 Maker,not_testable,,true,true,false,false,,,,not_testable,,,,,,,,,,,,,,,,,,,,,,0,169,63,0,0,0,169,,0,26,23.799,2026-10-10T12:33:16.711Z,2026-10-10T12:33:16.711Z
+admkahgcbipglokgboenonpgaklpaoma,Aiwozo,not_testable,,true,true,false,false,,not_testable,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,13,1,13,0,0,0,,0,12,8.918,2026-10-10T12:33:26.901Z,2026-10-10T12:33:26.901Z
+amlffnkkdaedmndiklgdphaanmcjnlea,JumpToOSMChangesetAnalyzer,working,1,true,false,false,false,not_testable,,,,,,,,,,,working,,,,,,,,,,,,,,2,0,1,0,0,0,0,,0,5,3.402,2026-10-10T12:34:56.661Z,2026-10-10T12:34:56.661Z
+glhaigmholpejdnphinknaphmigmbkhi,Sai Council of Malaysia,working,1,true,false,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,11,5.159,2026-10-10T12:35:15.789Z,2026-10-10T12:35:15.789Z
+hgaofhcidmhfjmmapdknkofgchogocll,Healing Crystals,working,1,true,true,false,false,working,,,,,,,,,,,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,7,22.172,2026-10-10T12:35:39.325Z,2026-10-10T12:35:39.325Z
+dhenabeepcbhcpbkeebhfijlmioihcjd,Best Google SEO Helper,working,1,true,true,false,false,working,,,,,,,,,,working,,,,,,,,,,,,,,,0,10,1,10,0,0,0,,0,16,10.104,2026-10-10T12:35:54.945Z,2026-10-10T12:35:54.945Z
+gcliolhofgcfmijicdmgcfoeicbhebfc,TekZoom Now!,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,1,1,0,0,0,1,,0,14,4.915,2026-10-10T12:36:10.945Z,2026-10-10T12:36:10.945Z
+acdglffpgonoaepdhfmbccjpeopblbom,Google Search Console SEO Enhancer,not_working,0,true,false,false,false,,,,,,,,,,,broken,,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The migration did not change any functional code or permissions, and the `manifest.json` remains logically identical except for the version bump. The failure is likely not caused by the migration itself, but by an external factor such as a change in the target website's DOM or a failure in the content script's execution environment.
+
+**Evidence**
+- **Diff:** The only changes to `manifest.json` are formatting and the `manifest_version` update. The `content_scripts` configuration (matching patterns and JS files) is identical to the MV2 version.
+- **Report:** The reviewer reports ""Page interaction: broken,"" but there are no runtime errors provided in the context to indicate why `content.js` is failing.
+- **Verification:** The migrator's automated check failed `worker_survives_restart`, but this is expected and irrelevant since the extension has no background service worker.
+
+**What would fix it**
+Since the migration is technically correct, the issue must be debugged in the runtime. I recommend:
+1. Checking the browser console on the target page for JavaScript errors.
+2. Verifying if the CSS selectors used in `content.js` to target the ""Difference column"" are still valid on the current version of Google Search Console.
+3. Ensuring `jquery-3.5.1.min.js` is loading correctly before `content.js`.",0,0,0,0,0,0,0,,0,6,1.555,2026-10-11T07:43:35.769Z,2026-10-11T07:43:35.769Z
+ckgfpdpkcnegmgnjljjeambdgdggaoae,Right-click to search Slate - by Lloyd,working,1,true,true,false,false,,,working,,,,working,,,,,working,,,,,,,,,,,,,,0,3,2,2,1,0,0,,0,14,86.364,2026-10-10T12:38:02.973Z,2026-10-10T12:38:02.973Z
+hodphpbkkfioipjgeohmbaeejipplmae,Kastio Video Conference ScreenShare,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,not_testable,,,,,,,,,,,needs an account,needs an account,,0,0,0,0,0,0,0,,0,16,9.755,2026-10-10T12:38:18.411Z,2026-10-10T12:38:18.411Z
+bggjpabhffcbppkohaapeojcmhflhagl,CFCA CryptoKit.ThBigData Extension,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,4,1,4,0,0,0,,0,8,5.904,2026-10-10T12:38:28.907Z,2026-10-10T12:38:28.907Z
+dfgnmnhpepngcfigngikmojdpndblcdm,nottin,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,16,17.91,2026-10-10T12:38:56.812Z,2026-10-10T12:38:56.812Z
+egehmnkakhfbiiccgpdpfmblhnmmjbej,Anonymous VPN - WebRTC leak prevent,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,4.717,2026-10-10T12:39:05.484Z,2026-10-10T12:39:05.484Z
+hijfpflgcdkckgihbjlpengkommanmbe,CFCA CertEnrollment.NBCB Extension,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,4,1,4,0,0,0,,0,10,5.015,2026-10-10T12:39:12.194Z,2026-10-10T12:39:12.194Z
+iphoklkbghonenhklnphmgaakpbdjdic,CFCA CryptoKit.CFCAVerifySign Extension,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,4,1,4,0,0,0,,0,8,5.284,2026-10-10T12:39:19.183Z,2026-10-10T12:39:19.183Z
+leaichjefmjhmpmmmcpbhkpolefojidl,CFCA CertEnrollment.NCB Extension,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,4,1,4,0,0,0,,0,7,4.352,2026-10-10T12:39:24.976Z,2026-10-10T12:39:24.976Z
+oigdddkmgnfibgaafpaecbgbkomgoanb,CryptoKit.CEBPS Extension,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,4,1,4,0,0,0,,0,8,4.281,2026-10-10T12:39:31.767Z,2026-10-10T12:39:31.767Z
+ddkhocdgafdhklifabjacljbfmmiidko,Dịch Vụ Thiết Kế Website Giá Rẻ WebsiteViet,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,19,8.605,2026-10-10T12:39:42.588Z,2026-10-10T12:39:42.588Z
+mknibjeheoldfjfdgpamolimbiikbiop,YAKjs context menu,working,1,true,true,false,false,,,,,,,working,,,,,not_testable,,,,,,,,,,,,,,0,1,1,1,0,0,0,,0,9,27.408,2026-10-10T12:40:11.554Z,2026-10-10T12:40:11.554Z
+nmhkeeibpnhkkpffeihfnfngnhblbdck,SOAP2DAYHD,not_testable,,true,true,false,false,,not_testable,,,,,,,,,,not_testable,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,20,16.435,2026-10-10T12:40:30.948Z,2026-10-10T12:40:30.948Z
+npadfkcikbkgpigkpfniolgogmiijoll,Print Lazada for Jubelio,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,8,85.182,2026-10-10T12:42:12.977Z,2026-10-10T12:42:12.977Z
+banegighfdcacilmkahdjhgjgbciafmk,fraud_alert,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,20,10.156,2026-10-10T12:42:40.299Z,2026-10-10T12:42:40.299Z
+ooabifbpgfdknniocnhehofgikafncpd,Dev Labs Reactions,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,12,5.918,2026-10-10T12:42:51.493Z,2026-10-10T12:42:51.493Z
+ajajocakkdflkbnfmmpcmdefmfbiipfo,Oodalicious,not_testable,,true,true,true,false,not_testable,,,,,,,,,,,,needs an account,,,,,,,,,,,,,0,5,3,0,0,4,1,,0,21,8.269,2026-10-10T12:43:10.238Z,2026-10-10T12:43:10.238Z
+ckhljhdocmhkniefinppahmcgonpemlf,Gifaster,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,16,74.53,2026-10-10T12:44:41.789Z,2026-10-10T12:44:41.789Z
+dckeccolfaoocphknhelfpdhbjikcpnl,Tuding screensharing,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,11,16.994,2026-10-10T12:45:00.935Z,2026-10-10T12:45:00.935Z
+felklfphngaimhchomlfbfcefdbhnhjp,NCTU Dark E3,partially_working,0.5,true,false,false,false,working,,,,,,,,,,broken,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,3,16.715,2026-10-10T12:45:35.290Z,2026-10-10T12:45:35.290Z
+fkhbiebcklajdihgkgfdecloboimcbco,Afstand berekenen,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,4,55.822,2026-10-10T12:46:33.516Z,2026-10-10T12:46:33.516Z
+gpkihnjhjfnnlklfokjfplnpdjjnmimh,So Chase Me,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,31.122,2026-10-10T12:47:23.718Z,2026-10-10T12:47:23.718Z
+hcghgegolfhjekgieokjnkifolmhmepe,PIZZARIA Integrale,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,11,7.782,2026-10-10T12:47:33.617Z,2026-10-10T12:47:33.617Z
+hdhafnlnpgihafppplpdfbdhjionmpin,Nicely.cc,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,4,46.369,2026-10-10T12:48:21.627Z,2026-10-10T12:48:21.627Z
+kambddpednejlaceniggdlhgigkockhh,BitCro Search,not_testable,,true,true,false,false,,not_testable,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,11,5.052,2026-10-10T12:48:43.213Z,2026-10-10T12:48:43.213Z
+kmbgpflaojmkofefndnoijbfmfinmepc,Ovarian Cyst Treatment Without Surgery,working,1,true,true,false,false,,working,,,,,,,,,,working,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,10,53.532,2026-10-10T12:49:38.234Z,2026-10-10T12:49:38.234Z
+mdlhominadhbdceihadncpnkkdekapcm,Elaborata Desktop Streamer,not_testable,,true,true,false,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,5.741,2026-10-10T12:49:45.513Z,2026-10-10T12:49:45.513Z
+nidpinnckkmomhmokjjomajcjnhidcen,Fzuck,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,14,1,14,0,0,0,,0,19,33.364,2026-10-10T12:50:23.728Z,2026-10-10T12:50:23.728Z
+nmecppbaggcpblcfdidlokfnfpljikgj,Refresh my site!,working,1,true,true,false,false,,working,working,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,22,95.304,2026-10-10T12:52:15.590Z,2026-10-10T12:52:15.590Z
+ofpaooafcdpbgbijbnhbjdjlodpcpifc,Hyperlink Text Selector,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,3.926,2026-10-10T12:52:36.000Z,2026-10-10T12:52:36.000Z
+eapcahpeapnknojnndbomagicopopiic,Spotify Launcher,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,27,7.88,2026-10-10T12:52:45.795Z,2026-10-10T12:52:45.795Z
+cgpopilahkkaonoibdgcpaehcflnkklj,Tecnohoy Venezuela,not_working,0,true,false,false,false,broken,,,,,,,,,,,,,,,,,,,,,,,,"--- model's explanation ---
+**Likely cause**
+The extension's core functionality was changed from loading a remote URL as a popup to using a local HTML file that fetches data. The popup is likely broken because the `manifest.json` restricts the Content Security Policy (CSP) to `'self'`, while the `tecnohoy.js` script attempts to fetch data from an insecure `http` endpoint.
+
+**Evidence**
+- **MV2 Behavior:** The `browser_action.default_popup` was set directly to `http://tecnohoy.com.ve`, effectively treating the popup as a web page.
+- **MV3 Change:** The migrator replaced the remote URL with a local `popup.html` (diff `manifest.json` line 18) and rewritten `tecnohoy.js` that uses `fetch(""http://tecnohoy.com.ve/feed"")`.
+- **CSP Restriction:** The new CSP (`manifest.json` line 7) is set to `script-src 'self'`, and the fetch target is `http` (unencrypted), which often triggers mixed-content blocks or CSP violations in MV3 extension pages.
+
+**What would fix it**
+1. Update the fetch URL in `tecnohoy.js` to use `https://` if the server supports it.
+2. If the server only supports `http`, the extension may require a more permissive CSP or a background service worker to proxy the request, as MV3 strictly enforces secure origins for extension pages.",0,0,0,0,0,0,0,,0,17,1.831,2026-10-11T07:43:49.483Z,2026-10-11T07:43:49.483Z
+beaepapjkhdcienhpgcoekbjckajapdk,Numerology Score Calculator,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,10.952,2026-10-10T12:53:15.631Z,2026-10-10T12:53:15.631Z
+gpcmeiebpflemahameeillncgfiifphg,Mitt Romney's Nephew,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,12.363,2026-10-10T12:53:44.637Z,2026-10-10T12:53:44.637Z
+kogangejpnmblpiffnapjdebdpkonoff,Omnivox Dark Theme,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,1,0,1,0,0,0,0,,0,13,9.138,2026-10-10T12:54:10.452Z,2026-10-10T12:54:10.452Z
+mhlodgmpnjjhfpppmohelbfmeoninado,Nimo.tv Plus,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,7.171,2026-10-10T12:54:34.471Z,2026-10-10T12:54:34.471Z
+ofngeedihalecgbjodmejpdfndcahlil,Search splunk,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,15,5.512,2026-10-10T12:54:45.457Z,2026-10-10T12:54:45.457Z
+dfgplcpanfdnknbmcaghggjpnllpddik,Opal Miner,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,3.054,2026-10-10T12:55:04.900Z,2026-10-10T12:55:04.900Z
+cocpfkobggjbobpnmklfambchdegmhob,Wevuw: Review the Web,not_working,0,true,false,false,false,broken,,,,,,,,,,,,,,,,,,,,,,,,"--- model's explanation ---
+### Likely cause
+The popup is broken because the script `js/app.js` is being loaded in the `<head>` of `popup.html` before the DOM has finished loading. While this may have worked in MV2, the migration changed the script path from absolute (`/js/app.js`) to relative (`js/app.js`) in `popup.html`, and the logic in `app.js` likely attempts to manipulate DOM elements that do not yet exist.
+
+### Evidence
+- **Reviewer Report:** The popup window is ""broken"" and the automated verification reports the page ""rendered empty.""
+- **Diff:** In `popup.html`, the script source was changed from `/js/app.js` to `js/app.js`.
+- **Code Analysis:** The script is located in the `<head>` section. If `app.js` contains code that targets the body or specific HTML elements (which is standard for a popup), it will fail to find those elements because the script executes before the body is parsed.
+
+### What would fix it
+Move the `<script>` tag from the `<head>` to the end of the `<body>` in `popup.html`, or add the `defer` attribute to the script tag:
+
+```html
+<script src=""js/app.js"" type=""text/javascript"" defer></script>
+```",1,0,1,0,0,0,0,,0,14,1.481,2026-10-11T07:44:05.724Z,2026-10-11T07:44:05.724Z
+mgnicgalaiciajfgaebngkakjeceljkk,iForum for moders,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,14,14.78,2026-10-10T12:55:52.273Z,2026-10-10T12:55:52.273Z
+ojadomlppplidhmidjmoabhnjdgdoapl,"Github ""Add single comment"" shortcut",not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,6,5.081,2026-10-10T12:55:58.786Z,2026-10-10T12:55:58.786Z
+bennjncpdnagmdljjiaknlifgdmphecd,洪水・高潮リスク情報埋め込み　KeepDry,working,1,true,true,true,false,,,,,,,,,,,working,,,,,,,,,,,,needs an account,,,6,1,1,0,0,0,1,,0,7,97.429,2026-10-10T12:57:54.459Z,2026-10-10T12:57:54.459Z
+ehjkaidpgimmpcpllfmcdnlfdjffogcp,quote president unquote,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,11,8.73,2026-10-10T12:58:19.848Z,2026-10-10T12:58:19.848Z
+eifhnmgbkcbehcaabdmgmbgnlaheadpn,Full-Window Player for YouTube,working,1,true,true,true,false,,,,,,,,,,,working,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,6,40.048,2026-10-10T12:59:29.277Z,2026-10-10T12:59:29.277Z
+epkpilgligfpajldnkmobmpfhddigoch,Trump to Individual-1,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,8.671,2026-10-10T12:59:54.433Z,2026-10-10T12:59:54.433Z
+feogbpckopjeedalklhjgjgpbeihfcnc,"Ted Cruz, A Oil Liker",working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,13.791,2026-10-10T13:00:24.840Z,2026-10-10T13:00:24.840Z
+fjmbdeicipcgmmaflckgfaoekeonidjl,Facebook is a trap!,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,8.539,2026-10-10T13:00:34.848Z,2026-10-10T13:00:34.848Z
+gghacdgflidmgmcdmmncndihaihdalbp,Florida Man Trump,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,7.705,2026-10-10T13:00:59.061Z,2026-10-10T13:00:59.061Z
+ickpbgkmjodbclmejbijgilcdccminfd,GitHub Code Wrap,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,4,5.207,2026-10-10T13:01:05.667Z,2026-10-10T13:01:05.667Z
+idcmeohcendflladpgjlmbjhajiaddkg,Sparkles,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,9.333,2026-10-10T13:01:16.472Z,2026-10-10T13:01:16.472Z
+ifkickiginfocccnhcfifmejechhmbli,TooButtons,working,1,true,true,false,false,,,,,,,,,,,working,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,13.744,2026-10-10T13:01:31.544Z,2026-10-10T13:01:31.544Z
+ipcblpolaeanpijbelaaaalmbbnfokhc,Trello Compact Mode,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,7,80.208,2026-10-10T13:03:08.182Z,2026-10-10T13:03:08.182Z
+jlpchpckgnbidjoglbkkkdgflcpcmkec,Roblox Dark Mode [BETA],not_testable,,true,true,true,false,,not_testable,,,,,,,,,not_testable,,,needs an account,,,,,,,,,needs an account,,,1,0,1,0,0,0,0,,0,5,78.272,2026-10-10T13:04:43.421Z,2026-10-10T13:04:43.421Z
+jokohgmhnpcjebmohaadcicbidocjhdd,ImproveGistPager,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,7,7.464,2026-10-10T13:04:52.491Z,2026-10-10T13:04:52.491Z
+mboadjigkfhgnhdcicgicafjmbkfijcl,Clarify Facebook's privacy options,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,6,9.059,2026-10-10T13:05:03.022Z,2026-10-10T13:05:03.022Z
+mhpelcikddgfccgjboanmkjnandfgacd,CleanFeed,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,6,5.14,2026-10-10T13:05:09.494Z,2026-10-10T13:05:09.494Z
+mibpohnengmoemnenfijmoiajkkimpin,MediaSession Provider,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,2,2,0,0,0,2,,0,13,5.894,2026-10-10T13:05:16.631Z,2026-10-10T13:05:16.631Z
+mkhohhpeajnephpblgghggghkjkffhgn,Stack Exchange Help Links,not_testable,,true,true,false,false,,,,,,,,,,,not_testable,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,114.164,2026-10-10T13:07:27.252Z,2026-10-10T13:07:27.252Z
+nejonmoghjjielofmaiccajkoologdnh,Github image preview,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,6,3.553,2026-10-10T13:07:32.419Z,2026-10-10T13:07:32.419Z
+nianghdcpickkjjjbpbbjniocdocafdb,google-slides-asciinema,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,6,5.77,2026-10-10T13:07:39.551Z,2026-10-10T13:07:39.551Z
+nkppjhcodobfcfmbgijefgclihcamebc,7 segment clock,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,9.779,2026-10-10T13:07:50.658Z,2026-10-10T13:07:50.658Z
+pmkfcaeagpolfcahpldamgahghhomjbm,Skip Netflix Intro Auto,not_testable,,true,true,true,false,,not_testable,,,,,,,,,not_testable,,,needs an account,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,6,4.715,2026-10-10T13:07:56.712Z,2026-10-10T13:07:56.712Z
+fafjdbenbdpjebkejkjpldncikbddpef,allround-login,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,26,4.536,2026-10-10T13:08:09.677Z,2026-10-10T13:08:09.677Z
+gaapehfiodincbjnhfhndlemfnifidlg,Jitsi Partage d'écran DRDJSCS BFC,not_testable,,true,true,true,false,,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,0,0,0,0,0,0,0,,0,7,5.18,2026-10-10T13:09:08.623Z,2026-10-10T13:09:08.623Z
+coamhmbkfikjjkfplcocinhjgmpdaeaf,Make Kanban boards more scanable,not_testable,,true,true,true,false,,,,,,,,,,,not_testable,,,,,,,,,,,,needs an account,,,0,0,0,0,0,0,0,,0,11,4.697,2026-10-10T13:09:20.186Z,2026-10-10T13:09:20.186Z
+decefkmlddohiggelbifkoaobjekalhj,Welcome to the internet,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,10.756,2026-10-10T13:09:38.423Z,2026-10-10T13:09:38.423Z
+glllfmibomedhbpomceafponabppfgmg,What did you say?,not_testable,,true,false,false,false,not_testable,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,30,63.641,2026-10-10T13:10:58.567Z,2026-10-10T13:10:58.567Z
+hkghkfjmhdkandmlbjdigjhaldhdjpof,COVID19 Statistics on New Tab ,working,1,true,true,false,false,,not_testable,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,11,9.365,2026-10-10T13:11:24.888Z,2026-10-10T13:11:24.888Z
+jhnekgnjiiflhmlmccdgapnmoldidekm,Atelier Anke Jacob,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,6.101,2026-10-10T13:11:32.359Z,2026-10-10T13:11:32.359Z
+nlbjaajfamajjchcpfmabdmcbaeedaic,A Few Good Plumbers,not_testable,,true,false,false,false,,not_testable,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,14,2.481,2026-10-10T13:11:51.285Z,2026-10-10T13:11:51.285Z
+afaaijiijklfhkhapfocbahlnpgknlmg,a(8) Functions,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,1.953,2026-10-10T13:11:54.566Z,2026-10-10T13:11:54.566Z
+ahepglganllfpmdkkldabebaioanjclb,Placeholder - Test,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,1.937,2026-10-10T13:11:57.858Z,2026-10-10T13:11:57.858Z
+aianghkolnphmmngpknlgbcafoelacen,Black Blank Tab Page,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,4.124,2026-10-10T13:12:07.011Z,2026-10-10T13:12:07.011Z
+akghknjchdholmeelknhkghgnmknfhaa,Стартовая и поиск Hi.Ru,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,2.359,2026-10-10T13:12:10.837Z,2026-10-10T13:12:10.837Z
+andbigojninbopokegabdicgoppdoaok,Qr Code B2S,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,1.004,2026-10-10T13:12:13.171Z,2026-10-10T13:12:13.171Z
+aoihghfnnhcifinbmgadnmiifjamacnb,BLEWE,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,0.847,2026-10-10T13:12:15.325Z,2026-10-10T13:12:15.325Z
+baakjfhbggcmmandgpkcekbogaadppim,SearchOns.com,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,"Works, by taking over search (suggestions)",0,0,0,0,0,0,0,,0,12,45.501,2026-10-10T13:13:26.774Z,2026-10-10T13:13:26.774Z
+bamekgeijlhgjcoicenppddmnfpjiehi,New Tab G,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,5.306,2026-10-10T13:13:33.206Z,2026-10-10T13:13:33.206Z
+bbngmchfignilolhmmpjdilkdelmjeej,The Copy Me,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,1.41,2026-10-10T13:13:51.129Z,2026-10-10T13:13:51.129Z
+bfbljmnkhmljnlpfndlmoeohckhghgcg,Extra Characters,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,13,2.235,2026-10-10T13:13:54.776Z,2026-10-10T13:13:54.776Z
+bgcajjlghcbaoebgfgnhjbgaipmlpdli,Streak Tracker,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,18,13.015,2026-10-10T13:14:09.093Z,2026-10-10T13:14:09.093Z
+boaeobjcahicijkejbedemnaoibnmgmp,Arasak.com,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,21.3,2026-10-10T13:14:47.059Z,2026-10-10T13:14:47.059Z
+boekfjjlekafbaldmpoimjbcecnfjohd,AppEncuestas,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,1.997,2026-10-10T13:14:50.306Z,2026-10-10T13:14:50.306Z
+ciodheinffecofepblkhkljfmagnnckk,Скупка автомобильных катализаторов,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,1.698,2026-10-10T13:14:53.350Z,2026-10-10T13:14:53.350Z
+cmpnokappeagbppedghnpngakhfjeenh,Out Of Office Jobs,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,0.915,2026-10-10T13:14:55.651Z,2026-10-10T13:14:55.651Z
+cnhkghcbdppfomnpnhilbpinkajgmkjg,Fastreel by Movavi | Online Video Editor,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,1.358,2026-10-10T13:14:58.247Z,2026-10-10T13:14:58.247Z
+dafeagfjbepchdnobdiagopikjnpebpj,Добавьте Mail.Ru как домашнюю страницу,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,1.356,2026-10-10T13:15:01.492Z,2026-10-10T13:15:01.492Z
+dekdaonldakgdpgkgfeiohamdfjfpccc,Прием катализаторов,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,1.507,2026-10-10T13:15:04.300Z,2026-10-10T13:15:04.300Z
+dfcbllpmkfdlmcjpibfincichchlamnp,Movavi Slideshow Maker 6.6.1,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,1.162,2026-10-10T13:15:06.981Z,2026-10-10T13:15:06.981Z
+dfcpillpkonfkgmodjgechmedhgolpbk,Runnr,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,12.562,2026-10-10T13:15:20.916Z,2026-10-10T13:15:20.916Z
+dglcceamkcjlcoblhkmjcgnmkpbjofeh,Firebase Auth in Chrome Extension Sample,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,0.919,2026-10-10T13:15:23.190Z,2026-10-10T13:15:23.190Z
+dkfmdjgeddbaikjkpjemidgkfaglamdb,Firebase Auth in Chrome Extension Sample,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,0.879,2026-10-10T13:15:25.311Z,2026-10-10T13:15:25.311Z
+dldageaefkkpikojmigdnpmdeoapdjed,Firebase Auth in Chrome Extension Sample,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,0.983,2026-10-10T13:15:27.474Z,2026-10-10T13:15:27.474Z
+dpdgihjlickjhbckeonffhjajkbomeoc,Loadedcamp Media,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,0.61,2026-10-10T13:15:29.442Z,2026-10-10T13:15:29.442Z
+eaaoedpoomkjfdlfhppcbflgdpfeaohb,intentsearch.com,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,0.687,2026-10-10T13:15:31.408Z,2026-10-10T13:15:31.408Z
+ecfghdaebifhpkhakaombcbekjpjhnkh,Movavi Video Editor 2020,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,11,1.15,2026-10-10T13:15:33.691Z,2026-10-10T13:15:33.691Z
+ecogijbkokfnojglblmffahehjkjlnfc,SPACER #1,not_testable,,true,true,false,false,,untested,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,0.863,2026-10-10T13:15:35.725Z,2026-10-10T13:15:35.725Z
+edfdgimilfiboemdjadadigmkeajocmn,Valise Cabine,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,15,2.335,2026-10-10T13:16:13.518Z,2026-10-10T13:16:13.518Z
+ehijbdhgohbfpmkpjlldgjdlnlgaigpa,Packagist.org search engine,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,1.594,2026-10-10T13:16:16.652Z,2026-10-10T13:16:16.652Z
+ekoncmgcdjjfkpefjfenfbahpkhilekk,シンクロチューブ,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,3.154,2026-10-10T13:16:21.126Z,2026-10-10T13:16:21.126Z
+ellccpkcncpogdfafgjejjnfkceedlcn,Torch Search,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,1.195,2026-10-10T13:16:23.812Z,2026-10-10T13:16:23.812Z
+enfmooofdgnemgekikojihpceobljgep,gas - gtm Tool,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,16.146,2026-10-10T13:16:57.194Z,2026-10-10T13:16:57.194Z
+ennnhdcfleapfgmpkbkpaagfejfnibkg,Internet-Start,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,1.32,2026-10-10T13:16:59.943Z,2026-10-10T13:16:59.943Z
+ffofikficihklhkfehcfabpdofmemihh,Uzvy Default Search,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,"Works by replacing search
+",0,0,0,0,0,0,0,,0,6,11.039,2026-10-10T13:17:12.327Z,2026-10-10T13:17:12.327Z
+fgammopmbkkafkclbikopphkeeilajba,New Tab Page - Blank,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,9,4.458,2026-10-10T13:17:18.682Z,2026-10-10T13:17:18.682Z
+fodnjpelpfdaponinleoclalnhacdfmj,CleanThis,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,1.317,2026-10-10T13:17:21.488Z,2026-10-10T13:17:21.488Z
+gaojhcekjhdbeibcjbobdnjabihchgcj,SyncThemCalendars,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,1.829,2026-10-10T13:17:24.594Z,2026-10-10T13:17:24.594Z
+gbapciimajmhmlhohecbicaconidcgbj,Firebase Auth in Chrome Extension Sample,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,1.43,2026-10-10T13:17:27.358Z,2026-10-10T13:17:27.358Z
+gfcfmagkdjgmdjnmfjbhlfmoeclpglca,Movavi Photo Manager,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,4.511,2026-10-10T13:17:33.063Z,2026-10-10T13:17:33.063Z
+gojdeelmcgmmjoadcjpicpkejkjbbfhc,Тест на профориентацию,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,3.833,2026-10-10T13:17:51.857Z,2026-10-10T13:17:51.857Z
+hcmepffgbbenebplmolgcppogkkkfnma,The Client Relations Factory,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,14.401,2026-10-10T13:18:07.762Z,2026-10-10T13:18:07.762Z
+hjmpphjfbnmbddhcpmdaaophlabjenil,My Extension,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,1.222,2026-10-10T13:18:10.254Z,2026-10-10T13:18:10.254Z
+hkhlocepmjgohkgmghaogfpafmocjkla,DocuVantage OnDemand Gmail Connector,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,1.004,2026-10-10T13:18:12.665Z,2026-10-10T13:18:12.665Z
+iagmopmpiecjlmiebkcmlidkcajmalli,Casino Bonus Tips,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,3,1.241,2026-10-10T13:18:15.185Z,2026-10-10T13:18:15.185Z
+idlfipfkeckfbnknbmeadjgjdicgjjli,Countdown to Christmas Day,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,4.281,2026-10-10T13:18:24.785Z,2026-10-10T13:18:24.785Z
+iebcnmngfmbgmjbikgjdoddhgjdpaehi,SkySplore Search Engine,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,2.276,2026-10-10T13:18:28.505Z,2026-10-10T13:18:28.505Z
+iffoooedmcnghpgdkaebfepbagcbicop,Global Stike,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,0.816,2026-10-10T13:18:30.583Z,2026-10-10T13:18:30.583Z
+iggacokahppncldjegpibcnmdneoinjn,Casinoupplevelse,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,0.896,2026-10-10T13:18:32.791Z,2026-10-10T13:18:32.791Z
+iinhhememjfkokiakinfgpjdeanfheld,Chart Normalizer,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,0.967,2026-10-10T13:18:35.290Z,2026-10-10T13:18:35.290Z
+ioenhafggjeoendncbpdiicdiicdjimd,Send SMS from Google Sheet,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,10,1.259,2026-10-10T13:18:37.818Z,2026-10-10T13:18:37.818Z
+iohimoffklhjpdbodbeaeofjhogjnakg,InfoTermi,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,1.164,2026-10-10T13:18:40.164Z,2026-10-10T13:18:40.164Z
+jfnmofjjjaobphckdeinkndhfncljpce,Shortcut disabler,working,1,true,true,false,false,,,,,,,,,working,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,27.561,2026-10-10T13:19:24.195Z,2026-10-10T13:19:24.195Z
+jifgdinlemmbjjabganbldnbfnkkidhf,Slotsspot: theme for browser Chrome,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,17,0.265,2026-10-10T13:19:40.946Z,2026-10-10T13:19:40.946Z
+jnlbmhcbnmidbdmmhofijdggmclpikcg,ZEITGEBER,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,3.921,2026-10-10T13:19:46.138Z,2026-10-10T13:19:46.138Z
+jpgcjkmidbpmegfpnckhcbdmbmhobnjg,Todays List,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,1.146,2026-10-10T13:19:48.701Z,2026-10-10T13:19:48.701Z
+jpidmonbpnhcpgdpefgkmgaoobcdgdbn,askfalcon.com,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,1.141,2026-10-10T13:19:51.430Z,2026-10-10T13:19:51.430Z
+kaahdbmbpejjlkaapjebngfobpjhpolm,Wikipedia Bookmark,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,1.436,2026-10-10T13:19:54.196Z,2026-10-10T13:19:54.196Z
+kcggjcnjagmajnfhpdhncghgboaofkhg,Firebase Auth in Chrome Extension Sample,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,17,1.834,2026-10-10T13:19:57.498Z,2026-10-10T13:19:57.498Z
+konmhndloeipcibcmpjalnfpcalfkbhp,Estimated 1RM Calculator (function),not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,0.915,2026-10-10T13:19:59.679Z,2026-10-10T13:19:59.679Z
+kpfehncehohdkioaaeeedakhacmmkefp,Pillar Custom Functions,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,1.332,2026-10-10T13:20:02.263Z,2026-10-10T13:20:02.263Z
+lemioedjmmlnfcejpbljhmbibgelggne,Firebase Auth in Chrome Extension Sample,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,18,1.116,2026-10-10T13:20:04.791Z,2026-10-10T13:20:04.791Z
+lidiflbogjbegjjblnjfapfbbggeliom,Txtik,not_testable,,true,true,false,false,,,,,,,,not_testable,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,8,9.177,2026-10-10T13:20:15.275Z,2026-10-10T13:20:15.275Z
+lklmlnfoegfgohndepeaddddeooianod,Test by test3,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,8.065,2026-10-10T13:20:24.604Z,2026-10-10T13:20:24.604Z
+llhccjlbojjmapbcipnjlfedjbofjigd,AMCWebApp,not_testable,,true,true,false,false,,not_testable,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,13,1.246,2026-10-10T13:20:41.113Z,2026-10-10T13:20:41.113Z
+lohpdfikcbegjgnjbindmhkkmbjkbhhf,OceanGo,working,1,true,true,false,false,,not_testable,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,11.689,2026-10-10T13:20:53.815Z,2026-10-10T13:20:53.815Z
+lolapmlhhkkfapecigdoocngfbfhdmnk,Goals Tracker,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,0.979,2026-10-10T13:20:56.226Z,2026-10-10T13:20:56.226Z
+mdjmijghafldpmljjljngmihkohoomei,BiddingBox,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,13,0.751,2026-10-10T13:20:58.304Z,2026-10-10T13:20:58.304Z
+melfmbkfjcljmhpolheccbkdmaoffdjd,Disabled,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,12,0.715,2026-10-10T13:21:00.370Z,2026-10-10T13:21:00.370Z
+mfbnmhjdgbjddpeoeleimhhpblhkdhhm,BTW CONSULTING,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,0.919,2026-10-10T13:21:02.655Z,2026-10-10T13:21:02.655Z
+mhmhdkokgcdoffpfbjonifikciaalmpf,New Tab No Shortcuts,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,7.374,2026-10-10T13:21:11.379Z,2026-10-10T13:21:11.379Z
+mkhnlogngigmbdjpckmemecplmpijbbm,Nash OS - Chapter 1: What is Nash OS?,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,3,0.84,2026-10-10T13:21:13.664Z,2026-10-10T13:21:13.664Z
+mkpnghnaoaglmcnjediemmjncjmjmbnl,eTender Online,not_testable,,true,true,false,false,,,,,,,,not_testable,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,2.623,2026-10-10T13:21:17.795Z,2026-10-10T13:21:17.795Z
+mmiemoagbpljakpmiomollgpcgiehdim,__MSG_ExtnName__,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,0.987,2026-10-10T13:21:20.090Z,2026-10-10T13:21:20.090Z
+nchjdnhlflbojlffhdaihagpcajiakec,Data Cleansing,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,0.541,2026-10-10T13:21:22.006Z,2026-10-10T13:21:22.006Z
+ndpnnaadmfdnmlpmbdpdibblpgldeddc,ReadyBetWin,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,0.614,2026-10-10T13:21:24.055Z,2026-10-10T13:21:24.055Z
+nggkkjbcbnajlpiedibbikgjgkgjfgai,Coinup Search,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,0.554,2026-10-10T13:21:26.099Z,2026-10-10T13:21:26.099Z
+njfmakabgionbalgnlpoiccgoecdeeoi,Blank New Tab,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,13,6.059,2026-10-10T13:21:33.500Z,2026-10-10T13:21:33.500Z
+nmbklkkbojhafmhpnakjjhbmkoplocci,Firebase Auth in Chrome Extension Sample,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,1.36,2026-10-10T13:21:36.183Z,2026-10-10T13:21:36.183Z
+odmfafdmbbiaffplpdpkopidchedjhof,Background Process,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,14,2.166,2026-10-10T13:21:39.659Z,2026-10-10T13:21:39.659Z
+oepncppigoiagibchifdpibgpgidknni,Firebase Auth in Chrome Extension Sample,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,13,1.006,2026-10-10T13:21:41.893Z,2026-10-10T13:21:41.893Z
+omaiapdnhjmnmgojegjmhbcmahbbioif,Be Wise Professor,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,13,1.115,2026-10-10T13:21:44.420Z,2026-10-10T13:21:44.420Z
+pbohjjhllefhfghkpikhjballblpkagj,Watermark.ws: Batch Watermark Photos & Videos,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,4,1.387,2026-10-10T13:21:47.032Z,2026-10-10T13:21:47.032Z
+pcmoeemedgaidojflmkfhpgfcbclhnoa,getflynews,working,1,true,true,false,false,working,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,1.387,2026-10-10T13:21:56.141Z,2026-10-10T13:21:56.141Z
+pfgdcebeaipgdhmihejolhllmnpclblo,Tabula Rasa,working,1,true,true,false,false,,,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,6.605,2026-10-10T13:22:04.367Z,2026-10-10T13:22:04.367Z
+pfmiclpcbjkifkemapjeljlgcnomjmfa,Test by test4,not_testable,,true,true,false,false,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,5,0.928,2026-10-10T13:22:06.541Z,2026-10-10T13:22:06.541Z
+phhnnjmjgolnbolohmhbpkkfnhnadpbg,Datawrap,not_testable,,true,true,false,false,,,,,,,,not_testable,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,2.372,2026-10-10T13:22:10.166Z,2026-10-10T13:22:10.166Z
+pijgifejpphcjkhjnkfehdmappklajcn,Blank New Tab,working,1,true,true,false,false,,not_testable,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,6,11.336,2026-10-10T13:22:22.917Z,2026-10-10T13:22:22.917Z
+pmflbpkabookgclhlllkememcfjnepmp,ポタール,working,1,false,true,false,false,,,,working,,,,,,,,,,,,does not install,,,,,,,,,,0,0,0,0,0,0,0,,0,9,8.724,2026-10-10T13:22:33.129Z,2026-10-10T13:22:33.129Z
+ppamcpgjecjimecjahkfifanhkjodkae,about꞉black - empty new tab page,working,1,true,true,false,false,,not_testable,,working,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0,0,,0,7,2.331,2026-10-10T13:22:52.070Z,2026-10-10T13:22:52.070Z
