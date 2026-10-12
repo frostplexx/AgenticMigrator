@@ -545,7 +545,8 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
          * never opened the reference documents it was offered.
          *
          * Both are absent for a review whose run directory is gone, which is honest: the review
-         * survives, the run's measurements do not.
+         * survives, the run's measurements do not. The same goes for `tags` — they come from the
+         * run's static analysis, so a run-less review exports with an empty tag list.
          */
         async listReports() {
             return registry.listReports().map((row) => {
@@ -556,6 +557,7 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
                 return {
                     name,
                     report: JSON.parse(row.payload) as ExtlensReport,
+                    tags: run ? profileForRun(run).tags : [],
                     ...(analysis ? { analysis } : {}),
                     ...(runReport?.agentUsage ? { agentUsage: runReport.agentUsage } : {}),
                 };
