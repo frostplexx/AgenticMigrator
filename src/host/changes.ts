@@ -91,6 +91,30 @@ export const CHANGE_SUPPORT: Record<ChangeId, { support: Mv3Support; url?: strin
     eval_removed: { support: "full" },
 };
 
+/**
+ * The human wording for each change, as the ledger and the tag layer render it. One record, so
+ * the ledger's `add` calls and anything that reads log lines back into tags (the backfill script)
+ * cannot drift apart.
+ */
+export const CHANGE_TITLES: Record<ChangeId, string> = {
+    manifest_version: "manifest_version bumped to 3",
+    background_service_worker: "background page/scripts → service worker",
+    background_persistent_removed: "background.persistent removed",
+    action_rename: "browser_action/page_action → action",
+    host_permissions_split: "URL permissions → host_permissions",
+    webrequest_to_dnr: "blocking webRequest → declarativeNetRequest",
+    webrequest_header_modification: "blocking header rewrite → declarativeNetRequest modifyHeaders",
+    webrequest_response_inspection: "response body / blocking auth handling",
+    offscreen_document: "DOM use in background → offscreen document",
+    execute_script_api: "tabs.executeScript → scripting.executeScript",
+    remote_code_removed: "remotely hosted code removed or bundled",
+    web_accessible_resources_v3: "web_accessible_resources → MV3 object form",
+    csp_object_form: "content_security_policy → object form",
+    commands_execute_action: "_execute_browser_action → _execute_action",
+    storage_over_dom_state: "global variables in background → chrome.storage",
+    eval_removed: "string evaluation (eval / new Function) removed",
+};
+
 export interface ChangeRecord {
     id: ChangeId;
     /** Short description, used as the tag's human text. */
@@ -221,7 +245,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
 
     add(
         "manifest_version",
-        "manifest_version bumped to 3",
+        CHANGE_TITLES.manifest_version,
         inManifest.manifest_version === 2,
         outManifest.manifest_version === 3,
         [{ file: "manifest.json", snippet: `manifest_version: ${inManifest.manifest_version}` }],
@@ -230,7 +254,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const inBg = inManifest.background ?? null;
     add(
         "background_service_worker",
-        "background page/scripts → service worker",
+        CHANGE_TITLES.background_service_worker,
         Boolean(inBg && (inBg.page || Array.isArray(inBg.scripts))),
         Boolean(outManifest.background?.service_worker),
         inBg ? [{ file: "manifest.json", snippet: `background: ${JSON.stringify(inBg).slice(0, SNIPPET_MAX)}` }] : [],
@@ -241,14 +265,14 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const hadPersistent = inBg ? inBg.persistent !== undefined : false;
     add(
         "background_persistent_removed",
-        "background.persistent removed",
+        CHANGE_TITLES.background_persistent_removed,
         hadPersistent,
         hadPersistent && (outManifest.background ? outManifest.background.persistent === undefined : true),
     );
 
     add(
         "action_rename",
-        "browser_action/page_action → action",
+        CHANGE_TITLES.action_rename,
         Boolean(inManifest.browser_action || inManifest.page_action),
         Boolean(outManifest.action) && !outManifest.browser_action && !outManifest.page_action,
     );
@@ -257,7 +281,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const hostLike = inPermissions.filter((p) => typeof p === "string" && URL_PATTERN.test(p));
     add(
         "host_permissions_split",
-        "URL permissions → host_permissions",
+        CHANGE_TITLES.host_permissions_split,
         hostLike.length > 0,
         Array.isArray(outManifest.host_permissions) && outManifest.host_permissions.length > 0,
         hostLike.length ? [{ file: "manifest.json", snippet: `permissions: ${hostLike.join(", ")}` }] : [],
@@ -276,7 +300,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const outPermissions: string[] = Array.isArray(outManifest.permissions) ? outManifest.permissions : [];
     const outDeclaresDnr =
         outPermissions.some((p) => String(p).startsWith("declarativeNetRequest")) || Boolean(outManifest.declarative_net_request);
-    add("webrequest_to_dnr", "blocking webRequest → declarativeNetRequest", usesBlocking, outDeclaresDnr, blockingEvidence);
+    add("webrequest_to_dnr", CHANGE_TITLES.webrequest_to_dnr, usesBlocking, outDeclaresDnr, blockingEvidence);
 
     // Header rewriting: a blocking listener on the two header events, or a listener body that
     // returns headers. Detected separately from the block/redirect case because DNR's answer to
@@ -289,7 +313,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const outRules = readCode(outputDir, 2_000_000, JSON_EXT);
     add(
         "webrequest_header_modification",
-        "blocking header rewrite → declarativeNetRequest modifyHeaders",
+        CHANGE_TITLES.webrequest_header_modification,
         usesHeaderRewrite,
         outDeclaresDnr && find([...outFiles, ...outRules], /modifyHeaders/).length > 0,
         headerEvidence,
@@ -304,7 +328,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     );
     add(
         "webrequest_response_inspection",
-        "response body / blocking auth handling",
+        CHANGE_TITLES.webrequest_response_inspection,
         inspectionEvidence.length > 0,
         false,
         inspectionEvidence,
@@ -318,7 +342,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     );
     add(
         "offscreen_document",
-        "DOM use in background → offscreen document",
+        CHANGE_TITLES.offscreen_document,
         domEvidence.length > 0,
         Boolean(
             (Array.isArray(outManifest.permissions) && outManifest.permissions.includes("offscreen")) ||
@@ -330,7 +354,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const execEvidence = find(inFiles, /tabs\.executeScript\s*\(|tabs\.insertCSS\s*\(/);
     add(
         "execute_script_api",
-        "tabs.executeScript → scripting.executeScript",
+        CHANGE_TITLES.execute_script_api,
         execEvidence.length > 0,
         find(outFiles, /scripting\.(executeScript|insertCSS)\s*\(/).length > 0,
         execEvidence,
@@ -339,7 +363,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const remoteEvidence = find(inFiles, /<script[^>]+src=["']https?:\/\/|importScripts\s*\(\s*["']https?:\/\//);
     add(
         "remote_code_removed",
-        "remotely hosted code removed or bundled",
+        CHANGE_TITLES.remote_code_removed,
         remoteEvidence.length > 0,
         remoteEvidence.length > 0 &&
             find(outFiles, /<script[^>]+src=["']https?:\/\/|importScripts\s*\(\s*["']https?:\/\//).length === 0,
@@ -348,7 +372,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
 
     add(
         "web_accessible_resources_v3",
-        "web_accessible_resources → MV3 object form",
+        CHANGE_TITLES.web_accessible_resources_v3,
         Array.isArray(inManifest.web_accessible_resources) &&
             inManifest.web_accessible_resources.some((r: unknown) => typeof r === "string"),
         Array.isArray(outManifest.web_accessible_resources) &&
@@ -359,7 +383,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const hadStringCsp = typeof inManifest.content_security_policy === "string";
     add(
         "csp_object_form",
-        "content_security_policy → object form",
+        CHANGE_TITLES.csp_object_form,
         hadStringCsp,
         hadStringCsp &&
             (outManifest.content_security_policy === undefined ||
@@ -369,7 +393,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const inCommands = inManifest.commands ?? {};
     add(
         "commands_execute_action",
-        "_execute_browser_action → _execute_action",
+        CHANGE_TITLES.commands_execute_action,
         Object.prototype.hasOwnProperty.call(inCommands, "_execute_browser_action"),
         Object.prototype.hasOwnProperty.call(outManifest.commands ?? {}, "_execute_action"),
     );
@@ -378,7 +402,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const stateEvidence = find(inBackground, /^\s*(var|let|const)\s+\w+\s*=\s*(\{|\[|new\s+Map|new\s+Set|0|""|'')/m);
     add(
         "storage_over_dom_state",
-        "global variables in background → chrome.storage",
+        CHANGE_TITLES.storage_over_dom_state,
         stateEvidence.length > 0,
         find(outBackground, /chrome\.storage\.(local|session|sync)\.(set|get)/).length > 0,
         stateEvidence,
@@ -390,7 +414,7 @@ export function buildChangeLedger(inputDir: string, outputDir: string): ChangeRe
     const evalEvidence = find(inFiles, EVAL);
     add(
         "eval_removed",
-        "string evaluation (eval / new Function) removed",
+        CHANGE_TITLES.eval_removed,
         evalEvidence.length > 0,
         evalEvidence.length > 0 && find(outFiles, EVAL).length === 0,
         evalEvidence,

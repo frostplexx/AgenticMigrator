@@ -1,0 +1,5101 @@
+{
+ "20261005-081824-gemma-4-31b-it-fp8-256k/abnlpgnoijoannioldehkdjfofbpnfad": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/acdglffpgonoaepdhfmbccjpeopblbom": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/adhdbclaplninpalnlcgaooncbkjocmp": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 525,
+     "snippet": "// chrome.pageAction.onClicked.addListener(function(tab) {",
+     "api": "chrome.pageAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/adllocmhjliahdanbfnaijobleemnglo": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/admkahgcbipglokgboenonpgaklpaoma": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/adnjlnpdndicafchbglghieljplkhphk": {
+  "extension": {
+   "needed": 5,
+   "residual": 3,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.sendMessage": {
+     "needed": 2,
+     "residual": 1,
+     "converted": 1
+    },
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.lastError": {
+     "needed": 2,
+     "residual": 2,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 150,
+     "snippet": "//     if (chrome.extension.lastError) {",
+     "api": "chrome.extension.lastError"
+    },
+    {
+     "file": "service_worker.js",
+     "line": 151,
+     "snippet": "//         console.log(\"Got expected error: \" + chrome.extension.lastError.message);",
+     "api": "chrome.extension.lastError"
+    },
+    {
+     "file": "service_worker.js",
+     "line": 310,
+     "snippet": "// chrome.extension.sendMessage({'message': 'updateContextMenu', \"isShow\": isLogIn});",
+     "api": "chrome.extension.sendMessage"
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/aedcegbncjgdbpdodemfbimfdilimfda": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.onConnect": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.connect": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/afakeafhcjjglnedecmbhknbhalnelfb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/afijdkapacbnmfjkmipdfgnnbfpmmoad": {
+  "extension": {
+   "needed": 7,
+   "residual": 0,
+   "converted": 7,
+   "byApi": {
+    "chrome.extension.onRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onMessage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/aianghkolnphmmngpknlgbcafoelacen": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ajajocakkdflkbnfmmpcmdefmfbiipfo": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ajiemnfobhbjbjlnlgmidkbnejlffmmi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ajkhhbbojkdghjfdmiekadmeplhehppa": {
+  "extension": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ajnennolgjbadfdclkchpdigabgecmeb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/aklfgleddjhndofilfinfnlkkondcdke": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/alhljceidfdmahgfhjlpbbpcmcbnicfc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/amlffnkkdaedmndiklgdphaanmcjnlea": {
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/annmmkpobpkmnmdmcjmbonpmnpmohica": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bafajkcbalfkkdghjpgcaaopfalikmlk": {
+  "extension": {
+   "needed": 9,
+   "residual": 4,
+   "converted": 5,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 9,
+     "residual": 4,
+     "converted": 5
+    }
+   },
+   "residuals": [
+    {
+     "file": "coverage/lcov-report/background/background.js.html",
+     "line": 1632,
+     "snippet": "redirectUrl: chrome.extension.getURL('content/omni_newtab.html')",
+     "api": "chrome.extension.getURL"
+    },
+    {
+     "file": "coverage/lcov-report/background/background.js.html",
+     "line": 1638,
+     "snippet": "redirectUrl: chrome.extension.getURL(",
+     "api": "chrome.extension.getURL"
+    },
+    {
+     "file": "coverage/lcov-report/background/background.js.html",
+     "line": 1646,
+     "snippet": "redirectUrl: chrome.extension.getURL(",
+     "api": "chrome.extension.getURL"
+    },
+    {
+     "file": "coverage/lcov-report/background/tab.js.html",
+     "line": 542,
+     "snippet": "url: chrome.extension.getURL('content/omni_newtab.html')",
+     "api": "chrome.extension.getURL"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 11,
+   "residual": 7,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 11,
+     "residual": 7,
+     "converted": 4
+    }
+   },
+   "residuals": [
+    {
+     "file": "coverage/lcov-report/background/background.js.html",
+     "line": 1287,
+     "snippet": "<span class=\"cstat-no\" title=\"statement not covered\" >      chrome.browserAction.setBadgeText({ text: '✔️' });</span>",
+     "api": "chrome.browserAction."
+    },
+    {
+     "file": "coverage/lcov-report/background/background.js.html",
+     "line": 1288,
+     "snippet": "<span class=\"cstat-no\" title=\"statement not covered\" >      chrome.browserAction.setBadgeBackgroundColor({ color: '#beadfa75' });</span>",
+     "api": "chrome.browserAction."
+    },
+    {
+     "file": "coverage/lcov-report/background/background.js.html",
+     "line": 1290,
+     "snippet": "<span class=\"cstat-no\" title=\"statement not covered\" >      chrome.browserAction.setBadgeText({ text: '' });</span>",
+     "api": "chrome.browserAction."
+    },
+    {
+     "file": "coverage/lcov-report/background/background.js.html",
+     "line": 1495,
+     "snippet": "chrome.browserAction.onClicked.addListener(Tefter.onMainIconClicked);",
+     "api": "chrome.browserAction."
+    },
+    {
+     "file": "coverage/lcov-report/background/have_it.js.html",
+     "line": 163,
+     "snippet": "chrome.browserAction.setBadgeText({ text: '✔️' });",
+     "api": "chrome.browserAction."
+    },
+    {
+     "file": "coverage/lcov-report/background/have_it.js.html",
+     "line": 164,
+     "snippet": "chrome.browserAction.setBadgeBackgroundColor({ color: '#beadfa75' });",
+     "api": "chrome.browserAction."
+    },
+    {
+     "file": "coverage/lcov-report/background/have_it.js.html",
+     "line": 166,
+     "snippet": "chrome.browserAction.setBadgeText({ text: '' });",
+     "api": "chrome.browserAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bamekgeijlhgjcoicenppddmnfpjiehi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/banegighfdcacilmkahdjhgjgbciafmk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/baobkpiejapnnmhbpbmmbpkgickpdghh": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/baoehcinncafahkhefhjanpoiikmfccl": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bbofkffmfiambifonbnhfackhigeodkg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bccdohmacgkihojgdefakdhhdccpclpk": {
+  "browser_action": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 5,
+     "residual": 0,
+     "converted": 5
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/beaepapjkhdcienhpgcoekbjckajapdk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bedodokiampcckckeodkpdhchmgbleff": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/beknlgommgoagklgejjlpnhmpaihlgdg": {
+  "extension": {
+   "needed": 5,
+   "residual": 5,
+   "converted": 0,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 5,
+     "residual": 5,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "popup/bullhorn.js",
+     "line": 2,
+     "snippet": "!function(modules){var installedModules={};function __webpack_require__(moduleId){if(installedModules[moduleId])return installedModules[moduleId].exports;var module=installedModules[moduleId]={i:modul",
+     "api": "chrome.extension.getBackgroundPage"
+    },
+    {
+     "file": "popup/index.js",
+     "line": 2,
+     "snippet": "!function(modules){var installedModules={};function __webpack_require__(moduleId){if(installedModules[moduleId])return installedModules[moduleId].exports;var module=installedModules[moduleId]={i:modul",
+     "api": "chrome.extension.getBackgroundPage"
+    },
+    {
+     "file": "popup/standalone.js",
+     "line": 2,
+     "snippet": "!function(modules){var installedModules={};function __webpack_require__(moduleId){if(installedModules[moduleId])return installedModules[moduleId].exports;var module=installedModules[moduleId]={i:modul",
+     "api": "chrome.extension.getBackgroundPage"
+    },
+    {
+     "file": "popup/zoho.js",
+     "line": 2,
+     "snippet": "!function(modules){var installedModules={};function __webpack_require__(moduleId){if(installedModules[moduleId])return installedModules[moduleId].exports;var module=installedModules[moduleId]={i:modul",
+     "api": "chrome.extension.getBackgroundPage"
+    },
+    {
+     "file": "service_worker.js",
+     "line": 2,
+     "snippet": "!function(modules){var installedModules={};function __webpack_require__(moduleId){if(installedModules[moduleId])return installedModules[moduleId].exports;var module=installedModules[moduleId]={i:modul",
+     "api": "chrome.extension.getBackgroundPage"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 2,
+     "snippet": "!function(modules){var installedModules={};function __webpack_require__(moduleId){if(installedModules[moduleId])return installedModules[moduleId].exports;var module=installedModules[moduleId]={i:modul",
+     "api": "chrome.browserAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bennjncpdnagmdljjiaknlifgdmphecd": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bfmfbnlagkdfnhdeibiaimidhdaonhcm": {
+  "extension": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "popup-min.js",
+     "line": 1,
+     "snippet": "$(document).ready(function(){$(\".collapsible\").collapsible(),$(\".tooltipped\").tooltip({margin:1})});const animateValue=(e,t,i,a)=>{let n=document.getElementById(e),s=i-t,l=Math.abs(Math.floor(a/s));l=",
+     "api": "chrome.extension.getURL"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bgcajjlghcbaoebgfgnhjbgaipmlpdli": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bggjpabhffcbppkohaapeojcmhflhagl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bhbokemlpmdlelkjliimdldfpamnedlj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bhichmmmceomopnpgjelkhakmacmibmp": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bhjpefidnkhmieflmgbjibmkpnaemilo": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bjopjmdidokjahnbekjliekbplkhaink": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bkpdohcllhcaejhijbolghcgcdkfacom": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/blaghicfklakdeloamnjpaoodkpeglbl": {
+  "extension": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bleldoicciehkibfgnpmelglegmmgcnj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/blhmbnpjfldjoopigndnecfdkemhbmef": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/blndcbbnjekmjhgeaefcdmjijfmgcnjg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bndfdncjampimpibnblidhoepkhbpeaa": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/boaeobjcahicijkejbedemnaoibnmgmp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/bpikjpiahcghfboceffhojblkpfofbjf": {
+  "tabs": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.tabs.onSelectionChanged": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 15,
+     "snippet": "!function(t){var e={};function r(n){if(e[n])return e[n].exports;var o=e[n]={i:n,l:!1,exports:{}};return t[n].call(o.exports,o,o.exports,r),o.l=!0,o.exports}r.m=t,r.c=e,r.d=function(t,e,n){r.o(t,e)||Ob",
+     "api": "chrome.tabs.onSelectionChanged"
+    }
+   ]
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/caccbdlmcdnnimccpgammdabicibcbmp": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cbdadgfefpgaiiefilhjlbgnjhkffhmo": {
+  "extension": {
+   "needed": 5,
+   "residual": 5,
+   "converted": 0,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 5,
+     "residual": 5,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "js/background.js",
+     "line": 1,
+     "snippet": "var background=function(t){function e(r){if(n[r])return n[r].exports;var o=n[r]={i:r,l:!1,exports:{}};return t[r].call(o.exports,o,o.exports,e),o.l=!0,o.exports}var n={};return e.m=t,e.c=n,e.d=functio",
+     "api": "chrome.extension.getURL"
+    },
+    {
+     "file": "js/inject.js",
+     "line": 1,
+     "snippet": "var inject=function(e){function t(r){if(n[r])return n[r].exports;var o=n[r]={i:r,l:!1,exports:{}};return e[r].call(o.exports,o,o.exports,t),o.l=!0,o.exports}var n={};return t.m=e,t.c=n,t.d=function(e,",
+     "api": "chrome.extension.getURL"
+    },
+    {
+     "file": "js/popup.js",
+     "line": 1,
+     "snippet": "var popup=function(n){function e(r){if(t[r])return t[r].exports;var o=t[r]={i:r,l:!1,exports:{}};return n[r].call(o.exports,o,o.exports,e),o.l=!0,o.exports}var t={};return e.m=n,e.c=t,e.d=function(n,t",
+     "api": "chrome.extension.getURL"
+    },
+    {
+     "file": "js/simpleTab.js",
+     "line": 1,
+     "snippet": "var simpleTab=function(n){function e(r){if(t[r])return t[r].exports;var o=t[r]={i:r,l:!1,exports:{}};return n[r].call(o.exports,o,o.exports,e),o.l=!0,o.exports}var t={};return e.m=n,e.c=t,e.d=function",
+     "api": "chrome.extension.getURL"
+    },
+    {
+     "file": "js/tab.js",
+     "line": 1,
+     "snippet": "var tab=function(n){function e(r){if(t[r])return t[r].exports;var o=t[r]={i:r,l:!1,exports:{}};return n[r].call(o.exports,o,o.exports,e),o.l=!0,o.exports}var t={};return e.m=n,e.c=t,e.d=function(n,t,r",
+     "api": "chrome.extension.getURL"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 5,
+   "residual": 3,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 5,
+     "residual": 3,
+     "converted": 2
+    }
+   },
+   "residuals": [
+    {
+     "file": "js/inject.js",
+     "line": 1,
+     "snippet": "var inject=function(e){function t(r){if(n[r])return n[r].exports;var o=n[r]={i:r,l:!1,exports:{}};return e[r].call(o.exports,o,o.exports,t),o.l=!0,o.exports}var n={};return t.m=e,t.c=n,t.d=function(e,",
+     "api": "chrome.browserAction."
+    },
+    {
+     "file": "js/popup.js",
+     "line": 1,
+     "snippet": "var popup=function(n){function e(r){if(t[r])return t[r].exports;var o=t[r]={i:r,l:!1,exports:{}};return n[r].call(o.exports,o,o.exports,e),o.l=!0,o.exports}var t={};return e.m=n,e.c=t,e.d=function(n,t",
+     "api": "chrome.browserAction."
+    },
+    {
+     "file": "js/simpleTab.js",
+     "line": 1,
+     "snippet": "var simpleTab=function(n){function e(r){if(t[r])return t[r].exports;var o=t[r]={i:r,l:!1,exports:{}};return n[r].call(o.exports,o,o.exports,e),o.l=!0,o.exports}var t={};return e.m=n,e.c=t,e.d=function",
+     "api": "chrome.browserAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cbhgkjdeinacfjhpfcilpneemghgoham": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cboiihjkpoglonpcokofnogklldjanog": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ccboopnefeainfgehdojfobhckmhgokb": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.sendRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ccfjahpenjnbdmbeonmmclmlhkbomfpa": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ccnkhcmepilmneogdbpedlampjacacce": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ccocombhhhapoooihkdgdlhkcknhndgc": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cdaiopnpmkfoeonhcihiagiecjjonfah": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cdcmkgmpkgcpbciedjgkddedeoeafmlm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cfodmpfppkdledadbdaidmgghhgmkdni": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cgjhiddkdoogbpnlkdddodcckhdodfep": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cgnpnjmjklfcalnkjadmhakigcmfkeih": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cgpopilahkkaonoibdgcpaehcflnkklj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/chlmccdddekohhoocdhhcipbbhccaadp": {
+  "extension": {
+   "needed": 108,
+   "residual": 0,
+   "converted": 108,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 108,
+     "residual": 0,
+     "converted": 108
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cjfcggncifmbgbmndiplmoebchjfifbn": {
+  "extension": {
+   "needed": 8,
+   "residual": 0,
+   "converted": 8,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    },
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cjkdhmpngnpbcdjmmklijgfoincfapcm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ckgfpdpkcnegmgnjljjeambdgdggaoae": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ckhljhdocmhkniefinppahmcgonpemlf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/coaeeoeibgkgpamkpckcdgaobkjonion": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/coamhmbkfikjjkfplcocinhjgmpdaeaf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cocpfkobggjbobpnmklfambchdegmhob": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/cpddacmhomhmpalfdggoklegadnldpgl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/damliljmlfomcpbidlblngfjgmflpomh": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dcbilkcifcfhkcfiphobdndfhfbfnmmm": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dckeccolfaoocphknhelfpdhbjikcpnl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ddkhocdgafdhklifabjacljbfmmiidko": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/decefkmlddohiggelbifkoaobjekalhj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dedcmfbnakehkhniojlfofffmemedhee": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dedlkenbgjlkpamjkinfgejljkifmimd": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dfabnoahjnbkpfpadnngfiamnmombjmc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dfgnmnhpepngcfigngikmojdpndblcdm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dfgplcpanfdnknbmcaghggjpnllpddik": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dfinmoanpfepmadmnihefempeefdekhi": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dfjikpibamfdjmbehgmmibhcbjhlleji": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    },
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.connect": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dhenabeepcbhcpbkeebhfijlmioihcjd": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/diggamfbkfkklacaagembohiabdmmigm": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.tabs.sendRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/djigkpimlnkmhbimadilgjimhheohmam": {
+  "extension": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 5,
+     "residual": 0,
+     "converted": 5
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dkheaplknmplgdcaffadpicnbooojlob": {
+  "extension": {
+   "needed": 25,
+   "residual": 1,
+   "converted": 24,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 23,
+     "residual": 0,
+     "converted": 23
+    },
+    "chrome.extension.isAllowedFileSchemeAccess": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    },
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 51986,
+     "snippet": "chrome.extension.isAllowedFileSchemeAccess(function (isAllowedAccess) {",
+     "api": "chrome.extension.isAllowedFileSchemeAccess"
+    }
+   ]
+  },
+  "page_action": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dkhleleeagmdkdfcknkdjnmbnlknniaf": {
+  "extension": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    },
+    "chrome.extension.onRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dlgjlpalfblohgbnneomemgednccmgga": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dllkogdmbanlppjpgdibfkbblbaahijn": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dmpcdfoaekmmapemolheegecabijlbmf": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/doakbobgenagienigbbpliopkckofhcf": {
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dphbcfdndilkgccpjkaihiaoccfmkekn": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/dpnlficaljgoljhpoomkhfnodjnbcklm": {
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eapcahpeapnknojnndbomagicopopiic": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eapmdkoepipnkeinhajebnopkgpndlgk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ebmgagejcifbcebdbiiodjjaamgiamle": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.onRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    },
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 7,
+   "residual": 0,
+   "converted": 7,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 7,
+     "residual": 0,
+     "converted": 7
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/edcmdkajjaphafjijhpebmeaogoeeeam": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ededhhcknlpomfmcoibofbjflechmpmi": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/edfflpconbnjmnejkmeddehoeccenmic": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eejhdkkihlmampdfllofghbdlojapfbf": {
+  "runtime": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.runtime.onSuspend": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 1,
+     "snippet": "!function(e){var n={};function t(r){if(n[r])return n[r].exports;var o=n[r]={i:r,l:!1,exports:{}};return e[r].call(o.exports,o,o.exports,t),o.l=!0,o.exports}t.m=e,t.c=n,t.d=function(e,n,r){t.o(e,n)||Ob",
+     "api": "chrome.runtime.onSuspend"
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eendnbabcpbjdielmebjfbigakffmhdg": {
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eeoeakefoojbgmmileebfcjgdgpekfae": {
+  "extension": {
+   "needed": 19,
+   "residual": 3,
+   "converted": 16,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 17,
+     "residual": 1,
+     "converted": 16
+    },
+    "chrome.extension.isAllowedIncognitoAccess": {
+     "needed": 2,
+     "residual": 2,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "main.js",
+     "line": 912,
+     "snippet": "chrome.extension.isAllowedIncognitoAccess(function(isAllowedIncognito) {",
+     "api": "chrome.extension.isAllowedIncognitoAccess"
+    },
+    {
+     "file": "settings.js",
+     "line": 303,
+     "snippet": "chrome.extension.isAllowedIncognitoAccess(function(isAllowedIncognito) {",
+     "api": "chrome.extension.isAllowedIncognitoAccess"
+    },
+    {
+     "file": "theme/js/lib/simplemde/simplemde.min.js",
+     "line": 7,
+     "snippet": "!function(e){if(\"object\"==typeof exports&&\"undefined\"!=typeof module)module.exports=e();else if(\"function\"==typeof define&&define.amd)define([],e);else{var t;t=\"undefined\"!=typeof window?window:\"undef",
+     "api": "chrome.extension.getURL"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 12,
+   "residual": 0,
+   "converted": 12,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 12,
+     "residual": 0,
+     "converted": 12
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/efifejldhjgaahmmilfjlcnegkghglpl": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/efknekcleeppkeihidbeoggjfdenogob": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/egehmnkakhfbiiccgpdpfmblhnmmjbej": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ehbnlikfgampfogacpfebaphikdgcdpd": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ehhoppehlpohjjbflmffjpoblnfhikbi": {
+  "extension": {
+   "needed": 15,
+   "residual": 1,
+   "converted": 14,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 14,
+     "residual": 0,
+     "converted": 14
+    }
+   },
+   "residuals": [
+    {
+     "file": "src/bg/background.js",
+     "line": 11,
+     "snippet": "// chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {",
+     "api": "chrome.extension.onMessage"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 10,
+   "residual": 0,
+   "converted": 10,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 10,
+     "residual": 0,
+     "converted": 10
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ehjkaidpgimmpcpllfmcdnlfdjffogcp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eibmigfcioanajpaanidbiakcagepmkn": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eifhnmgbkcbehcaabdmgmbgnlaheadpn": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eihjingefkckjcdlmjidkefbcbbofdhf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eipojanlhhffickbpoegkafcpndafgoj": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ekghhlpfokopajdolpolpcanmhmpghom": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ekgipgiaopkfpcbkjfmkfnnbnkohohkl": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eknnbnlelphbhliemonijibinfllliad": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eleicddmliaclipkmdgghdeikiejgpcl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/elkgdelckkldlcejjamdagmbfghichll": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/emcjdngajkpbakgnkdgcchihghefikao": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/emegfipbpkljffffokfbefjjmofmdmgn": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/enkgpigninikpjifapaeakfdmpkblnbl": {
+  "browser_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ennaiiiicpcoamlefkcgdccmjcknnocl": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ennjefgehhmkgbeeckkaamhcohhghilf": {
+  "extension": {
+   "needed": 2,
+   "residual": 2,
+   "converted": 0,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 2,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "content.js",
+     "line": 921,
+     "snippet": "eval(\"__webpack_require__.r(__webpack_exports__);\\n/* WEBPACK VAR INJECTION */(function(global) {/* harmony import */ var core_js_modules_es6_regexp_constructor__WEBPACK_IMPORTED_MODULE_0__ = __webpac",
+     "api": "chrome.extension.getURL"
+    },
+    {
+     "file": "content.js",
+     "line": 945,
+     "snippet": "eval(\"__webpack_require__.r(__webpack_exports__);\\n/* harmony import */ var core_js_modules_es6_array_find__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! core-js/modules/es6.array.find */ \\\"..",
+     "api": "chrome.extension.getURL"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/enobkmonaalllckgcjlpcmjeoihgjfne": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eockakolmhcbpimokdidgpjgemlhajib": {
+  "extension": {
+   "needed": 25,
+   "residual": 3,
+   "converted": 22,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 20,
+     "residual": 0,
+     "converted": 20
+    },
+    "chrome.extension.isAllowedFileSchemeAccess": {
+     "needed": 3,
+     "residual": 3,
+     "converted": 0
+    },
+    "chrome.extension.onMessage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 3368,
+     "snippet": "chrome.extension.isAllowedFileSchemeAccess(function (isAllowedAccess) {",
+     "api": "chrome.extension.isAllowedFileSchemeAccess"
+    },
+    {
+     "file": "service_worker.js",
+     "line": 3389,
+     "snippet": "chrome.extension.isAllowedFileSchemeAccess(function (isAllowedAccess) {",
+     "api": "chrome.extension.isAllowedFileSchemeAccess"
+    },
+    {
+     "file": "service_worker.js",
+     "line": 52753,
+     "snippet": "chrome.extension.isAllowedFileSchemeAccess(function (isAllowedAccess) {",
+     "api": "chrome.extension.isAllowedFileSchemeAccess"
+    }
+   ]
+  },
+  "page_action": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/eoojigjmgmaifeejbccfhnhedmjmnhdb": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/epkpilgligfpajldnkmobmpfhddigoch": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fbbfeoonjjfkimagopijninbfdddodfh": {
+  "extension": {
+   "needed": 43,
+   "residual": 0,
+   "converted": 43,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.getURL": {
+     "needed": 24,
+     "residual": 0,
+     "converted": 24
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 18,
+     "residual": 0,
+     "converted": 18
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fbgikljdagbanfgiimachifckbdnmnlf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fddcbbjillbfianjobjopaanlbbeclec": {
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/feclcilnnbhnocajeknbhmjkjfhkehfn": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fedagdconefjhabnkfpdlahifhjhffjb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/felklfphngaimhchomlfbfcefdbhnhjp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/feogbpckopjeedalklhjgjgpbeihfcnc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ffaajihcojdgmniajmgeandigjbdkkgb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ffheidicfkochodegnbhiflcllaaefhi": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fgafanobdbbmbfaamdffcdfbgopokelk": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.onRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    },
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 5,
+     "residual": 0,
+     "converted": 5
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fgammopmbkkafkclbikopphkeeilajba": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fhockinabfenfekfoaghjojheocbnegl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fidhdfmgfljaobonlfcjeidncgfhlnfi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fjlknokoibojegcomobdlanajbkcdhkc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fjmbdeicipcgmmaflckgfaoekeonidjl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fkbmkefjindoajppnnjoanipjpgehogg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fkhbiebcklajdihgkgfdecloboimcbco": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fmhigajdbogngfaijmnpihcjjojkigjc": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fmnbeaicfincdiiaogkeahdjchflmmoj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fnfpdeaijfjmaehhkpdnoieimohodbcm": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 5,
+     "residual": 0,
+     "converted": 5
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fnkohfnhjgiepdkecjabmlpfgbgjidji": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/foffoiohhalpfaoglaoebgjjmnklnhkk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/follminpdpghndmaleamimmbdhlgaepo": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/fomboakkmhgboiepipehgiblbpkhicjf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gaapehfiodincbjnhfhndlemfnifidlg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gamcmmbgkgadkkionimkedkaighlgaga": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ganoilfefbaddeibjpjogbdcjpnjnbji": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gcliolhofgcfmijicdmgcfoeicbhebfc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gdgegpnkjddbcohnegdddhldaeodocaj": {
+  "tabs": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gdpecfemoflcchiminfhcleelcolmopk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gdphgdnpciikoelfiganamhapemjhjdb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gedegpjjmmhgiccmigekiedmhdedgmpi": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gegmhbfkagnmenmbbgghgkdhflmidmga": {
+  "extension": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.extension.onRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gghacdgflidmgmcdmmncndihaihdalbp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ggpflhcnomanmdagjlppmklkiijkkdhd": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ghfinncbapddodnchdhfjnmgfkaejhmp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ghlijfjnodjnlekkagbjgnkfllahlecc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/giadkdabdbdhmahngheccinffjjfoiik": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/giijkkefkpggbpmbccmebloapelhnggk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gjhomgniaideemmkianiahiffejoiiof": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gldgapmekfidghcadcgmcapekmcofipd": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/glhaigmholpejdnphinknaphmigmbkhi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/glmmbajndnlkglndcdnkiehomjkpkihn": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onConnect": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/glmniimhlmbfbciijmgppnoodahdhdil": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gmfnhgekmcgknlbnccifbgaolkmfdack": {
+  "extension": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.getBackgroundPage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gmiaemibdhfgcbalghkphidpfhjkddkm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gmnbooobfpmpneahdodoiddocbbjllga": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gmphmnmdmcdlejpeldlpnkhifppmanca": {
+  "browser_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gnapooibnagamngemlkkjmjfkmgbdmcl": {
+  "extension": {
+   "needed": 1,
+   "residual": 2,
+   "converted": -1,
+   "byApi": {
+    "chrome.extension.connect": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    },
+    "chrome.extension.onConnect": {
+     "needed": 0,
+     "residual": 1,
+     "converted": -1
+    }
+   },
+   "residuals": [
+    {
+     "file": "popup/popup.js",
+     "line": 18918,
+     "snippet": "port: chrome.extension.connect({",
+     "api": "chrome.extension.connect"
+    },
+    {
+     "file": "service_worker.js",
+     "line": 9156,
+     "snippet": "chrome.extension.onConnect.addListener(function (port) {",
+     "api": "chrome.extension.onConnect"
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gojdeelmcgmmjoadcjpicpkejkjbbfhc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gpcmeiebpflemahameeillncgfiifphg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gpjdfganijinlpncdlpcdlphldggdmfc": {
+  "extension": {
+   "needed": 9,
+   "residual": 0,
+   "converted": 9,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 9,
+     "residual": 0,
+     "converted": 9
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/gpmcjjjajpdjpcogciopbjbnagmdalfd": {
+  "extension": {
+   "needed": 3,
+   "residual": 2,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 3,
+     "residual": 2,
+     "converted": 1
+    }
+   },
+   "residuals": [
+    {
+     "file": "popup.js",
+     "line": 3,
+     "snippet": "//chrome.extension.getBackgroundPage().console.log('test');",
+     "api": "chrome.extension.getBackgroundPage"
+    },
+    {
+     "file": "popup.js",
+     "line": 4,
+     "snippet": "//chrome.extension.getBackgroundPage().console.log(a);",
+     "api": "chrome.extension.getBackgroundPage"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 4,
+   "residual": 1,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 1,
+     "converted": 3
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 17,
+     "snippet": "//chrome.browserAction.setIcon({path:icon_open})",
+     "api": "chrome.browserAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hafpbfgcfiaphbmmagehgpcjkbebfofp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/haimmmglahdcjolpldbbjdehfcihjlim": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hanjfllnmjomdjconodgalakmmdkcnmk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hdhafnlnpgihafppplpdfbdhjionmpin": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hdifgcbbielfnleajkgbelepjookhcji": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hebmopjpmnpcliimdcacdiliomcclfoo": {
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/heenegfokphjkmogeccbaindjjnpijck": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hfcmeikimmjeojjfjkoiblijpllbgpnk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hgaofhcidmhfjmmapdknkofgchogocll": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hgdmkcdlldldkeahjgjejcjhkmidnbfm": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hgmdeeoighmhomddlghfjcidkdcpbllf": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hhbhcggbfgajhepphiabjejhjcdedcpk": {
+  "extension": {
+   "needed": 43,
+   "residual": 0,
+   "converted": 43,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 43,
+     "residual": 0,
+     "converted": 43
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hhhnlfjjgehegpojcilpebhmldcjgjjg": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hhinchjegkfefcpdhkghcinpkkenjgdf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hholgmphhacfggakbffioccbmcnmkckg": {
+  "tabs": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 5,
+     "residual": 0,
+     "converted": 5
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hhppgklamoagmdbbcbeigekfhhhhbnbb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hijfpflgcdkckgihbjlpengkommanmbe": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hkemkgpbjkglonlpilanmeaoahgkhmcn": {
+  "extension": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.extension.onRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.getBackgroundPage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hkghkfjmhdkandmlbjdigjhaldhdjpof": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hkiecdebiebblkedibdmjcjnmmikplcl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hljeeelkdfhjpbekcgjnobenjbdeknhb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hmlbbpbfhpdlgfnpdlgkjbkkbfhpaoai": {
+  "extension": {
+   "needed": 2,
+   "residual": 1,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 1,
+     "converted": 1
+    }
+   },
+   "residuals": [
+    {
+     "file": "js/inject.js",
+     "line": 137,
+     "snippet": "eval(\"// Jquery\\nwindow.$ = __webpack_require__(59);\\nwindow.JQuery = __webpack_require__(59);\\n\\n// get path of build folder files\\nvar url = chrome.extension.getURL('pages/app.html');\\n// Iframe ele",
+     "api": "chrome.extension.getURL"
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hnckgnbicnmpdppjnbchkokjinfhfpla": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 21925,
+     "snippet": "//chrome.browserAction.setTitle({tabId: tabId, title: title});",
+     "api": "chrome.browserAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hndckmccaaoclfpiagnjocnfclgnfije": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hodphpbkkfioipjgeohmbaeejipplmae": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hojdaeaggpookhlhhilkbibkfbnmpgpa": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/holkaimpefmoidkdamcdfogjdbopihoe": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/hpnknoigkkchlbhimjcncapoilgbkfmo": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ibchpjahjhifolbghpjgfciabdcdnpid": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ibkmmlejbcdiljjbcoibpmkionnjmlbn": {
+  "browser_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/idcmeohcendflladpgjlmbjhajiaddkg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/idjoiihokgcjamodpblidfgcapoganng": {
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/idjpogkmgpbfokejnjegjlfniocgfhnp": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 1,
+     "snippet": "!function(t){var e={};function r(n){if(e[n])return e[n].exports;var i=e[n]={i:n,l:!1,exports:{}};return t[n].call(i.exports,i,i.exports,r),i.l=!0,i.exports}r.m=t,r.c=e,r.d=function(t,e,n){r.o(t,e)||Ob",
+     "api": "chrome.browserAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/idlfipfkeckfbnknbmeadjgjdicgjjli": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/idojlgkdoohgidhpcjamhpdaofafiocj": {
+  "extension": {
+   "needed": 5,
+   "residual": 1,
+   "converted": 4,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 5,
+     "residual": 1,
+     "converted": 4
+    }
+   },
+   "residuals": [
+    {
+     "file": "dist/bundle.js",
+     "line": 28,
+     "snippet": "chrome.extension.getBackgroundPage = function() {",
+     "api": "chrome.extension.getBackgroundPage"
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/iekallpaneiiojokfppnpckdebnkeidj": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ifddjhjeeeahbfboonedjbpbfojidadh": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ifinhiedefieainkbjjjcomcfnjceofd": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ifkickiginfocccnhcfifmejechhmbli": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/igbaaplkmhfcfempadclobapcobgfnhc": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/igehidgmdciajedkhlpekpanbehflipk": {
+  "extension": {
+   "needed": 11,
+   "residual": 0,
+   "converted": 11,
+   "byApi": {
+    "chrome.extension.onConnect": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.connect": {
+     "needed": 10,
+     "residual": 0,
+     "converted": 10
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/igfbjepcmlgabkgpkpbklmpbbnlagcoj": {
+  "extension": {
+   "needed": 8,
+   "residual": 3,
+   "converted": 5,
+   "byApi": {
+    "chrome.extension.sendMessage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.onMessage": {
+     "needed": 6,
+     "residual": 3,
+     "converted": 3
+    }
+   },
+   "residuals": [
+    {
+     "file": "scripts/combined-head-libraries.js",
+     "line": 1,
+     "snippet": "!function(f){if(\"object\"==typeof exports&&\"undefined\"!=typeof module)module.exports=f();else if(\"function\"==typeof define&&define.amd)define([],f);else{(\"undefined\"!=typeof window?window:\"undefined\"!=",
+     "api": "chrome.extension.onMessage"
+    },
+    {
+     "file": "scripts/popup-combined-head-libraries.js",
+     "line": 1,
+     "snippet": "!function(f){if(\"object\"==typeof exports&&\"undefined\"!=typeof module)module.exports=f();else if(\"function\"==typeof define&&define.amd)define([],f);else{(\"undefined\"!=typeof window?window:\"undefined\"!=",
+     "api": "chrome.extension.onMessage"
+    },
+    {
+     "file": "service_worker.js",
+     "line": 107268,
+     "snippet": "/** @namespace chrome.extension.onMessage */",
+     "api": "chrome.extension.onMessage"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 5,
+     "residual": 0,
+     "converted": 5
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/igoojenlmajfglpidhkimplbmcjlponi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ihdanbaefbkjdfpkoaeghlhlojepjjgk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ihmogkmilpcjjflgahkelgnjmcpmbjfm": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 26,
+   "residual": 0,
+   "converted": 26,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 26,
+     "residual": 0,
+     "converted": 26
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/iikcdekihignkjbecpckckoidkmjbkoj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ijanbjhbpglkhncjadppmcnooicdkljd": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ijcicekfknlachmpfckagnhhoedfoeep": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/imgonkciigiopnpmjhacikppghlemilh": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ipcblpolaeanpijbelaaaalmbbnfokhc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/iphoklkbghonenhklnphmgaakpbdjdic": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ipjlpmanhledaljkolefpbcmodkhhpik": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jcklpblmdpnlcojdhpgcaadfjecfbghg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jdmepaljbmglonfljdlohodkaaakbmjm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jfkpbpamjphcknbhopogenlabidahcip": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jfpffimkffkiffdaonmanonhedlkfenf": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jfpmipfmnoleakbnehmhhoefgofjilba": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.onSelectionChanged": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 7,
+   "residual": 0,
+   "converted": 7,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 7,
+     "residual": 0,
+     "converted": 7
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jhblcjicpdjbeinhjbmfjnijncbklclh": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jicfhkclcbbdonkdapiekgbhggdocdnp": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jjoojeldkdnibcdoadogbdefbjlamkpa": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jkhpcjlkalgnhlnbjlmbijpnjadbbcpg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jkkajfdlllklkdogdliiekiifkohbind": {
+  "extension": {
+   "needed": 40,
+   "residual": 0,
+   "converted": 40,
+   "byApi": {
+    "chrome.extension.sendMessage": {
+     "needed": 32,
+     "residual": 0,
+     "converted": 32
+    },
+    "chrome.extension.getURL": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    },
+    "chrome.extension.onMessage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jlpchpckgnbidjoglbkkkdgflcpcmkec": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jmlodgfmibdmnoancjhgdgdgaclokhgi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jnjmfoocddpeelapkbkkiilpgecmlmci": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jnldbjecklhlngfiigiffndeaccgnmhp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jokohgmhnpcjebmohaadcicbidocjhdd": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jpejajbhcnbpbknefhfphhlebdfbcfae": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jpginnjealbknnbgnklknalagkdmlpag": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/jpjgnkoobdjggjknoejleibclddflhhj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kajdnjdbjjnkpjcbekfcolcdjccjmdhb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kamdgboidomchcpinngjlbcamfhbkhnn": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kbbclhhljmpmfgameocdhefdpmlimegi": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kbgaihnlngffdgljpbgbpcphflmmdhpg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kbiaooppehklphpnjgjidkcnkoiakjjm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kbkaadcbdaiobocnpdocjnihcehemhde": {
+  "extension": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 13,
+   "residual": 0,
+   "converted": 13,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 13,
+     "residual": 0,
+     "converted": 13
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kcbhhbgkmcjefhnnofdjaemfncaclfbc": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kccbikohjealaaeaklknglnonondaiff": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kccnkinkappfjppknffcpjkhkpambgfm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kclkakodphjhmpeoboogpgipinfmocdk": {
+  "extension": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "scripts/content.js",
+     "line": 1,
+     "snippet": "\"use strict\";function loadingOverlay(){var a={lines:13,length:11,width:5,radius:17,corners:1,rotate:0,color:\"#FFF\",speed:1,trail:60,shadow:!1,hwaccel:!1,className:\"spinner\",zIndex:2e9,top:\"auto\",left:",
+     "api": "chrome.extension.getURL"
+    }
+   ]
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kdlldkmdldhhichhafohldmgpicfnfcc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kdmfcofnhnllmodanmiegbaolallgmbi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kfoleapoalboppohojocieohemdhajpn": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/khneipdgeiofabcjbidcicboeofghjkc": {
+  "extension": {
+   "needed": 7,
+   "residual": 0,
+   "converted": 7,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onRequest": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kjkehehijnanbmdnidofledikdppodfh": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kjmdkeknjohejfgheakglacbddbdibal": {
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kkaapbjemjdephhmgogljcgadcbkpjmp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kkbefhnoidbeeooejpclbloenoglnnoh": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kkmmijhhiphhodhinhnpnbnmffnilial": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/klclbacdcfigjaiceajinkonnkcgnobc": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/klekjkocnhkkfbjnkococjilkgemegfk": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/klngbpegljjdefmebjneckaikgmfjhbm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kmbgpflaojmkofefndnoijbfmfinmepc": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kmfkgbembmgpplalpecdfmfflcnagmgg": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kmjccehdojphpoalkojfmfndbmpmkkod": {
+  "extension": {
+   "needed": 9,
+   "residual": 0,
+   "converted": 9,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 7,
+     "residual": 0,
+     "converted": 7
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.tabs.getAllInWindow": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/knbpcoimkjgfoefdaoidapccpgelemad": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kndnfbmjopkenghimanimafaijmhibac": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 1,
+     "snippet": "(()=>{\"use strict\";var e={136:function(e,n,t){var r=this&&this.__awaiter||function(e,n,t,r){return new(t||(t=Promise))((function(o,i){function a(e){try{u(r.next(e))}catch(e){i(e)}}function c(e){try{u(",
+     "api": "chrome.browserAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/knecnendkbbdmncklbhlgcppjpajaipd": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kngmlmkiapjbjanhjdhcmigpbphdiekm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/knhjbhkpdfmlmjiaepkppgcijhanmiem": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kogangejpnmblpiffnapjdebdpkonoff": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/koiicpkkmlnhcnankkllaoadjbnpglbj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kopecoagikhelgkenhicomflchdimnga": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/kpkejmeloobaeeopkjdbnebcgebhcboe": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lcaccbenpmmlggggdcobmnnnpdbmkndh": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lchgncgkegpocpdbdjnkkjccbggbnaeh": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lcpaogdhkijhbibofdgmcabbgpcdlplm": {
+  "extension": {
+   "needed": 22,
+   "residual": 1,
+   "converted": 21,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 20,
+     "residual": 0,
+     "converted": 20
+    },
+    "chrome.extension.isAllowedFileSchemeAccess": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    },
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 47040,
+     "snippet": "chrome.extension.isAllowedFileSchemeAccess(function (isAllowedAccess) {",
+     "api": "chrome.extension.isAllowedFileSchemeAccess"
+    }
+   ]
+  },
+  "page_action": {
+   "needed": 6,
+   "residual": 1,
+   "converted": 5,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 6,
+     "residual": 1,
+     "converted": 5
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 47012,
+     "snippet": "// chrome.pageAction.show(tabId); // Not needed in MV3 as action is always shown",
+     "api": "chrome.pageAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ldigknfdafjbnbdadlfdfampapmdhhfo": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ldmndgpabggpklkhngiifmopjbkllfal": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ldncjdbdafdkhbkbknemallpgjpifodl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/leaichjefmjhmpmmmcpbhkpolefojidl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/legdfpaiinfkhmddpgcafpffhgjjpgkl": {
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/leghipcfbbgfpibfanpnocmagdadgmeg": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lfdkbfgkbeaacmbimagfneboofhomjpm": {
+  "browser_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lfogkjopedilanfdgkkdiegmhlbcpelj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lgaankgifdhicdelppjoccifpgmoealk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lhepcaejamkdnoljcjaakmihhmjjjkeh": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lhmliamcnkidjmpkehhdobloflkinjkm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lifecgkglfdbmpdjibncllkalliakkag": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/liinipoackgjljefijdlcpgloajlldil": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ljibmalhangcmjoodlklooihehgnohei": {
+  "browser_action": {
+   "needed": 2,
+   "residual": 1,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 1,
+     "converted": 1
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 36,
+     "snippet": "\\nself['local' + 'Storage'] = {\\n  getItem: function() { return null; },\\n  setItem: function() { return null; },\\n  removeItem: function() { return null; },\\n  clear: function() { return null; },\\n  ",
+     "api": "chrome.browserAction."
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ljjfbdkncogailpjfjjodnjaifklnphb": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.tabs.getAllInWindow": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lkaognfoomlccfpcakpdjnoelbajpjdn": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lmldjiliodhgfjlfjlliddiohpaelnph": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lnmkkohgjfjokjoaaebdbconhokeajgp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lobmpnlkbikhiibppcbicddmldmpofjh": {
+  "browser_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lohpdfikcbegjgnjbindmhkkmbjkbhhf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/lokeeijgkleggipidkdfkflopoolaenn": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/maefomipmebljabfchjchooccjdhhckb": {
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mafjhggcnknolonfdoiecimogilmgjhm": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/maoineplgnaigekhfopdieiahgdjdkam": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mboadjigkfhgnhdcicgicafjmbkfijcl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mcmeaebmnjcpdligmemdlmofjagojedp": {
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mdlhominadhbdceihadncpnkkdekapcm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mebhnnfdhipfhjaebnboibcdkdipjddj": {
+  "extension": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/meelgppppibgjlempimbhnlcbmfjdgfi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/memokfnkpgdjobpofphcablopgiichff": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/meomojfiombmjonneipeklinaikkokgh": {
+  "extension": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "undo.bundle.js",
+     "line": 36914,
+     "snippet": "function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError(\"Cannot call a class as a function\\; } }\\n\\nfunction _possibleConstructorReturn(self, ca",
+     "api": "chrome.extension.onMessage"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mflhbpkjffppcgdmalaphfecmfnjannp": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getAllInWindow": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mflhkebbldohmljnahnalenngfmlbble": {
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mgnicgalaiciajfgaebngkakjeceljkk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mhaofkmdpgjdcecgfmainpjgnfmmhlbl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mhlodgmpnjjhfpppmohelbfmeoninado": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mhmhdkokgcdoffpfbjonifikciaalmpf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mhpelcikddgfccgjboanmkjnandfgacd": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mibpohnengmoemnenfijmoiajkkimpin": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/miflofidoigplobekjhhhjmbopdlbfgl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mjcgkhlnnegnikoahjmpomldacbngfcp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mjhogeibfeflcnldcmiainpdkdmfnhpb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mkdeccahohlpfjbhmmaaijljjhmfmdfn": {
+  "extension": {
+   "needed": 2,
+   "residual": 1,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "popup.bundle.js",
+     "line": 120762,
+     "snippet": "var bgPage = null; // chrome.extension.getBackgroundPage();",
+     "api": "chrome.extension.getBackgroundPage"
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mkfoljfaagohdbjmdoecllolaicpjedn": {
+  "page_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mkhohhpeajnephpblgghggghkjkffhgn": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mkljmpojnendehckjbagemkkgamnagco": {
+  "extension": {
+   "needed": 43,
+   "residual": 0,
+   "converted": 43,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 43,
+     "residual": 0,
+     "converted": 43
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mknflhinhbbiabecejbgcgpilcfjkfho": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mknibjeheoldfjfdgpamolimbiikbiop": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mkpbikojjcjmggnghhhelpphjkailpbf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mmkmmgdmglbhgogpaepmhhbecdilgoee": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mmojfhbllhldeklecnmifbnelpklepin": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/mpnokdijeinfkpddhdmkfghedpmbkbok": {
+  "extension": {
+   "needed": 10,
+   "residual": 0,
+   "converted": 10,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    },
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onRequest": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nabmnggkfkaejlalimicclbhgclafkni": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nbfgffhkoonlbacmmjampnpjejjjdgpg": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getAllInWindow": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 8,
+   "residual": 0,
+   "converted": 8,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 8,
+     "residual": 0,
+     "converted": 8
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nbfnnejhijoedkcdfghanlcekleahphh": {
+  "browser_action": {
+   "needed": 17,
+   "residual": 0,
+   "converted": 17,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 17,
+     "residual": 0,
+     "converted": 17
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nejonmoghjjielofmaiccajkoologdnh": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nekhigagdliopghmjflmeemocmekpgin": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/neokdbgnoimplhcenmmbjabdhhjbmbdb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nfohhgcgdfcifjpjfnaoeookdbgkgbmm": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nianghdcpickkjjjbpbbjniocdocafdb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nibbmlaaffjnpniijgkpbecddpkpmmlp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nidpinnckkmomhmokjjomajcjnhidcen": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nildjgafogjpahlklpncffffdnljkgbo": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/njchepcljhlephnkhpjnggplnjelkdlj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/njfmakabgionbalgnlpoiccgoecdeeoi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/njihmgeigicpmhhnnmhhbpfhmilfjhbe": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 7,
+   "residual": 0,
+   "converted": 7,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 7,
+     "residual": 0,
+     "converted": 7
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nkdepmnfhdjfbebdfpahbnhfafmglidi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nkdlgjklfeekokeeidfelpdhkpbonhho": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nkhmngpedilcjkmdackogdiiiiakhfgf": {
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nkldlcgbcefchngadengmjdcapgahgkp": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nkppjhcodobfcfmbgijefgclihcamebc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nlkpljkacgmblcgjappckgbekaljfnjk": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nlllffpgjfkgoagldkdphnabhndmdfom": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nmacnakpmbegfnfgiffoblaflkefjlca": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nmecppbaggcpblcfdidlokfnfpljikgj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nmhkeeibpnhkkpffeihfnfngnhblbdck": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nneamfdhikhofpcjlekehfdgcjhndafd": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nnfihfihbmgnkeeeebhanhmpojclfpad": {
+  "extension": {
+   "needed": 24,
+   "residual": 2,
+   "converted": 22,
+   "byApi": {
+    "chrome.extension.sendMessage": {
+     "needed": 21,
+     "residual": 0,
+     "converted": 21
+    },
+    "chrome.extension.onMessage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.isAllowedFileSchemeAccess": {
+     "needed": 1,
+     "residual": 2,
+     "converted": -1
+    }
+   },
+   "residuals": [
+    {
+     "file": "service_worker.js",
+     "line": 1254,
+     "snippet": "// chrome.extension.isAllowedFileSchemeAccess is not available in MV3",
+     "api": "chrome.extension.isAllowedFileSchemeAccess"
+    },
+    {
+     "file": "service_worker.js",
+     "line": 1255,
+     "snippet": "// chrome.extension.isAllowedFileSchemeAccess(function(isAllowedAccess) {",
+     "api": "chrome.extension.isAllowedFileSchemeAccess"
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nnmpkdcdifmlcgikkbcnpdjbpdefeomb": {
+  "tabs": {
+   "needed": 29,
+   "residual": 0,
+   "converted": 29,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 29,
+     "residual": 0,
+     "converted": 29
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/noklhnibgehjafjdilhgfpiamldpbokc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/nomgnakdcocgebhibakhmgfknacokffc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/npadfkcikbkgpigkpfniolgogmiijoll": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/npapjhdlcolfebiednaaogkhbmomfcle": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/odadhnmcileiicgebapaoignoeggpccb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/odpmclpmikghiankflfcholkpflbnffa": {
+  "extension": {
+   "needed": 2,
+   "residual": 1,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "injection.js",
+     "line": 43,
+     "snippet": "//chrome.extension.sendRequest(title);",
+     "api": "chrome.extension.sendRequest"
+    }
+   ]
+  },
+  "page_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/oehnnplgoegkmflaekaflbdpbaagjfbe": {
+  "browser_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ofddaejenmgdfhlbfmfoolpgfnajnmip": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.tabs.sendRequest": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ofngeedihalecgbjodmejpdfndcahlil": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ofoaklobkijcpfchnpmamnkodekhpgla": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ofpaooafcdpbgbijbnhbjdjlodpcpifc": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/oigdddkmgnfibgaafpaecbgbkomgoanb": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/oipmhfjfahhabmkhmicdfnejhmdfbhal": {
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ojadomlppplidhmidjmoabhnjdgdoapl": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/olpofgjoceeddickmfmomcabjenenigj": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/omdlklpilnmdfldondodhieojpkodndi": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/onbjfjajekembgebmjmoonbkpgeckape": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/opofknelcmapaeiidceffimbngcamhep": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pahcliklakmemcjblnkkgojbjapleclo": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pakpfgooafhnekbimoodbcekeaiabbhe": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/palfmbecnjlbjmnjiflmkpnpjmlcgfke": {
+  "extension": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "popup.js",
+     "line": 15,
+     "snippet": "// BG = chrome.extension.getBackgroundPage(); // Deprecated in MV3",
+     "api": "chrome.extension.getBackgroundPage"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pcglcincgpnlidilejlohhoecfbggopn": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pchalmfipapbcbncigfeemlhmgpiilal": {
+  "extension": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 6,
+   "residual": 0,
+   "converted": 6,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 6,
+     "residual": 0,
+     "converted": 6
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pcmoeemedgaidojflmkfhpgfcbclhnoa": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pdhcplbcmmaghpboidnooibhfdnpfipm": {
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pdkilmlkbegkdppdpolfknnibcdelghl": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.tabs.sendRequest": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pecflpnngpkbkpplefofhokbjnehcadb": {
+  "extension": {
+   "needed": 3,
+   "residual": 0,
+   "converted": 3,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 3,
+     "residual": 0,
+     "converted": 3
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pehpbiaaihdhfpcmkajanemdioaenjjf": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pekjcpfadgjcbjjeajojbpkaifljlglf": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pffkklpbehjpoaeegghbdjfikinmndnd": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pfgdcebeaipgdhmihejolhllmnpclblo": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pgcmocepbpfhmmijbkkbgfeblfcdmmbf": {
+  "browser_action": {
+   "needed": 7,
+   "residual": 0,
+   "converted": 7,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 7,
+     "residual": 0,
+     "converted": 7
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pgddhpmoaandkenceenoaahipgjefkbo": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.onActiveChanged": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pgdfklcflknlgdjaaelmnegcfkhoiopi": {
+  "extension": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.extension.onConnect": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onMessage": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    },
+    "chrome.extension.connect": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pgeebkoooblfhhckkccbccmefkaapfik": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pgikkieojfchgigcakidkphfdbpihgpl": {
+  "extension": {
+   "needed": 5,
+   "residual": 1,
+   "converted": 4,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 5,
+     "residual": 1,
+     "converted": 4
+    }
+   },
+   "residuals": [
+    {
+     "file": "chromeevents.js",
+     "line": 19,
+     "snippet": "//chrome.extension.getBackgroundPage().console.log('POPUP: update called\\n');",
+     "api": "chrome.extension.getBackgroundPage"
+    }
+   ]
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pgnjcjahahkhppedgijeichfkfgjcfll": {
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pijgifejpphcjkhjnkfehdmappklajcn": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/piklbpeioeheblaifhlfhgeegdgkcpga": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pimjgeemhpcfodpeklckmhjeodaiggig": {
+  "browser_action": {
+   "needed": 4,
+   "residual": 0,
+   "converted": 4,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 4,
+     "residual": 0,
+     "converted": 4
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pjcdhklpcmadoldkmojbmlimojgbjdji": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pjndiiopiiojbjkgaofbmmmfloejdend": {
+  "extension": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pkapgokdkgopikfnnmojmodkfihafcni": {
+  "tabs": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.tabs.getSelected": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  },
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pknjhbmcfdoebllidlolfnhkooigpeel": {
+  "extension": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.extension.getBackgroundPage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pmflbpkabookgclhlllkememcfjnepmp": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pmkfcaeagpolfcahpldamgahghhomjbm": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pmpfhpljobmccilgndcgibmbmjdpapfo": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/pnbfiinedmemhcdgfkniadoeomlgkkbn": {
+  "extension": {
+   "needed": 5,
+   "residual": 0,
+   "converted": 5,
+   "byApi": {
+    "chrome.extension.onMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.onMessageExternal": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendMessage": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    },
+    "chrome.extension.sendRequest": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  },
+  "tabs": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.tabs.getAllInWindow": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "js/app.js",
+     "line": 6,
+     "snippet": "// chrome.tabs.getAllInWindow(undefined, function(tabs) {",
+     "api": "chrome.tabs.getAllInWindow"
+    }
+   ]
+  },
+  "browser_action": {
+   "needed": 2,
+   "residual": 0,
+   "converted": 2,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 2,
+     "residual": 0,
+     "converted": 2
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ppamcpgjecjimecjahkfifanhkjodkae": {},
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ppihcnmdofjgblaahomfdmcnpblcbldn": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ppncdbmpkkfhipeplkdknanbmomaeplo": {
+  "browser_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.browserAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ },
+ "20261005-081824-gemma-4-31b-it-fp8-256k/ppnhhlbhcnnncmpdipllejanjhckjhoh": {
+  "extension": {
+   "needed": 1,
+   "residual": 1,
+   "converted": 0,
+   "byApi": {
+    "chrome.extension.getURL": {
+     "needed": 1,
+     "residual": 1,
+     "converted": 0
+    }
+   },
+   "residuals": [
+    {
+     "file": "content.bundle.js",
+     "line": 2,
+     "snippet": "(()=>{var e={755:function(e,t){var n;!function(t,n){\"use strict\";\"object\"==typeof e.exports?e.exports=t.document?n(t,!0):function(e){if(!e.document)throw new Error(\"jQuery requires a window with a doc",
+     "api": "chrome.extension.getURL"
+    }
+   ]
+  },
+  "page_action": {
+   "needed": 1,
+   "residual": 0,
+   "converted": 1,
+   "byApi": {
+    "chrome.pageAction.": {
+     "needed": 1,
+     "residual": 0,
+     "converted": 1
+    }
+   },
+   "residuals": []
+  }
+ }
+}

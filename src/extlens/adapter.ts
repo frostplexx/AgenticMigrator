@@ -259,9 +259,28 @@ function makeSourceCache() {
 
 export function makeAgenticBackend(runRoot: string, registry: Registry, host?: HostController): Backend {
     runRoot = resolve(runRoot);
+    /**
+     * The original MV2 tree for a run, or null when it cannot be found.
+     *
+     * `source-path.txt` records an *absolute* path written on the machine that ran the
+     * migration. Move the host, restore a backup under a different user, or mount the corpus
+     * elsewhere, and every one of those paths dangles — the run still has its MV3 tree in
+     * `out/`, but the MV2 side silently becomes null, and a client asking to view the code is
+     * told there is no extension to show. That is a misleading answer: the extension exists,
+     * the path is simply stale.
+     *
+     * So the recorded path is tried first and then, if it is gone, the same extension id is
+     * looked for under the corpus this host was actually pointed at. Only an id that is absent
+     * from both is a genuine null.
+     */
     const sourcePath = (run: RunEntry): string | null => {
         const p = join(run.dir, "source-path.txt");
-        return existsSync(p) ? resolve(readFileSync(p, "utf8").trim()) : null;
+        if (!existsSync(p)) return null;
+        const recorded = resolve(readFileSync(p, "utf8").trim());
+        if (existsSync(join(recorded, "manifest.json"))) return recorded;
+        // Stale absolute path: fall back to this host's corpus by extension id.
+        const relocated = resolveCorpusExtension(basename(recorded));
+        return relocated;
     };
 
     /** A run row is visible once the migrated out/manifest.json exists on disk. */
@@ -289,6 +308,23 @@ export function makeAgenticBackend(runRoot: string, registry: Registry, host?: H
         return report ? reportVerdict(report) : null;
     };
     const sources = registry.listSources();
+    /**
+     * Where an extension id lives in the corpus this host was pointed at, if anywhere.
+     *
+     * Used only to recover from a `source-path.txt` whose absolute path no longer exists.
+     * Keyed by basename because the extension id *is* the directory name in both the corpus
+     * and the recorded path (`<corpus>/<id>`).
+     */
+    const corpusDirById = new Map(sources.map((s) => [s.id, resolve(s.dir)]));
+    const resolveCorpusExtension = (id: string): string | null => {
+        const hit = corpusDirById.get(id);
+        if (hit && existsSync(join(hit, "manifest.json"))) return hit;
+        // A corpus entry may nest the MV2 tree one level down (`<id>/mv2`), which is how
+        // downloads land. Accept that shape too rather than reporting a false null.
+        const nested = hit ? join(hit, "mv2") : null;
+        if (nested && existsSync(join(nested, "manifest.json"))) return nested;
+        return null;
+    };
 
     // Three tiers. Fat trees live only in the byte-budgeted LRU; the derived profile and
     // the bare manifest are tiny (KBs per extension), so their Maps are deliberately

@@ -1,0 +1,605 @@
+{
+ "source": "/Users/daniel/Projects/uni.local/master_project/axial_coding/extlens-reports-2026-10-11.json",
+ "exportedAt": "2026-10-11T07:49:09.244Z",
+ "n_reports_source": 499,
+ "verdict_filter": [
+  "not_working"
+ ],
+ "n_reports": 53,
+ "n_segments": 4337,
+ "packet_token_budget": 35000,
+ "n_packets": 59,
+ "max_packet_est_tokens": 33609,
+ "packets": [
+  {
+   "packet": "R00-p1",
+   "report_idx": "R00",
+   "name": "Password Generator",
+   "verdict": "not_working",
+   "first": "R00-003",
+   "last": "R00-097",
+   "segments": 95,
+   "est_tokens": 19401
+  },
+  {
+   "packet": "R01-p1",
+   "report_idx": "R01",
+   "name": "Bookmark Visualizer",
+   "verdict": "not_working",
+   "first": "R01-003",
+   "last": "R01-044",
+   "segments": 42,
+   "est_tokens": 8024
+  },
+  {
+   "packet": "R02-p1",
+   "report_idx": "R02",
+   "name": "新浪微博时区助手 Timezone Helper for Weibo.com",
+   "verdict": "not_working",
+   "first": "R02-003",
+   "last": "R02-046",
+   "segments": 44,
+   "est_tokens": 7514
+  },
+  {
+   "packet": "R03-p1",
+   "report_idx": "R03",
+   "name": "Jamo Automator",
+   "verdict": "not_working",
+   "first": "R03-003",
+   "last": "R03-152",
+   "segments": 150,
+   "est_tokens": 32228
+  },
+  {
+   "packet": "R04-p1",
+   "report_idx": "R04",
+   "name": "Vocabera",
+   "verdict": "not_working",
+   "first": "R04-003",
+   "last": "R04-117",
+   "segments": 115,
+   "est_tokens": 27315
+  },
+  {
+   "packet": "R05-p1",
+   "report_idx": "R05",
+   "name": "MeetInOne Extension for Google Meet",
+   "verdict": "not_working",
+   "first": "R05-003",
+   "last": "R05-050",
+   "segments": 48,
+   "est_tokens": 8172
+  },
+  {
+   "packet": "R06-p1",
+   "report_idx": "R06",
+   "name": "VocaDict - Search Once, Remember Forever",
+   "verdict": "not_working",
+   "first": "R06-003",
+   "last": "R06-067",
+   "segments": 65,
+   "est_tokens": 15024
+  },
+  {
+   "packet": "R07-p1",
+   "report_idx": "R07",
+   "name": "CloudCall Unified Communications for CRM",
+   "verdict": "not_working",
+   "first": "R07-003",
+   "last": "R07-046",
+   "segments": 44,
+   "est_tokens": 6500
+  },
+  {
+   "packet": "R08-p1",
+   "report_idx": "R08",
+   "name": "code runner",
+   "verdict": "not_working",
+   "first": "R08-003",
+   "last": "R08-070",
+   "segments": 68,
+   "est_tokens": 14532
+  },
+  {
+   "packet": "R09-p1",
+   "report_idx": "R09",
+   "name": "ShardEx",
+   "verdict": "not_working",
+   "first": "R09-003",
+   "last": "R09-132",
+   "segments": 130,
+   "est_tokens": 33609
+  },
+  {
+   "packet": "R10-p1",
+   "report_idx": "R10",
+   "name": "Information Visualization of Browser History",
+   "verdict": "not_working",
+   "first": "R10-003",
+   "last": "R10-038",
+   "segments": 36,
+   "est_tokens": 8308
+  },
+  {
+   "packet": "R11-p1",
+   "report_idx": "R11",
+   "name": "Brightery Mega Marketing",
+   "verdict": "not_working",
+   "first": "R11-003",
+   "last": "R11-054",
+   "segments": 52,
+   "est_tokens": 14663
+  },
+  {
+   "packet": "R12-p1",
+   "report_idx": "R12",
+   "name": "Fast Reader",
+   "verdict": "not_working",
+   "first": "R12-003",
+   "last": "R12-058",
+   "segments": 56,
+   "est_tokens": 15180
+  },
+  {
+   "packet": "R13-p1",
+   "report_idx": "R13",
+   "name": "TELUS Business Connect for Microsoft 365",
+   "verdict": "not_working",
+   "first": "R13-003",
+   "last": "R13-058",
+   "segments": 56,
+   "est_tokens": 18475
+  },
+  {
+   "packet": "R14-p1",
+   "report_idx": "R14",
+   "name": "wekey",
+   "verdict": "not_working",
+   "first": "R14-003",
+   "last": "R14-095",
+   "segments": 93,
+   "est_tokens": 19297
+  },
+  {
+   "packet": "R15-p1",
+   "report_idx": "R15",
+   "name": "Quicker Search",
+   "verdict": "not_working",
+   "first": "R15-003",
+   "last": "R15-071",
+   "segments": 69,
+   "est_tokens": 22454
+  },
+  {
+   "packet": "R15-p2",
+   "report_idx": "R15",
+   "name": "Quicker Search",
+   "verdict": "not_working",
+   "first": "R15-072",
+   "last": "R15-167",
+   "segments": 96,
+   "est_tokens": 20635
+  },
+  {
+   "packet": "R16-p1",
+   "report_idx": "R16",
+   "name": "ezDeFi",
+   "verdict": "not_working",
+   "first": "R16-003",
+   "last": "R16-076",
+   "segments": 74,
+   "est_tokens": 20653
+  },
+  {
+   "packet": "R17-p1",
+   "report_idx": "R17",
+   "name": "Hydrawallet",
+   "verdict": "not_working",
+   "first": "R17-003",
+   "last": "R17-067",
+   "segments": 65,
+   "est_tokens": 15803
+  },
+  {
+   "packet": "R18-p1",
+   "report_idx": "R18",
+   "name": "FGC Lite",
+   "verdict": "not_working",
+   "first": "R18-003",
+   "last": "R18-120",
+   "segments": 118,
+   "est_tokens": 26252
+  },
+  {
+   "packet": "R19-p1",
+   "report_idx": "R19",
+   "name": "PC Protect Safe Site",
+   "verdict": "not_working",
+   "first": "R19-003",
+   "last": "R19-111",
+   "segments": 109,
+   "est_tokens": 27186
+  },
+  {
+   "packet": "R20-p1",
+   "report_idx": "R20",
+   "name": "Covfefe",
+   "verdict": "not_working",
+   "first": "R20-003",
+   "last": "R20-114",
+   "segments": 112,
+   "est_tokens": 17900
+  },
+  {
+   "packet": "R21-p1",
+   "report_idx": "R21",
+   "name": "CheXplore JS",
+   "verdict": "not_working",
+   "first": "R21-003",
+   "last": "R21-089",
+   "segments": 87,
+   "est_tokens": 22567
+  },
+  {
+   "packet": "R21-p2",
+   "report_idx": "R21",
+   "name": "CheXplore JS",
+   "verdict": "not_working",
+   "first": "R21-090",
+   "last": "R21-176",
+   "segments": 87,
+   "est_tokens": 22404
+  },
+  {
+   "packet": "R22-p1",
+   "report_idx": "R22",
+   "name": "ContentStudio - Social Media Scheduler",
+   "verdict": "not_working",
+   "first": "R22-003",
+   "last": "R22-039",
+   "segments": 37,
+   "est_tokens": 9620
+  },
+  {
+   "packet": "R23-p1",
+   "report_idx": "R23",
+   "name": "实时行情助手火币版 - 实时查看代币涨跌幅",
+   "verdict": "not_working",
+   "first": "R23-003",
+   "last": "R23-121",
+   "segments": 119,
+   "est_tokens": 32538
+  },
+  {
+   "packet": "R23-p2",
+   "report_idx": "R23",
+   "name": "实时行情助手火币版 - 实时查看代币涨跌幅",
+   "verdict": "not_working",
+   "first": "R23-122",
+   "last": "R23-273",
+   "segments": 152,
+   "est_tokens": 31684
+  },
+  {
+   "packet": "R24-p1",
+   "report_idx": "R24",
+   "name": "Wordstat Manager",
+   "verdict": "not_working",
+   "first": "R24-003",
+   "last": "R24-073",
+   "segments": 71,
+   "est_tokens": 14859
+  },
+  {
+   "packet": "R25-p1",
+   "report_idx": "R25",
+   "name": "Appian Dev Tools",
+   "verdict": "not_working",
+   "first": "R25-003",
+   "last": "R25-074",
+   "segments": 72,
+   "est_tokens": 24117
+  },
+  {
+   "packet": "R25-p2",
+   "report_idx": "R25",
+   "name": "Appian Dev Tools",
+   "verdict": "not_working",
+   "first": "R25-075",
+   "last": "R25-191",
+   "segments": 117,
+   "est_tokens": 19982
+  },
+  {
+   "packet": "R26-p1",
+   "report_idx": "R26",
+   "name": "Text Tube",
+   "verdict": "not_working",
+   "first": "R26-003",
+   "last": "R26-076",
+   "segments": 74,
+   "est_tokens": 14291
+  },
+  {
+   "packet": "R27-p1",
+   "report_idx": "R27",
+   "name": "Jelly Party",
+   "verdict": "not_working",
+   "first": "R27-003",
+   "last": "R27-102",
+   "segments": 100,
+   "est_tokens": 25699
+  },
+  {
+   "packet": "R28-p1",
+   "report_idx": "R28",
+   "name": "Symfony2 Profiler shortcut",
+   "verdict": "not_working",
+   "first": "R28-003",
+   "last": "R28-092",
+   "segments": 90,
+   "est_tokens": 23739
+  },
+  {
+   "packet": "R28-p2",
+   "report_idx": "R28",
+   "name": "Symfony2 Profiler shortcut",
+   "verdict": "not_working",
+   "first": "R28-093",
+   "last": "R28-177",
+   "segments": 85,
+   "est_tokens": 23603
+  },
+  {
+   "packet": "R29-p1",
+   "report_idx": "R29",
+   "name": "Tabs Killer",
+   "verdict": "not_working",
+   "first": "R29-003",
+   "last": "R29-086",
+   "segments": 84,
+   "est_tokens": 16648
+  },
+  {
+   "packet": "R30-p1",
+   "report_idx": "R30",
+   "name": "Gist User Script Manager",
+   "verdict": "not_working",
+   "first": "R30-003",
+   "last": "R30-060",
+   "segments": 58,
+   "est_tokens": 18208
+  },
+  {
+   "packet": "R31-p1",
+   "report_idx": "R31",
+   "name": "ThingamaTABS",
+   "verdict": "not_working",
+   "first": "R31-003",
+   "last": "R31-075",
+   "segments": 73,
+   "est_tokens": 16107
+  },
+  {
+   "packet": "R32-p1",
+   "report_idx": "R32",
+   "name": "Noisli",
+   "verdict": "not_working",
+   "first": "R32-003",
+   "last": "R32-066",
+   "segments": 64,
+   "est_tokens": 14015
+  },
+  {
+   "packet": "R33-p1",
+   "report_idx": "R33",
+   "name": "Screenshot Capture",
+   "verdict": "not_working",
+   "first": "R33-003",
+   "last": "R33-062",
+   "segments": 60,
+   "est_tokens": 16644
+  },
+  {
+   "packet": "R34-p1",
+   "report_idx": "R34",
+   "name": "Theken Texte",
+   "verdict": "not_working",
+   "first": "R34-003",
+   "last": "R34-036",
+   "segments": 34,
+   "est_tokens": 12101
+  },
+  {
+   "packet": "R35-p1",
+   "report_idx": "R35",
+   "name": "Boom Beach Search",
+   "verdict": "not_working",
+   "first": "R35-003",
+   "last": "R35-066",
+   "segments": 64,
+   "est_tokens": 10083
+  },
+  {
+   "packet": "R36-p1",
+   "report_idx": "R36",
+   "name": "Audio Recorder",
+   "verdict": "not_working",
+   "first": "R36-003",
+   "last": "R36-088",
+   "segments": 86,
+   "est_tokens": 19909
+  },
+  {
+   "packet": "R37-p1",
+   "report_idx": "R37",
+   "name": "FinnPluss - Ekstra funksjoner til finn.no",
+   "verdict": "not_working",
+   "first": "R37-003",
+   "last": "R37-016",
+   "segments": 14,
+   "est_tokens": 3524
+  },
+  {
+   "packet": "R38-p1",
+   "report_idx": "R38",
+   "name": "Download Images",
+   "verdict": "not_working",
+   "first": "R38-003",
+   "last": "R38-086",
+   "segments": 84,
+   "est_tokens": 21962
+  },
+  {
+   "packet": "R39-p1",
+   "report_idx": "R39",
+   "name": "TabHome",
+   "verdict": "not_working",
+   "first": "R39-003",
+   "last": "R39-046",
+   "segments": 44,
+   "est_tokens": 7821
+  },
+  {
+   "packet": "R40-p1",
+   "report_idx": "R40",
+   "name": "Lájkvadász stop!",
+   "verdict": "not_working",
+   "first": "R40-003",
+   "last": "R40-014",
+   "segments": 12,
+   "est_tokens": 7135
+  },
+  {
+   "packet": "R41-p1",
+   "report_idx": "R41",
+   "name": "SNAILPLAY",
+   "verdict": "not_working",
+   "first": "R41-003",
+   "last": "R41-040",
+   "segments": 38,
+   "est_tokens": 8371
+  },
+  {
+   "packet": "R42-p1",
+   "report_idx": "R42",
+   "name": "LeadDesk Talk",
+   "verdict": "not_working",
+   "first": "R42-003",
+   "last": "R42-064",
+   "segments": 62,
+   "est_tokens": 14628
+  },
+  {
+   "packet": "R43-p1",
+   "report_idx": "R43",
+   "name": "Tocando agora (beta)",
+   "verdict": "not_working",
+   "first": "R43-003",
+   "last": "R43-052",
+   "segments": 50,
+   "est_tokens": 9608
+  },
+  {
+   "packet": "R44-p1",
+   "report_idx": "R44",
+   "name": "ShopOrama Tool - Eagle Media",
+   "verdict": "not_working",
+   "first": "R44-003",
+   "last": "R44-130",
+   "segments": 128,
+   "est_tokens": 23372
+  },
+  {
+   "packet": "R45-p1",
+   "report_idx": "R45",
+   "name": "wino",
+   "verdict": "not_working",
+   "first": "R45-003",
+   "last": "R45-020",
+   "segments": 18,
+   "est_tokens": 2496
+  },
+  {
+   "packet": "R46-p1",
+   "report_idx": "R46",
+   "name": "NIFTY 50",
+   "verdict": "not_working",
+   "first": "R46-003",
+   "last": "R46-028",
+   "segments": 26,
+   "est_tokens": 7134
+  },
+  {
+   "packet": "R47-p1",
+   "report_idx": "R47",
+   "name": "search popsike.com",
+   "verdict": "not_working",
+   "first": "R47-003",
+   "last": "R47-028",
+   "segments": 26,
+   "est_tokens": 6312
+  },
+  {
+   "packet": "R48-p1",
+   "report_idx": "R48",
+   "name": "FicusJS devtools",
+   "verdict": "not_working",
+   "first": "R48-003",
+   "last": "R48-060",
+   "segments": 58,
+   "est_tokens": 10673
+  },
+  {
+   "packet": "R49-p1",
+   "report_idx": "R49",
+   "name": "不要通知我",
+   "verdict": "not_working",
+   "first": "R49-003",
+   "last": "R49-101",
+   "segments": 99,
+   "est_tokens": 18849
+  },
+  {
+   "packet": "R49-p2",
+   "report_idx": "R49",
+   "name": "不要通知我",
+   "verdict": "not_working",
+   "first": "R49-102",
+   "last": "R49-189",
+   "segments": 88,
+   "est_tokens": 18666
+  },
+  {
+   "packet": "R50-p1",
+   "report_idx": "R50",
+   "name": "Google Search Console SEO Enhancer",
+   "verdict": "not_working",
+   "first": "R50-003",
+   "last": "R50-016",
+   "segments": 14,
+   "est_tokens": 3046
+  },
+  {
+   "packet": "R51-p1",
+   "report_idx": "R51",
+   "name": "Tecnohoy Venezuela",
+   "verdict": "not_working",
+   "first": "R51-003",
+   "last": "R51-038",
+   "segments": 36,
+   "est_tokens": 8097
+  },
+  {
+   "packet": "R52-p1",
+   "report_idx": "R52",
+   "name": "Wevuw: Review the Web",
+   "verdict": "not_working",
+   "first": "R52-003",
+   "last": "R52-032",
+   "segments": 30,
+   "est_tokens": 5579
+  }
+ ]
+}
